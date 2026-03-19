@@ -248,46 +248,10 @@ margin-bottom: 28px;
 display:none; /* remplacé par tagline */
 }
 
-#mode-btns {
-display: flex;
-gap: 12px;
-margin-bottom: 16px;
-animation: fadeUp 1.5s 0.5s ease both;
-opacity:0;
-animation-fill-mode:forwards;
-}
-
-.mode-btn {
-padding: 10px 24px;
-font-size: 12px;
-font-family: ‘Courier New’, monospace;
-font-weight: bold;
-cursor: pointer;
-letter-spacing: 2px;
-text-transform: uppercase;
-touch-action: manipulation;
-border: 1px solid;
-background: transparent;
-transition: all 0.2s;
-}
-
-.mode-btn.survival {
-color: #a0d060;
-border-color: rgba(120,180,60,0.5);
-}
 .mode-btn.survival:hover { background: rgba(100,160,40,0.15); }
 
-.mode-btn.creative {
-color: #70aadd;
-border-color: rgba(80,130,200,0.5);
-}
 .mode-btn.creative:hover { background: rgba(60,100,180,0.15); }
 
-.mode-btn.selected {
-background: rgba(100,150,50,0.2);
-border-color: rgba(160,220,80,0.8);
-box-shadow: 0 0 12px rgba(120,200,60,0.2);
-}
 .mode-btn.creative.selected {
 background: rgba(50,90,160,0.2);
 border-color: rgba(80,150,220,0.8);
@@ -333,6 +297,28 @@ opacity:0;
 animation-fill-mode:forwards;
 }
 #btn-settings-open:hover { color: rgba(160,200,120,0.8) !important; }
+
+/* ═══════════════════════════════════════════════════════
+SAUVEGARDE
+═══════════════════════════════════════════════════════ */
+#save-indicator {
+position: fixed;
+top: 10px;
+left: 50%;
+transform: translateX(-50%);
+background: rgba(20,80,20,0.88);
+color: #8f8;
+border: 1px solid #4a8;
+padding: 4px 14px;
+font-size: 11px;
+font-family: ‘Courier New’, monospace;
+z-index: 50;
+pointer-events: none;
+opacity: 0;
+transition: opacity 0.4s;
+letter-spacing: 1px;
+}
+#save-indicator.visible { opacity: 1; }
 
 /* ═══════════════════════════════════════════════════════
 PAUSE
@@ -1811,11 +1797,8 @@ display: none !important;
       <div id="overlay-tagline">Survivre. Ou mourir.</div>
       <div id="overlay-sep"></div>
       <p>Joystick gauche &middot; Camera droite &middot; E = Inventaire</p>
-      <div id="mode-btns">
-        <button class="mode-btn survival selected" id="btn-mode-survival">⚔️ Survie</button>
-        <button class="mode-btn creative" id="btn-mode-creative">🎨 Créatif</button>
-      </div>
-      <button id="startBtn">&#x25B6; ENTRER</button>
+      <button id="startBtn">&#x25B6; NOUVELLE PARTIE</button>
+      <button id="continueBtn" style="padding:14px 40px;font-size:14px;font-family:'Courier New',monospace;background:transparent;color:#70d070;border:1px solid rgba(80,180,80,0.6);cursor:pointer;font-weight:bold;letter-spacing:3px;text-transform:uppercase;margin-top:4px;display:none;">↩ CONTINUER</button>
       <button id="btn-settings-open">⚙️ Paramètres</button>
     </div>
   </div>
@@ -1886,6 +1869,8 @@ display: none !important;
   <div class="settings-actions">
     <button id="btn-settings-apply">✅ Appliquer</button>
     <button id="btn-settings-close">✕ Fermer</button>
+    <button id="btn-settings-save" style="background:#1a5a1a;color:#8f8;border-color:#4a8;">💾 Sauvegarder</button>
+    <button id="btn-settings-mainmenu" style="background:#3a1a1a;color:#f88;border-color:#844;">🏠 Menu principal</button>
   </div>
   <p id="settings-saved-msg" style="color:#88ff88;font-size:10px;text-align:center;height:14px;"></p>
 </div>
@@ -1895,10 +1880,13 @@ display: none !important;
 
   <!-- Pause -->
 
+  <div id="save-indicator">💾 Sauvegarde...</div>
   <div id="paused">
     PAUSE
     <p>Cliquez pour reprendre</p>
     <button id="resumeBtn">Reprendre</button>
+    <button id="saveBtn" style="padding:10px 28px;font-size:14px;font-family:'Courier New',monospace;background:#1a5a1a;color:#8f8;border:2px solid #4a8;cursor:pointer;letter-spacing:1px;margin-top:6px;">💾 Sauvegarder</button>
+    <button id="deleteSaveBtn" style="padding:8px 20px;font-size:12px;font-family:'Courier New',monospace;background:#3a1a1a;color:#f88;border:2px solid #844;cursor:pointer;letter-spacing:1px;margin-top:4px;">🗑 Supprimer la partie</button>
   </div>
 
   <!-- Écran de mort -->
@@ -3504,7 +3492,8 @@ function onBlockBreak(blockType,wx,wy,wz){
 }
 
 function setBlock(wx,wy,wz,type){
-  if(wy<0||wy>=CHUNK_HEIGHT)return;var cx=Math.floor(wx/CHUNK_SIZE),cz=Math.floor(wz/CHUNK_SIZE),data=chunks.get(ckey(cx,cz));if(!data)return;
+  if(wy<0||wy>=CHUNK_HEIGHT)return;
+  trackBlockChange(wx,wy,wz,type);var cx=Math.floor(wx/CHUNK_SIZE),cz=Math.floor(wz/CHUNK_SIZE),data=chunks.get(ckey(cx,cz));if(!data)return;
   var lx=((wx%CHUNK_SIZE)+CHUNK_SIZE)%CHUNK_SIZE,lz=((wz%CHUNK_SIZE)+CHUNK_SIZE)%CHUNK_SIZE;
   var oldBlock=data[lx+CHUNK_SIZE*(wy+CHUNK_HEIGHT*lz)];
   if(type===B_AIR&&oldBlock!==B_AIR&&gameStarted)onBlockBreak(oldBlock,wx,wy,wz);
@@ -3731,7 +3720,7 @@ function drawTemp(){
 function updateBars(){drawHearts();drawFood();drawThirst();drawStamina();drawTemp();}
 
 function hurtPlayer(dmg,cause){if(dmg>0)if(typeof playSoundHurt==='function')playSoundHurt();
-  if(gameMode==='creative')return;
+  if(false)return;
   player.hp=Math.max(0,player.hp-dmg);updateBars();
   var fl=document.createElement('div');fl.style.cssText='position:fixed;inset:0;background:rgba(200,0,0,0.35);z-index:105;pointer-events:none;';document.body.appendChild(fl);setTimeout(function(){if(fl.parentNode)fl.parentNode.removeChild(fl);},300);
   if(player.hp<=0)killPlayer(cause);
@@ -3739,13 +3728,13 @@ function hurtPlayer(dmg,cause){if(dmg>0)if(typeof playSoundHurt==='function')pla
 
 // Drain endurance (appelé depuis les actions)
 function drainStamina(amount){
-  if(gameMode==='creative')return;
+  if(false)return;
   player.stamina=Math.max(0,player.stamina-amount);updateBars();
 }
 // Régénération endurance au repos
 var _staminaRegenTimer=0;
 function regenStamina(dt){
-  if(gameMode==='creative')return;
+  if(false)return;
   if(player.stamina>=player.maxStamina)return;
   // Regen seulement si on est au sol et qu'on ne sprint pas
   _staminaRegenTimer+=dt;
@@ -4666,7 +4655,7 @@ var _tempTimer=0;
 var _sleepTimer=0;   // fatigue qui pèse sur l'endurance
 
 function updateSurvival(dt){
-  if(gameMode==='creative')return;
+  if(false)return;
   var inWater=isInWater(player.pos.x,player.pos.y-0.5,player.pos.z);
   var isRunning=(_sprintDrainTimer>0);
   var isCold=(player.temp<=4);
@@ -6247,14 +6236,14 @@ function updateBreaking(dt){
   if(!breaking.active)return;var h=raycast();if(!h){crackMesh.visible=false;return;}
   var bx=h.bx,by=h.by,bz=h.bz,blockType=getBlock(bx,by,bz);if(blockType===B_WATER||!blockType){crackMesh.visible=false;return;}
   // Bois : coupe uniquement à la base (bloc sol en dessous)
-  if(blockType===B_WOOD&&gameMode!=='creative'){
+  if(blockType===B_WOOD&&true){
     var below=getBlock(bx,by-1,bz);
     var isBase=below===B_GRASS||below===B_DIRT||below===B_SAND||below===B_GRAVEL||below===B_STONE||below===B_STUMP;
     if(!isBase){crackMesh.visible=false;showPopup('🪓 Coupe à la base!',new THREE.Vector3(bx+0.5,by+1.5,bz+0.5));return;}
   }
   if(bx!==breaking.bx||by!==breaking.by||bz!==breaking.bz){if(bx===breaking.savedBx&&by===breaking.savedBy&&bz===breaking.savedBz)breaking.resetTimer=0;else breaking.progress=0;breaking.bx=bx;breaking.by=by;breaking.bz=bz;}
   var tool=INV[selectedSlot];breaking.progress+=dt*getToolMultiplier(tool?tool.id:0,blockType)/(BREAK_TIMES[blockType]||1.0);
-  if(breaking.progress>=1){breaking.progress=0;breaking.savedBx=null;breaking.resetTimer=0;crackMesh.visible=false;drawCrack(0);if(gameMode!=='creative'){var realTime=(BREAK_TIMES[blockType]||1)/getToolMultiplier(tool?tool.id:0,blockType);if(Math.random()<Math.min(1.0,realTime/10.0)){drainStamina(1);}}var a=attackAnimalRaycast();if(a){hitAnimal(a);return;}setBlock(bx,by,bz,B_AIR);if(typeof playSoundBreak==='function')playSoundBreak(blockType);}
+  if(breaking.progress>=1){breaking.progress=0;breaking.savedBx=null;breaking.resetTimer=0;crackMesh.visible=false;drawCrack(0);if(true){var realTime=(BREAK_TIMES[blockType]||1)/getToolMultiplier(tool?tool.id:0,blockType);if(Math.random()<Math.min(1.0,realTime/10.0)){drainStamina(1);}}var a=attackAnimalRaycast();if(a){hitAnimal(a);return;}setBlock(bx,by,bz,B_AIR);if(typeof playSoundBreak==='function')playSoundBreak(blockType);}
   else{crackMesh.visible=true;crackMesh.position.set(bx+0.5,by+0.5,bz+0.5);drawCrack(breaking.progress);}
 }
 
@@ -6267,20 +6256,20 @@ function movePlayer(dt){
   if(keys['KeyW']||keys['ArrowUp'])dir.add(fwd);if(keys['KeyS']||keys['ArrowDown'])dir.sub(fwd);if(keys['KeyA']||keys['ArrowLeft'])dir.sub(right);if(keys['KeyD']||keys['ArrowRight'])dir.add(right);
   if(joystick.active&&(Math.abs(joystick.dx)>0.05||Math.abs(joystick.dy)>0.05)){dir.addScaledVector(fwd,-joystick.dy);dir.addScaledVector(right,joystick.dx);}else if(_jLocked){dir.addScaledVector(fwd,-_jLockedDy);dir.addScaledVector(right,_jLockedDx);}
   if(dir.lengthSq()>0.001)dir.normalize();
-  if(_mobileSprint&&gameMode!=='creative'&&player.stamina<=2)setMobileSprint(false);
-  var wantSprint=((keys['ShiftLeft']||keys['ShiftRight'])||_mobileSprint)&&dir.lengthSq()>0.001&&(gameMode==='creative'||player.stamina>2);
-  var foodRatio=gameMode==='creative'?1.0:player.stamina/player.maxStamina,speedFactor=foodRatio>0.7?1.0:foodRatio>0.35?0.75:foodRatio>0.07?0.50:0.30;
+  if(_mobileSprint&&true&&player.stamina<=2)setMobileSprint(false);
+  var wantSprint=((keys['ShiftLeft']||keys['ShiftRight'])||_mobileSprint)&&dir.lengthSq()>0.001&&(false||player.stamina>2);
+  var foodRatio=false?1.0:player.stamina/player.maxStamina,speedFactor=foodRatio>0.7?1.0:foodRatio>0.35?0.75:foodRatio>0.07?0.50:0.30;
   // Hypothermie → ralentissement progressif
-  if(gameMode!=='creative'&&player.temp<=4){
+  if(true&&player.temp<=4){
     var hasClothing=(EQUIP.chest&&EQUIP.chest.id&&EQUIP.chest.durability>0);
     var coldPenalty=player.temp<=2?(hasClothing?0.60:0.45):(hasClothing?0.85:0.70);
     speedFactor*=coldPenalty;
   }
   var currentSpeed=wantSprint?SPRINT_SPEED*speedFactor:MOVE_SPEED*speedFactor;
-  if(wantSprint&&dir.lengthSq()>0.001&&gameMode!=='creative'){_sprintDrainTimer+=dt;if(_sprintDrainTimer>=2.0){_sprintDrainTimer=0;drainStamina(1);// Sprint draine aussi la soif légèrement
+  if(wantSprint&&dir.lengthSq()>0.001&&true){_sprintDrainTimer+=dt;if(_sprintDrainTimer>=2.0){_sprintDrainTimer=0;drainStamina(1);// Sprint draine aussi la soif légèrement
     _thirstTimer+=0.8;}}else _sprintDrainTimer=0;
   var hiW=isInWater(player.pos.x,player.pos.y-0.1,player.pos.z),fiW=isInWater(player.pos.x,player.pos.y-1.4,player.pos.z),inW=hiW||fiW,jp=keys['Space']||jumpHeld;
-  if(gameMode==='creative'){
+  if(false){
     player.vel.x=dir.x*currentSpeed;player.vel.z=dir.z*currentSpeed;
     if(_flyActive){if(jp)player.vel.y=8;else if(keys['ShiftLeft']||keys['ShiftRight'])player.vel.y=-8;else player.vel.y*=0.7;}
     else{player.vel.y+=GRAVITY*dt;if(jp&&player.onGround){player.vel.y=JUMP_FORCE;player.onGround=false;}}
@@ -6311,7 +6300,7 @@ var keys={},mouseLocked=false,gameStarted=false,jumpHeld=false,_flyActive=false,
 var _mouseRightDown=false,_lastMouseX=-1,_lastMouseY=-1,_trackingActive=false;
 var _wLastTap=0;
 function setTracking(on){_trackingActive=on;_lastMouseX=-1;_lastMouseY=-1;document.getElementById('canvas').style.cursor=on?'none':'default';document.getElementById('tracking-hint').style.display=on?'none':'block';}
-document.addEventListener('keydown',function(e){keys[e.code]=true;if(e.code==='KeyE'&&gameStarted)toggleInventory();if(e.code==='Escape'&&invOpen)closeInventory();if(e.code==='Escape'&&!invOpen&&_trackingActive){setTracking(false);document.getElementById('tracking-hint').style.display='block';}if(e.code==='Space'){jumpHeld=true;if(gameMode==='creative'){var now3=Date.now();if(now3-_lastSpaceTime<300){_flyActive=!_flyActive;if(!_flyActive)player.vel.y=0;}_lastSpaceTime=now3;}}if(!invOpen){for(var i=0;i<9;i++)if(e.code==='Digit'+(i+1))selectSlot(i);if(e.code==='KeyF'&&gameStarted&&!mouseLocked){var af=attackAnimalRaycast();if(af&&af.type==='wolf'&&!af.tamed){tryTameAnimal(af);return;}if(tryUseItem())return;tryFillCanteen();var hf=raycast();if(hf&&hf.px!==null)doPlace(hf.px,hf.py,hf.pz);}if(e.code==='KeyW'&&gameStarted){var now2=Date.now();if(now2-_wLastTap<300)setMobileSprint(!_mobileSprint);_wLastTap=now2;}}});
+document.addEventListener('keydown',function(e){keys[e.code]=true;if(e.code==='KeyE'&&gameStarted)toggleInventory();if(e.code==='Escape'&&invOpen)closeInventory();if(e.code==='Escape'&&!invOpen&&_trackingActive){setTracking(false);document.getElementById('tracking-hint').style.display='block';}if(e.code==='Space'){jumpHeld=true;if(false){var now3=Date.now();if(now3-_lastSpaceTime<300){_flyActive=!_flyActive;if(!_flyActive)player.vel.y=0;}_lastSpaceTime=now3;}}if(!invOpen){for(var i=0;i<9;i++)if(e.code==='Digit'+(i+1))selectSlot(i);if(e.code==='KeyF'&&gameStarted&&!mouseLocked){var af=attackAnimalRaycast();if(af&&af.type==='wolf'&&!af.tamed){tryTameAnimal(af);return;}if(tryUseItem())return;tryFillCanteen();var hf=raycast();if(hf&&hf.px!==null)doPlace(hf.px,hf.py,hf.pz);}if(e.code==='KeyW'&&gameStarted){var now2=Date.now();if(now2-_wLastTap<300)setMobileSprint(!_mobileSprint);_wLastTap=now2;}}});
 document.addEventListener('keyup',function(e){keys[e.code]=false;if(e.code==='Space')jumpHeld=false;});
 document.addEventListener('mousemove',function(e){if(invOpen||lootModalOpen)return;if(mouseLocked){var _s=SETTINGS.sensitivity*0.002;player.yaw-=e.movementX*_s;var _py=(SETTINGS.invertY?-1:1)*e.movementY*_s;player.pitch=Math.max(-Math.PI/2+0.05,Math.min(Math.PI/2-0.05,player.pitch+_py));}else if(_mouseRightDown&&gameStarted&&!isMobile){var dx=e.clientX-_lastMouseX,dy=e.clientY-_lastMouseY;var _s2=SETTINGS.sensitivity*0.003;player.yaw-=dx*_s2;var _py2=(SETTINGS.invertY?1:-1)*dy*_s2;player.pitch=Math.max(-Math.PI/2+0.05,Math.min(Math.PI/2-0.05,player.pitch+_py2));_lastMouseX=e.clientX;_lastMouseY=e.clientY;}});
 document.addEventListener('contextmenu',function(e){if(!invOpen)e.preventDefault();});
@@ -6323,7 +6312,7 @@ function doPlace(px2,py2,pz2){var it=INV[selectedSlot];if(!it||!it.id)return;var
   if(itemId===ITEM_TREE_SEED){
     var belowP=getBlock(px2,py2-1,pz2);
     if(belowP!==B_GRASS&&belowP!==B_DIRT){showPopup('Plante sur de la terre!',player.pos.clone().add(new THREE.Vector3(0,1,0)));return;}
-  }var ppx=Math.floor(player.pos.x),ppz=Math.floor(player.pos.z),ppy1=Math.floor(player.pos.y-1.7),ppy2=Math.floor(player.pos.y);if(px2===ppx&&pz2===ppz&&(py2===ppy1||py2===ppy2))return;setBlock(px2,py2,pz2,blockId);it.qty--;if(it.qty<=0){it.id=0;it.qty=0;}syncHotbar();if(gameMode!=='creative')drainStamina(0.5);
+  }var ppx=Math.floor(player.pos.x),ppz=Math.floor(player.pos.z),ppy1=Math.floor(player.pos.y-1.7),ppy2=Math.floor(player.pos.y);if(px2===ppx&&pz2===ppz&&(py2===ppy1||py2===ppy2))return;setBlock(px2,py2,pz2,blockId);it.qty--;if(it.qty<=0){it.id=0;it.qty=0;}syncHotbar();if(true)drainStamina(0.5);
   if(itemId===ITEM_TREE_SEED){scheduleSaplingGrowth(px2,py2,pz2);showPopup('🌱 Graine plantée! (~5 min)',player.pos.clone().add(new THREE.Vector3(0,1,0)));}
 }
 
@@ -6348,7 +6337,7 @@ var _mobileActionUsed=false,placeTimer=null;
 document.addEventListener('mousedown',function(e){if(invOpen||lootModalOpen)return;if(_mobileActionUsed){_mobileActionUsed=false;return;}if(e.button===0){var a=attackAnimalRaycast();if(a){hitAnimal(a);return;}startBreaking();}if(e.button===2){if(!mouseLocked){_mouseRightDown=true;_lastMouseX=e.clientX;_lastMouseY=e.clientY;}else{var a2=attackAnimalRaycast();if(a2&&a2.type==='wolf'&&!a2.tamed){tryTameAnimal(a2);return;}if(tryUseItem())return;tryFillCanteen();var h2=raycast();if(h2){if(h2.bx!==null&&tryInteractBlock(h2.bx,h2.by,h2.bz))return;if(h2.px!==null)doPlace(h2.px,h2.py,h2.pz);}}}});
 document.addEventListener('mouseup',function(e){if(e.button===0)stopBreaking();if(e.button===2)_mouseRightDown=false;});
 var _lastJumpTap=0;
-document.getElementById('btn-jump').addEventListener('pointerdown',function(e){e.stopPropagation();_mobileActionUsed=true;jumpHeld=true;player.jumpBuffer=0.2;if(gameMode==='creative'){var now4=Date.now();if(now4-_lastJumpTap<300){_flyActive=!_flyActive;if(!_flyActive)player.vel.y=0;}_lastJumpTap=now4;}});
+document.getElementById('btn-jump').addEventListener('pointerdown',function(e){e.stopPropagation();_mobileActionUsed=true;jumpHeld=true;player.jumpBuffer=0.2;if(false){var now4=Date.now();if(now4-_lastJumpTap<300){_flyActive=!_flyActive;if(!_flyActive)player.vel.y=0;}_lastJumpTap=now4;}});
 document.getElementById('btn-jump').addEventListener('pointerup',function(){jumpHeld=false;});
 document.getElementById('btn-jump').addEventListener('pointercancel',function(){jumpHeld=false;});
 document.getElementById('btn-break').addEventListener('pointerdown',function(e){e.stopPropagation();_mobileActionUsed=true;if(e.pointerType==='touch')camTouches[e.pointerId]={x:e.clientX,y:e.clientY};var a=attackAnimalRaycast();if(a){hitAnimal(a);return;}startBreaking();});
@@ -6362,15 +6351,39 @@ document.getElementById('btn-prev').addEventListener('pointerdown',function(e){e
 document.getElementById('btn-next').addEventListener('pointerdown',function(e){e.stopPropagation();selectSlot(selectedSlot+1);});
 
 // ── Start / Pause ──────────────────────────────────────────
-document.getElementById('btn-mode-survival').addEventListener('pointerdown',function(){gameMode='survival';this.classList.add('selected');document.getElementById('btn-mode-creative').classList.remove('selected');});
-document.getElementById('btn-mode-creative').addEventListener('pointerdown',function(){gameMode='creative';this.classList.add('selected');document.getElementById('btn-mode-survival').classList.remove('selected');});
+
+// mode créatif supprimé
 // ── Events paramètres ───────────────────────────────────────
 (function(){
   var bso=document.getElementById('btn-settings-open');if(bso)bso.addEventListener('pointerdown',function(e){e.stopPropagation();openSettings();});
   var bsc=document.getElementById('btn-settings-close');if(bsc)bsc.addEventListener('pointerdown',function(e){e.stopPropagation();closeSettings();});
   var bsh=document.getElementById('btn-settings-hud');if(bsh)bsh.addEventListener('pointerdown',function(e){e.stopPropagation();openSettings();});
+  // Sauvegarder depuis les paramètres
+  var bssave=document.getElementById('btn-settings-save');
+  if(bssave)bssave.addEventListener('pointerdown',function(e){
+    e.stopPropagation();
+    saveGame(true);
+    closeSettings();
+  });
+  // Retour au menu principal
+  var bsmm=document.getElementById('btn-settings-mainmenu');
+  if(bsmm)bsmm.addEventListener('pointerdown',function(e){
+    e.stopPropagation();
+    saveGame(false);
+    // Réinitialiser l'état du jeu
+    gameStarted=false;
+    closeSettings();
+    document.getElementById('overlay').style.display='flex';
+    document.getElementById('survival-bars').style.display='none';
+    document.getElementById('paused').style.display='none';
+    if(mouseLocked)document.exitPointerLock();
+    // Afficher bouton continuer
+    var cb=document.getElementById('continueBtn');
+    if(cb)cb.style.display='block';
+    showSaveIndicator('💾 Partie sauvegardée');
+  });
 })();
-document.getElementById('btn-settings-apply').addEventListener('pointerdown',function(e){
+  var bsa=document.getElementById('btn-settings-apply');if(bsa)bsa.addEventListener('pointerdown',function(e){
   e.stopPropagation();
   SETTINGS.renderDist=parseInt(document.getElementById('s-render-dist').value);
   SETTINGS.sensitivity=parseFloat(document.getElementById('s-sens').value);
@@ -6394,12 +6407,225 @@ document.getElementById('btn-settings-apply').addEventListener('pointerdown',fun
   });
 });
 
-document.getElementById('startBtn').addEventListener('pointerdown',function(){document.getElementById('overlay').style.display='none';gameStarted=true;applySettings();spawnPlayer();showHudEditBtn();spawnInitialAnimals();updateBars();initWeatherCanvas();revealFog(player.pos.x,player.pos.z,_fogRevealRadius);var hb=document.getElementById('btn-settings-hud');if(hb)hb.classList.add('visible');weather.duration=weatherDuration();document.getElementById('survival-bars').style.display=gameMode==='creative'?'none':'flex';if(!isMobile)document.getElementById('tracking-hint').style.display='block';});
+// Afficher bouton Continuer si save existe
+(function(){
+  if(hasSave()){
+    var cb=document.getElementById('continueBtn');
+    if(cb)cb.style.display='block';
+    var sb=document.getElementById('startBtn');
+    if(sb)sb.textContent='▶ NOUVELLE PARTIE';
+  }
+})();
+
+document.getElementById('continueBtn').addEventListener('pointerdown',function(){
+  document.getElementById('overlay').style.display='none';
+  gameStarted=true;applySettings();spawnPlayer();showHudEditBtn();
+  spawnInitialAnimals();updateBars();initWeatherCanvas();
+  revealFog(player.pos.x,player.pos.z,_fogRevealRadius);
+  var hb=document.getElementById('btn-settings-hud');if(hb)hb.classList.add('visible');
+  weather.duration=weatherDuration();
+  document.getElementById('survival-bars').style.display=false?'none':'flex';
+  if(!isMobile)document.getElementById('tracking-hint').style.display='block';
+  // Charger la sauvegarde APRÈS le spawn initial
+  setTimeout(function(){
+    if(loadGame()){
+      updateBars();syncHotbar();showSaveIndicator('↩ Partie chargée!');
+      _modifiedBlocksEnabled=true;
+      // Recharger les chunks autour de la position chargée
+      updateChunks();
+    }
+  },200);
+});
+
+document.getElementById('startBtn').addEventListener('pointerdown',function(){document.getElementById('overlay').style.display='none';gameStarted=true;applySettings();spawnPlayer();showHudEditBtn();_modifiedBlocksEnabled=true;spawnInitialAnimals();updateBars();initWeatherCanvas();revealFog(player.pos.x,player.pos.z,_fogRevealRadius);var hb=document.getElementById('btn-settings-hud');if(hb)hb.classList.add('visible');weather.duration=weatherDuration();document.getElementById('survival-bars').style.display=false?'none':'flex';if(!isMobile)document.getElementById('tracking-hint').style.display='block';});
 document.getElementById('canvas').addEventListener('click',function(){if(!gameStarted||invOpen||isMobile)return;if(mouseLocked)return;document.getElementById('canvas').requestPointerLock();});
 document.addEventListener('pointerlockerror',function(){setTracking(true);});
+var _sb=document.getElementById('saveBtn');
+if(_sb)_sb.addEventListener('pointerdown',function(e){
+  e.stopPropagation();saveGame(true);
+});
+var _dsb=document.getElementById('deleteSaveBtn');
+if(_dsb)_dsb.addEventListener('pointerdown',function(e){
+  e.stopPropagation();deleteSave();
+});
 document.getElementById('resumeBtn').addEventListener('pointerdown',function(){document.getElementById('paused').style.display='none';document.getElementById('canvas').requestPointerLock();});
 document.getElementById('paused').addEventListener('pointerdown',function(){if(!isMobile)document.getElementById('canvas').requestPointerLock();});
 window.addEventListener('resize',function(){camera.aspect=window.innerWidth/window.innerHeight;camera.updateProjectionMatrix();renderer.setSize(window.innerWidth,window.innerHeight);});
+
+
+// ════════════════════════════════════════════════════════
+//  SYSTÈME DE SAUVEGARDE — localStorage
+// ════════════════════════════════════════════════════════
+var SAVE_KEY='mc_save_v1';
+var _autoSaveTimer=0;
+var _saveIndicatorTimeout=null;
+
+function showSaveIndicator(msg){
+  var el=document.getElementById('save-indicator');
+  if(!el)return;
+  el.textContent=msg||'💾 Sauvegardé!';
+  el.classList.add('visible');
+  if(_saveIndicatorTimeout)clearTimeout(_saveIndicatorTimeout);
+  _saveIndicatorTimeout=setTimeout(function(){el.classList.remove('visible');},2500);
+}
+
+function saveGame(manual){
+  if(!gameStarted)return;
+  try{
+    // Blocs modifiés : différentiel vs génération procédurale
+    var blockDiff={};
+    chunks.forEach(function(data,key){
+      var parts=key.split(','),cx=parseInt(parts[0]),cz=parseInt(parts[1]);
+      // Regénérer le chunk de référence pour comparer
+      var ref=new Uint8Array(CHUNK_SIZE*CHUNK_HEIGHT*CHUNK_SIZE);
+      // On ne peut pas regénérer facilement ici — sauvegarder chunks modifiés via _modifiedBlocks
+    });
+
+    var save={
+      v:1,
+      t:Date.now(),
+      // Joueur
+      px:Math.round(player.pos.x*10)/10,
+      py:Math.round(player.pos.y*10)/10,
+      pz:Math.round(player.pos.z*10)/10,
+      pyaw:Math.round(player.yaw*100)/100,
+      ppitch:Math.round(player.pitch*100)/100,
+      // Stats
+      hp:player.hp,food:player.food,thirst:player.thirst,
+      stamina:player.stamina,temp:player.temp,
+      // Cycle jour/nuit
+      dayTime:Math.round(dayTime),
+      // Inventaire
+      inv:INV.map(function(s){return{i:s.id,q:s.qty};}),
+      equip:{
+        left:{i:EQUIP.left.id,q:EQUIP.left.qty},
+        chest:{i:EQUIP.chest.id,q:EQUIP.chest.qty,d:EQUIP.chest.durability||0},
+        bag:{i:EQUIP.bag.id,q:EQUIP.bag.qty},
+        right:{i:EQUIP.right.id,q:EQUIP.right.qty}
+      },
+      slot:selectedSlot,
+      // Blocs modifiés (différentiel)
+      blocks:_serializeModifiedBlocks(),
+      // Mode de jeu
+      mode:'survival',
+      // Seed
+      seed:SEED
+    };
+    _ls.set(SAVE_KEY,JSON.stringify(save));
+    if(manual)showSaveIndicator('💾 Sauvegardé!');
+    else showSaveIndicator('💾 Sauvegarde auto...');
+  }catch(e){console.warn('Save failed:',e);}
+}
+
+// Sauvegarder les blocs modifiés par rapport à la génération
+var _modifiedBlocks={};  // 'wx,wy,wz' -> blockType
+var _origSetBlock=null;
+
+function _patchSetBlockForSave(){
+  // Intercepter setBlock pour tracker les modifications
+  // On compare chaque setBlock avec la valeur générée
+  _modifiedBlocksEnabled=true;
+}
+var _modifiedBlocksEnabled=false;
+
+function trackBlockChange(wx,wy,wz,newType){
+  if(!_modifiedBlocksEnabled)return;
+  _modifiedBlocks[wx+','+wy+','+wz]=newType;
+}
+
+function _serializeModifiedBlocks(){
+  var arr=[];
+  for(var k in _modifiedBlocks){
+    var p=k.split(',');
+    arr.push([parseInt(p[0]),parseInt(p[1]),parseInt(p[2]),_modifiedBlocks[k]]);
+  }
+  // Limiter à 5000 blocs max pour localStorage
+  if(arr.length>5000)arr=arr.slice(-5000);
+  return arr;
+}
+
+function hasSave(){
+  try{
+    var raw=_ls.get(SAVE_KEY,null);
+    return raw&&raw.length>10;
+  }catch(e){return false;}
+}
+
+function loadGame(){
+  try{
+    var raw=_ls.get(SAVE_KEY,null);
+    if(!raw||raw.length<10)return false;
+    var save=JSON.parse(raw);
+    if(!save||save.v!==1)return false;
+
+    // Restaurer position
+    player.pos.set(save.px||0,save.py||70,save.pz||0);
+    player.vel.set(0,0,0);
+    if(save.pyaw!==undefined)player.yaw=save.pyaw;
+    if(save.ppitch!==undefined)player.pitch=save.ppitch;
+
+    // Restaurer stats
+    if(save.hp!==undefined)player.hp=save.hp;
+    if(save.food!==undefined)player.food=save.food;
+    if(save.thirst!==undefined)player.thirst=save.thirst;
+    if(save.stamina!==undefined)player.stamina=save.stamina;
+    if(save.temp!==undefined)player.temp=save.temp;
+
+    // Restaurer cycle jour/nuit
+    if(save.dayTime!==undefined)dayTime=save.dayTime;
+
+    // Restaurer mode
+    if(save.mode)gameMode=save.mode;
+
+    // Restaurer inventaire
+    if(save.inv){
+      for(var i=0;i<Math.min(save.inv.length,INV.length);i++){
+        INV[i]={id:save.inv[i].i||0,qty:save.inv[i].q||0};
+      }
+    }
+    // Restaurer équipement
+    if(save.equip){
+      if(save.equip.left)EQUIP.left={id:save.equip.left.i||0,qty:save.equip.left.q||0};
+      if(save.equip.chest)EQUIP.chest={id:save.equip.chest.i||0,qty:save.equip.chest.q||0,durability:save.equip.chest.d||0};
+      if(save.equip.bag)EQUIP.bag={id:save.equip.bag.i||0,qty:save.equip.bag.q||0};
+      if(save.equip.right)EQUIP.right={id:save.equip.right.i||0,qty:save.equip.right.q||0};
+    }
+    if(save.slot!==undefined)selectedSlot=save.slot;
+
+    // Restaurer blocs modifiés
+    if(save.blocks&&save.blocks.length){
+      for(var b=0;b<save.blocks.length;b++){
+        var bl=save.blocks[b];
+        if(bl&&bl.length>=4){
+          _modifiedBlocks[bl[0]+','+bl[1]+','+bl[2]]=bl[3];
+          setBlockRaw(bl[0],bl[1],bl[2],bl[3]);
+        }
+      }
+    }
+
+    return true;
+  }catch(e){console.warn('Load failed:',e);return false;}
+}
+
+function deleteSave(){
+  _ls.set(SAVE_KEY,'');
+  _modifiedBlocks={};
+  showSaveIndicator('🗑 Partie supprimée');
+}
+
+function updateAutoSave(dt){
+  if(!gameStarted)return;
+  _autoSaveTimer+=dt;
+  if(_autoSaveTimer>=1800){// 30 minutes
+    _autoSaveTimer=0;
+    saveGame(false);
+  }
+}
+
+// Sauvegarder aussi quand on quitte la page
+window.addEventListener('beforeunload',function(){
+  if(gameStarted)saveGame(false);
+});
 
 // ── Game Loop ──────────────────────────────────────────────
 var lastTime=0,fpsBuf=[],lastFPSt=0;
@@ -6925,7 +7151,7 @@ function animate(now){
   fpsBuf.push(1/dt);if(fpsBuf.length>20)fpsBuf.shift();
   if(now-lastFPSt>500){document.getElementById('fps').textContent=Math.round(fpsBuf.reduce(function(a,b){return a+b;},0)/fpsBuf.length);lastFPSt=now;}
   document.getElementById('pos').textContent=Math.floor(player.pos.x)+','+Math.floor(player.pos.y)+','+Math.floor(player.pos.z);
-  movePlayer(dt);if(typeof updateAudio==='function')updateAudio(dt);updateChunks();updateChunkVisibility();updateAnimals(dt);updateSurvival(dt);updateBreaking(dt);spawnNightEnemies(dt);updateRegrowth(dt);updateWeather(dt);renderRain();updateVolFog(_fogIntensity);updateFallingTrees(dt);_fogUpdateTimer+=dt;if(_fogUpdateTimer>0.5){_fogUpdateTimer=0;updateFogReveal();}
+  movePlayer(dt);updateAutoSave(dt);if(typeof updateAudio==='function')updateAudio(dt);updateChunks();updateChunkVisibility();updateAnimals(dt);updateSurvival(dt);updateBreaking(dt);spawnNightEnemies(dt);updateRegrowth(dt);updateWeather(dt);renderRain();updateVolFog(_fogIntensity);updateFallingTrees(dt);_fogUpdateTimer+=dt;if(_fogUpdateTimer>0.5){_fogUpdateTimer=0;updateFogReveal();}
   // ── Marqueur de mort : timer + faisceau + récupération ──────
   if(_deathMarker){
     _deathMarker.timer-=dt;
@@ -6998,8 +7224,8 @@ function animate(now){
 
   var pIcon={day:'☀️',dusk:'🌅',night:'🌙',dawn:'🌄'},minLeft=Math.ceil((DAY_CYCLE_TOTAL-dayTime)/60);
   document.getElementById('daytime-hud').textContent=pIcon[phase]+' '+minLeft+'min';
-  document.getElementById('weather-hud').textContent=gameMode!=='creative'?getWeatherIcon():'';
-  document.getElementById('mode-hud').textContent=gameMode==='creative'?'✈️ Créatif':'⚔️ Survie';
+  document.getElementById('weather-hud').textContent=true?getWeatherIcon():'';
+  document.getElementById('mode-hud').textContent=false?'✈️ Créatif':'⚔️ Survie';
   if(!invOpen)raycast();
   
 renderer.render(scene,camera);
