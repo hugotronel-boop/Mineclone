@@ -812,6 +812,81 @@ opacity: 0;
 transition: opacity 2s ease, background 4s ease;
 }
 
+/* ── Lance-pierre / Arc : viseur de tension ── */
+#sling-overlay {
+display: none;
+position: fixed;
+inset: 0;
+pointer-events: none;
+z-index: 30;
+}
+#sling-overlay.active { display: block; }
+
+/* Viseur en croix */
+#sling-crosshair {
+position: fixed;
+top: 50%; left: 50%;
+transform: translate(-50%,-50%);
+pointer-events: none;
+}
+#sling-crosshair::before,
+#sling-crosshair::after {
+content: ‘’;
+position: absolute;
+background: rgba(255,255,255,0.85);
+border-radius: 2px;
+}
+/* Barre horizontale */
+#sling-crosshair::before {
+width: 24px; height: 2px;
+top: -1px; left: -12px;
+}
+/* Barre verticale */
+#sling-crosshair::after {
+width: 2px; height: 24px;
+top: -12px; left: -1px;
+}
+
+/* Jauge de tension (bas centre) */
+#sling-charge-bar {
+position: fixed;
+bottom: 22%;
+left: 50%;
+transform: translateX(-50%);
+width: 120px;
+height: 8px;
+background: rgba(0,0,0,0.5);
+border: 1px solid rgba(255,255,255,0.4);
+border-radius: 4px;
+overflow: hidden;
+}
+#sling-charge-fill {
+height: 100%;
+width: 0%;
+background: linear-gradient(to right, #88ff44, #ffcc00, #ff4400);
+transition: width 0.05s;
+border-radius: 4px;
+}
+
+/* Vignette de tension (bords s’assombrissent) */
+#sling-vignette {
+position: fixed;
+inset: 0;
+pointer-events: none;
+opacity: 0;
+transition: opacity 0.1s;
+background: radial-gradient(ellipse at center,
+transparent 40%,
+rgba(0,0,0,0.4) 100%);
+}
+
+/* Animation de tir */
+@keyframes slingFire {
+0%   { transform: scale(1); opacity:1; }
+50%  { transform: scale(1.4); opacity:0.8; }
+100% { transform: scale(0); opacity:0; }
+}
+
 /* Animation messages d’ambiance */
 @keyframes fadeInOut {
 0%   { opacity: 0; transform: translateX(-50%) translateY(6px); }
@@ -1740,6 +1815,12 @@ display: none !important;
 <canvas id="rain-canvas"></canvas>
 
   <div id="fog-overlay"></div>
+  <!-- Lance-pierre / Arc overlay -->
+  <div id="sling-overlay">
+    <div id="sling-vignette"></div>
+    <div id="sling-crosshair"></div>
+    <div id="sling-charge-bar"><div id="sling-charge-fill"></div></div>
+  </div>
   <div id="fog-floor"></div>
   <div id="cold-vignette"></div>
 
@@ -1819,8 +1900,24 @@ display: none !important;
       <p>Joystick gauche &middot; Camera droite &middot; E = Inventaire</p>
       <button id="startBtn">&#x25B6; NOUVELLE PARTIE</button>
       <button id="continueBtn" style="padding:14px 40px;font-size:14px;font-family:'Courier New',monospace;background:transparent;color:#70d070;border:1px solid rgba(80,180,80,0.6);cursor:pointer;font-weight:bold;letter-spacing:3px;text-transform:uppercase;margin-top:4px;display:none;">↩ CONTINUER</button>
+      <button id="deleteSaveMenuBtn" style="padding:6px 16px;font-size:10px;font-family:'Courier New',monospace;background:transparent;color:rgba(200,80,80,0.6);border:1px solid rgba(200,80,80,0.3);cursor:pointer;letter-spacing:2px;text-transform:uppercase;margin-top:8px;display:none;">🗑 Supprimer la sauvegarde</button>
       <button id="btn-settings-open">⚙️ Paramètres</button>
+
+```
+  <!-- Modale de confirmation suppression -->
+  <div id="delete-confirm-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:200;align-items:center;justify-content:center;flex-direction:column;gap:16px;">
+    <div style="background:#1a1a1a;border:1px solid rgba(200,80,80,0.5);padding:32px 40px;text-align:center;font-family:'Courier New',monospace;">
+      <p style="color:#f88;font-size:14px;letter-spacing:2px;margin-bottom:8px;">⚠️ SUPPRIMER LA PARTIE ?</p>
+      <p style="color:rgba(200,180,160,0.6);font-size:11px;margin-bottom:24px;">Cette action est irréversible.</p>
+      <div style="display:flex;gap:12px;justify-content:center;">
+        <button id="confirmDeleteYes" style="padding:10px 24px;background:#7a1a1a;color:#faa;border:1px solid #f44;font-family:'Courier New',monospace;font-size:12px;cursor:pointer;letter-spacing:2px;">✓ CONFIRMER</button>
+        <button id="confirmDeleteNo" style="padding:10px 24px;background:transparent;color:#aaa;border:1px solid #555;font-family:'Courier New',monospace;font-size:12px;cursor:pointer;letter-spacing:2px;">✕ ANNULER</button>
+      </div>
     </div>
+  </div>
+</div>
+```
+
   </div>
 
   <!-- Panel Paramètres -->
@@ -1876,6 +1973,24 @@ display: none !important;
     </div>
   </div>
 
+  <div class="settings-section">
+    <div class="settings-label">🎮 Manette</div>
+    <div class="settings-row">
+      <label>Sensibilité stick D</label>
+      <div class="settings-control">
+        <input type="range" id="s-sens" min="0.5" max="5" step="0.1" value="1.5">
+        <span class="settings-val" id="s-sens-val">1.5×</span>
+      </div>
+    </div>
+    <div class="settings-row">
+      <label style="color:#aaa;font-size:10px;">
+        ✕ Sauter &nbsp;|&nbsp; R2 Casser &nbsp;|&nbsp; R1 Poser<br>
+        △ Inventaire &nbsp;|&nbsp; ☐ Interagir<br>
+        L2 Sprint &nbsp;|&nbsp; ◄► D-pad : slot<br>
+        Options : Pause
+      </label>
+    </div>
+  </div>
   <div class="settings-section">
     <div class="settings-label">🌍 Monde</div>
     <div class="settings-row">
@@ -3247,6 +3362,19 @@ function genChunk(cx,cz){
   }
   for(var vi2=0;vi2<genChunk._villages.length;vi2++){var vill=genChunk._villages[vi2],villCx=Math.floor(vill.x/CS),villCz=Math.floor(vill.z/CS);if(Math.abs(cx-villCx)<=2&&Math.abs(cz-villCz)<=2)genVillage(data,idx,cx,cz,villCx,villCz,vill.x,vill.h,vill.z);}
   for(var lx3=0;lx3<CS;lx3+=4)for(var lz3=0;lz3<CS;lz3+=4){var rwx=ox+lx3,rwz=oz+lz3;if(getIsland(rwx,rwz)!==1)continue;if(hash(rwx*0.3,rwz*0.3,SEED+9999)>0.965){var rh=getH(rwx,rwz);if(rh>SEA_LEVEL+1&&rh<SEA_LEVEL+35)genRuin(data,idx,lx3,rh,lz3,cx,cz);}}
+  // Appliquer les blocs modifiés (sauvegarde) sur ce chunk
+  if(_modifiedBlocks){
+    var cs2=CHUNK_SIZE,ch2=CHUNK_HEIGHT;
+    var x0=cx*cs2,z0=cz*cs2,x1=x0+cs2,z1=z0+cs2;
+    for(var _mk in _modifiedBlocks){
+      var _mp=_mk.split(',');
+      var _mx=parseInt(_mp[0]),_my=parseInt(_mp[1]),_mz=parseInt(_mp[2]);
+      if(_mx>=x0&&_mx<x1&&_mz>=z0&&_mz<z1&&_my>=0&&_my<ch2){
+        var _lx2=_mx-x0,_lz2=_mz-z0;
+        data[_lx2+cs2*(_my+ch2*_lz2)]=_modifiedBlocks[_mk];
+      }
+    }
+  }
   return data;
 }
 
@@ -3349,7 +3477,7 @@ BLOCK_DROPS[B_NETTLES]=[{id:ITEM_FIBER,qty:2,chance:0.9}];
 BLOCK_DROPS[B_STUMP]=[{id:B_WOOD,qty:1,chance:0.6},{id:ITEM_TREE_SEED,qty:1,chance:0.35}];
 BLOCK_DROPS[B_SAPLING]=[{id:ITEM_TREE_SEED,qty:1,chance:0.8}];
 var NO_SELF_DROP={};NO_SELF_DROP[B_COAL]=true;NO_SELF_DROP[B_IRON]=true;NO_SELF_DROP[B_WATER]=true;NO_SELF_DROP[B_AIR]=true;
-NO_SELF_DROP[B_BERRY_BUSH]=true;NO_SELF_DROP[B_MUSHROOM_BLOCK]=true;NO_SELF_DROP[B_HERB_BLOCK]=true;NO_SELF_DROP[B_NETTLES]=true;NO_SELF_DROP[B_SAPLING]=true;
+NO_SELF_DROP[B_LEAF]=true;NO_SELF_DROP[B_BERRY_BUSH]=true;NO_SELF_DROP[B_MUSHROOM_BLOCK]=true;NO_SELF_DROP[B_HERB_BLOCK]=true;NO_SELF_DROP[B_NETTLES]=true;NO_SELF_DROP[B_SAPLING]=true;
 
 // ════════════════════════════════════════════════════════
 //  ARBRES QUI TOMBENT — entités physiques
@@ -3941,7 +4069,7 @@ var RECIPES=[
   {grid:[W,W,W,W,W,W,0,0,0],result:{id:ITEM_FENCE,qty:3}},{grid:[W,W,0,W,W,0,W,W,0],result:{id:ITEM_DOOR,qty:1}},{grid:[W,0,0,W,W,0,W,W,W],result:{id:ITEM_STAIRS,qty:4}},
   {grid:[0,L,0,0,L,0,0,L,0],result:{id:ITEM_FABRIC,qty:2}},{grid:[0,Ir,0,0,W,0,0,0,0],result:{id:ITEM_KNIFE_IRON,qty:1}},
   {grid:[S,S,S,W,0,W,0,0,0],result:{id:ITEM_GRILL,qty:1}},{grid:[C,Ro,C,C,0,C,0,0,0],result:{id:ITEM_CANTEEN,qty:1}},{grid:[0,S,0,0,B_COAL,0,0,0,0],result:{id:ITEM_WATER_FILTER,qty:1}},
-  {grid:[W,S,W,W,W,W,0,0,0],result:{id:ITEM_CAMPFIRE,qty:1}},{grid:[0,B_LEAF,0,0,Fa,0,0,0,0],result:{id:ITEM_BANDAGE,qty:3}},
+  {grid:[W,S,W,W,W,W,0,0,0],result:{id:ITEM_CAMPFIRE,qty:1}},{grid:[0,Fi,0,0,Fa,0,0,0,0],result:{id:ITEM_BANDAGE,qty:3}},
   {grid:[W,W,W,Ro,C,Ro,W,W,W],result:{id:ITEM_BOAT,qty:1}},{grid:[Fa,W,Fa,Fa,Fa,Fa,0,0,0],result:{id:ITEM_TENT,qty:1}},{grid:[W,W,W,W,0,W,W,W,W],result:{id:ITEM_CHEST,qty:1}},
   // Vêtements
   {grid:[Fu,Fi,Fu, Fu,Fu,Fu, C,Fu,C],result:{id:ITEM_FUR_COAT,qty:1}},
@@ -4444,6 +4572,10 @@ function tryUseItem(){
       showPopup('🎣 Rien… essaie ailleurs.',pos);
     }
     return true;
+  } else if(id===ITEM_SLING){
+    return true; // géré via maintien
+  } else if(id===ITEM_BOW){
+    return true; // géré via maintien
   } else return false;
   syncHotbar();return true;
 }
@@ -6205,8 +6337,9 @@ function spawnNightEnemies(dt){
 
 function attackAnimalRaycast(){var cp2=Math.cos(player.pitch),sp2=Math.sin(player.pitch),syw=Math.sin(player.yaw),cyw=Math.cos(player.yaw),dir=new THREE.Vector3(-syw*cp2,sp2,-cyw*cp2);for(var i=0;i<animals.length;i++){var a=animals[i];if(a.dead||a.dying)continue;var dx=a.pos.x-camera.position.x,dy=a.pos.y-camera.position.y,dz=a.pos.z-camera.position.z,dist=Math.sqrt(dx*dx+dy*dy+dz*dz);if(dist>4)continue;if((dx*dir.x+dy*dir.y+dz*dir.z)/dist>0.8)return a;}return null;}
 function getWeaponDmg(itemId){if(!itemId)return 2;if(itemId===ITEM_CLUB)return 5;if(itemId===ITEM_SPEAR)return 4;if(itemId===ITEM_BOW)return 3;if(itemId===ITEM_AXE_WOOD)return 3;if(itemId===ITEM_AXE_STONE)return 4;if(itemId===ITEM_AXE_IRON)return 5;return 2;}
-function hitAnimal(a){
-  var def=MOB_DEF[a.type],tool=INV[selectedSlot],dmg=getWeaponDmg(tool?tool.id:0);
+function hitAnimal(a,forceDmg){
+  var def=MOB_DEF[a.type],tool=INV[selectedSlot];
+  var dmg=(forceDmg!==undefined)?forceDmg:getWeaponDmg(tool?tool.id:0);
   a.hp-=dmg;a.hitFlash=0.18;
   a.mesh.children.forEach(function(ch){if(ch.material&&ch.material.color&&ch.userData.origColor===undefined)ch.userData.origColor=ch.material.color.getHex();});
   showPopup('-'+dmg,a.pos.clone().add(new THREE.Vector3(0,2,0)));updateHealthBar(a);drainStamina(1);
@@ -6354,8 +6487,16 @@ camZone.addEventListener('touchend',endCam,{passive:false});camZone.addEventList
 
 // Mouse events
 var _mobileActionUsed=false,placeTimer=null;
-document.addEventListener('mousedown',function(e){if(invOpen||lootModalOpen)return;if(_mobileActionUsed){_mobileActionUsed=false;return;}if(e.button===0){var a=attackAnimalRaycast();if(a){hitAnimal(a);return;}startBreaking();}if(e.button===2){if(!mouseLocked){_mouseRightDown=true;_lastMouseX=e.clientX;_lastMouseY=e.clientY;}else{var a2=attackAnimalRaycast();if(a2&&a2.type==='wolf'&&!a2.tamed){tryTameAnimal(a2);return;}if(tryUseItem())return;tryFillCanteen();var h2=raycast();if(h2){if(h2.bx!==null&&tryInteractBlock(h2.bx,h2.by,h2.bz))return;if(h2.px!==null)doPlace(h2.px,h2.py,h2.pz);}}}});
-document.addEventListener('mouseup',function(e){if(e.button===0)stopBreaking();if(e.button===2)_mouseRightDown=false;});
+document.addEventListener('mousedown',function(e){if(invOpen||lootModalOpen)return;if(_mobileActionUsed){_mobileActionUsed=false;return;}if(e.button===0){var a=attackAnimalRaycast();if(a){hitAnimal(a);return;}startBreaking();}if(e.button===2){if(!mouseLocked){_mouseRightDown=true;_lastMouseX=e.clientX;_lastMouseY=e.clientY;
+    var _curSlotNL=INV[selectedSlot];
+    if(_curSlotNL&&_curSlotNL.id===ITEM_SLING){slingStartCharge();return;}
+    if(_curSlotNL&&_curSlotNL.id===ITEM_BOW){bowStartCharge();return;}
+  }else{
+    var _curSlot=INV[selectedSlot];
+    if(_curSlot&&_curSlot.id===ITEM_SLING){slingStartCharge();return;}
+    if(_curSlot&&_curSlot.id===ITEM_BOW){bowStartCharge();return;}
+    var a2=attackAnimalRaycast();if(a2&&a2.type==='wolf'&&!a2.tamed){tryTameAnimal(a2);return;}if(tryUseItem())return;tryFillCanteen();var h2=raycast();if(h2){if(h2.bx!==null&&tryInteractBlock(h2.bx,h2.by,h2.bz))return;if(h2.px!==null)doPlace(h2.px,h2.py,h2.pz);}}}});
+document.addEventListener('mouseup',function(e){if(e.button===0)stopBreaking();if(e.button===2){_mouseRightDown=false;if(_slingActive)slingRelease();else if(_bowActive)bowRelease();}});
 var _lastJumpTap=0;
 document.getElementById('btn-jump').addEventListener('pointerdown',function(e){e.stopPropagation();_mobileActionUsed=true;jumpHeld=true;player.jumpBuffer=0.2;if(false){var now4=Date.now();if(now4-_lastJumpTap<300){_flyActive=!_flyActive;if(!_flyActive)player.vel.y=0;}_lastJumpTap=now4;}});
 document.getElementById('btn-jump').addEventListener('pointerup',function(){jumpHeld=false;});
@@ -6364,8 +6505,17 @@ document.getElementById('btn-break').addEventListener('pointerdown',function(e){
 document.getElementById('btn-break').addEventListener('pointermove',function(e){if(e.pointerType!=='touch')return;var id=e.pointerId;if(camTouches[id]){player.yaw-=(e.clientX-camTouches[id].x)*0.004;player.pitch=Math.max(-Math.PI/2+0.05,Math.min(Math.PI/2-0.05,player.pitch-(e.clientY-camTouches[id].y)*0.004));}camTouches[id]={x:e.clientX,y:e.clientY};});
 document.getElementById('btn-break').addEventListener('pointerup',function(e){delete camTouches[e.pointerId];stopBreaking();});
 document.getElementById('btn-break').addEventListener('pointercancel',function(e){delete camTouches[e.pointerId];stopBreaking();});
-document.getElementById('btn-place').addEventListener('pointerdown',function(e){e.stopPropagation();_mobileActionUsed=true;var a=attackAnimalRaycast();if(a&&a.type==='wolf'&&!a.tamed){tryTameAnimal(a);return;}if(tryUseItem())return;tryFillCanteen();var h=raycast();if(h){if(h.bx!==null&&tryInteractBlock(h.bx,h.by,h.bz))return;if(h.px!==null)doPlace(h.px,h.py,h.pz);}placeTimer=setInterval(function(){var h=raycast();if(h&&h.px!==null)doPlace(h.px,h.py,h.pz);},400);});
-document.getElementById('btn-place').addEventListener('pointerup',function(){clearInterval(placeTimer);});
+document.getElementById('btn-place').addEventListener('pointerdown',function(e){
+  e.stopPropagation();_mobileActionUsed=true;
+  var _cs=INV[selectedSlot];
+  if(_cs&&_cs.id===ITEM_SLING){slingStartCharge();return;}
+  if(_cs&&_cs.id===ITEM_BOW){bowStartCharge();return;}
+  var a=attackAnimalRaycast();if(a&&a.type==='wolf'&&!a.tamed){tryTameAnimal(a);return;}
+  if(tryUseItem())return;tryFillCanteen();
+  var h=raycast();if(h){if(h.bx!==null&&tryInteractBlock(h.bx,h.by,h.bz))return;if(h.px!==null)doPlace(h.px,h.py,h.pz);}
+  placeTimer=setInterval(function(){var h=raycast();if(h&&h.px!==null)doPlace(h.px,h.py,h.pz);},400);
+});
+document.getElementById('btn-place').addEventListener('pointerup',function(){clearInterval(placeTimer);if(_slingActive)slingRelease();if(_bowActive)bowRelease();});
 document.getElementById('btn-place').addEventListener('pointercancel',function(){clearInterval(placeTimer);});
 document.getElementById('btn-prev').addEventListener('pointerdown',function(e){e.stopPropagation();selectSlot(selectedSlot-1);});
 document.getElementById('btn-next').addEventListener('pointerdown',function(e){e.stopPropagation();selectSlot(selectedSlot+1);});
@@ -6397,9 +6547,7 @@ document.getElementById('btn-next').addEventListener('pointerdown',function(e){e
     document.getElementById('survival-bars').style.display='none';
     document.getElementById('paused').style.display='none';
     if(mouseLocked)document.exitPointerLock();
-    // Afficher bouton continuer
-    var cb=document.getElementById('continueBtn');
-    if(cb)cb.style.display='block';
+    refreshMenuButtons();
     showSaveIndicator('💾 Partie sauvegardée');
   });
 })();
@@ -6427,34 +6575,68 @@ document.getElementById('btn-next').addEventListener('pointerdown',function(e){e
   });
 });
 
-// Afficher bouton Continuer si save existe
-(function(){
-  if(hasSave()){
-    var cb=document.getElementById('continueBtn');
-    if(cb)cb.style.display='block';
-    var sb=document.getElementById('startBtn');
-    if(sb)sb.textContent='▶ NOUVELLE PARTIE';
+// Fonction centrale : met à jour les boutons de la page d'accueil selon l'état de la save
+function refreshMenuButtons(){
+  var hasSv=hasSave();
+  var cb=document.getElementById('continueBtn');
+  var sb=document.getElementById('startBtn');
+  var db=document.getElementById('deleteSaveMenuBtn');
+  if(cb)cb.style.display=hasSv?'block':'none';
+  if(db)db.style.display=hasSv?'block':'none';
+  // Nouvelle partie : invisible si une save existe
+  if(sb){
+    sb.style.display=hasSv?'none':'block';
+    sb.textContent='▶ ENTRER';
   }
+}
+window.addEventListener("load",function(){refreshMenuButtons();});
+
+// Bouton supprimer sauvegarde (page d'accueil)
+(function(){
+  var dsmb=document.getElementById('deleteSaveMenuBtn');
+  var modal=document.getElementById('delete-confirm-modal');
+  var yes=document.getElementById('confirmDeleteYes');
+  var no=document.getElementById('confirmDeleteNo');
+  if(dsmb)dsmb.addEventListener('pointerdown',function(e){
+    e.stopPropagation();
+    if(modal)modal.style.display='flex';
+  });
+  if(yes)yes.addEventListener('pointerdown',function(e){
+    e.stopPropagation();
+    deleteSave();
+    if(modal)modal.style.display='none';
+    refreshMenuButtons();
+    showSaveIndicator('🗑 Partie supprimée');
+  });
+  if(no)no.addEventListener('pointerdown',function(e){
+    e.stopPropagation();
+    if(modal)modal.style.display='none';
+  });
 })();
 
 document.getElementById('continueBtn').addEventListener('pointerdown',function(){
   document.getElementById('overlay').style.display='none';
-  gameStarted=true;applySettings();spawnPlayer();showHudEditBtn();
+  gameStarted=true;applySettings();
+  // Charger la save AVANT spawnPlayer pour que _modifiedBlocks soit prêt
+  // quand genChunk génère les chunks
+  var saveLoaded=loadGame();
+  _modifiedBlocksEnabled=true;
+  spawnPlayer();showHudEditBtn();
   spawnInitialAnimals();updateBars();initWeatherCanvas();
+  // Si save chargée : repositionner le joueur sur les coords sauvegardées
+  if(saveLoaded){
+    // Re-appliquer la position (spawnPlayer l'a écrasée)
+    var raw=_ls.get(SAVE_KEY,null);
+    if(raw){try{var sv=JSON.parse(raw);player.pos.set(sv.px,sv.py,sv.pz);player.yaw=sv.pyaw||0;player.pitch=sv.ppitch||0;}catch(e){}}
+    updateBars();syncHotbar();
+    showSaveIndicator('↩ Partie chargée!');
+  }
   revealFog(player.pos.x,player.pos.z,_fogRevealRadius);
   var hb=document.getElementById('btn-settings-hud');if(hb)hb.classList.add('visible');
   weather.duration=weatherDuration();
   document.getElementById('survival-bars').style.display=false?'none':'flex';
   if(!isMobile)document.getElementById('tracking-hint').style.display='block';
-  // Charger la sauvegarde APRÈS le spawn initial
-  setTimeout(function(){
-    if(loadGame()){
-      updateBars();syncHotbar();showSaveIndicator('↩ Partie chargée!');
-      _modifiedBlocksEnabled=true;
-      // Recharger les chunks autour de la position chargée
-      updateChunks();
-    }
-  },200);
+  updateChunks();
 });
 
 document.getElementById('startBtn').addEventListener('pointerdown',function(){document.getElementById('overlay').style.display='none';gameStarted=true;applySettings();spawnPlayer();showHudEditBtn();_modifiedBlocksEnabled=true;spawnInitialAnimals();updateBars();initWeatherCanvas();revealFog(player.pos.x,player.pos.z,_fogRevealRadius);var hb=document.getElementById('btn-settings-hud');if(hb)hb.classList.add('visible');weather.duration=weatherDuration();document.getElementById('survival-bars').style.display=false?'none':'flex';if(!isMobile)document.getElementById('tracking-hint').style.display='block';});
@@ -6567,7 +6749,9 @@ function _serializeModifiedBlocks(){
 function hasSave(){
   try{
     var raw=_ls.get(SAVE_KEY,null);
-    return raw&&raw.length>10;
+    if(!raw||raw.length<10)return false;
+    var parsed=JSON.parse(raw);
+    return parsed&&parsed.v===1&&parsed.px!==undefined;
   }catch(e){return false;}
 }
 
@@ -6612,13 +6796,12 @@ function loadGame(){
     }
     if(save.slot!==undefined)selectedSlot=save.slot;
 
-    // Restaurer blocs modifiés
+    // Restaurer blocs modifiés dans le dictionnaire — genChunk les appliquera automatiquement
     if(save.blocks&&save.blocks.length){
       for(var b=0;b<save.blocks.length;b++){
         var bl=save.blocks[b];
         if(bl&&bl.length>=4){
           _modifiedBlocks[bl[0]+','+bl[1]+','+bl[2]]=bl[3];
-          setBlockRaw(bl[0],bl[1],bl[2],bl[3]);
         }
       }
     }
@@ -6646,6 +6829,445 @@ function updateAutoSave(dt){
 window.addEventListener('beforeunload',function(){
   if(gameStarted)saveGame(false);
 });
+
+
+// ════════════════════════════════════════════════════════
+//  SUPPORT MANETTE — PS4/PS5 (API Gamepad)
+// ════════════════════════════════════════════════════════
+// Layout PS4/PS5 :
+//  Axes   : 0=stick G horizontal, 1=stick G vertical
+//           2=stick D horizontal, 3=stick D vertical
+//  Buttons: 0=Croix, 1=Rond, 2=Carré, 3=Triangle
+//           4=L1, 5=R1, 6=L2, 7=R2
+//           8=Share/Créer, 9=Options/Menu
+//           10=L3, 11=R3
+//           12=↑ 13=↓ 14=← 15=→ (D-pad)
+
+var _gp=null;
+var _gpBreakHeld=false;
+var _gpPlaceHeld=false;
+var _gpInvPressed=false;
+var _gpPausePressed=false;
+var _gpSprintHeld=false;
+var _gpInteractPressed=false;
+var _gpPrevPressed=false;
+var _gpNextPressed=false;
+var DEADZONE=0.12;
+
+function _gpAxis(v){return Math.abs(v)<DEADZONE?0:v;}
+
+window.addEventListener('gamepadconnected',function(e){
+  _gp=e.gamepad;
+  showPopup('🎮 Manette connectée: '+e.gamepad.id.slice(0,30),
+    player.pos?player.pos.clone().add(new THREE.Vector3(0,2,0)):new THREE.Vector3(0,5,0));
+});
+window.addEventListener('gamepaddisconnected',function(e){
+  _gp=null;
+  showPopup('🎮 Manette déconnectée',
+    player.pos?player.pos.clone().add(new THREE.Vector3(0,2,0)):new THREE.Vector3(0,5,0));
+});
+
+function updateGamepad(dt){
+  // Rafraîchir la référence (Chrome nécessite getGamepads() à chaque frame)
+  var gpList=navigator.getGamepads?navigator.getGamepads():[];
+  _gp=null;
+  for(var gi=0;gi<gpList.length;gi++){if(gpList[gi]){_gp=gpList[gi];break;}}
+  if(!_gp||!gameStarted||invOpen||lootModalOpen)return;
+
+  var axes=_gp.axes;
+  var btns=_gp.buttons;
+  var sens=SETTINGS.sensitivity*2.2;
+
+  // ── Stick gauche : déplacement ──────────────────────
+  var lx=_gpAxis(axes[0]||0);
+  var ly=_gpAxis(axes[1]||0);
+  var sy=Math.sin(player.yaw),cy=Math.cos(player.yaw);
+  if(Math.abs(lx)>0||Math.abs(ly)>0){
+    // Injecter dans keys virtuels (non-exclusif avec clavier)
+    var spd=MOVE_SPEED*dt;
+    // Forward/back
+    player.vel.x+=(-ly*sy + lx*cy)*MOVE_SPEED*0.8;
+    player.vel.z+=(-ly*cy - lx*sy)*MOVE_SPEED*0.8;
+  }
+
+  // ── Stick droit : caméra ─────────────────────────────
+  var rx=_gpAxis(axes[2]||0);
+  var ry=_gpAxis(axes[3]||0);
+  if(Math.abs(rx)>0){
+    player.yaw-=rx*sens*dt;
+  }
+  if(Math.abs(ry)>0){
+    var pitch_delta=(SETTINGS.invertY?-1:1)*ry*sens*dt;
+    player.pitch=Math.max(-Math.PI/2+0.05,Math.min(Math.PI/2-0.05,player.pitch+pitch_delta));
+  }
+
+  // ── Croix (0) : sauter ───────────────────────────────
+  jumpHeld=btns[0]&&btns[0].pressed;
+
+  // ── R2 (7) : casser bloc (maintenir) ─────────────────
+  var r2=btns[7]&&btns[7].pressed;
+  if(r2&&!_gpBreakHeld){startBreaking();_gpBreakHeld=true;}
+  else if(!r2&&_gpBreakHeld){stopBreaking();_gpBreakHeld=false;}
+
+  // ── R1 (5) : poser/interagir ─────────────────────────
+  var r1=btns[5]&&btns[5].pressed;
+  if(r1&&!_gpPlaceHeld){
+    _gpPlaceHeld=true;
+    var h2=raycast();
+    if(h2){
+      tryInteractBlock(h2.bx,h2.by,h2.bz);
+      if(h2.px!==null)doPlace(h2.px,h2.py,h2.pz);
+    }
+    if(!tryUseItem())tryFillCanteen();
+  }else if(!r1)_gpPlaceHeld=false;
+
+  // ── L2 (6) : sprint (maintenir) ──────────────────────
+  var l2=btns[6]&&btns[6].pressed;
+  if(l2!==_gpSprintHeld){
+    _gpSprintHeld=l2;
+    setMobileSprint(l2);
+  }
+
+  // ── Triangle (3) : inventaire ─────────────────────────
+  var tri=btns[3]&&btns[3].pressed;
+  if(tri&&!_gpInvPressed){_gpInvPressed=true;toggleInventory();}
+  else if(!tri)_gpInvPressed=false;
+
+  // ── Options/Menu (9) : pause ─────────────────────────
+  var opt=btns[9]&&btns[9].pressed;
+  if(opt&&!_gpPausePressed){
+    _gpPausePressed=true;
+    var paused=document.getElementById('paused');
+    if(paused.style.display==='flex'){
+      paused.style.display='none';
+      if(!isMobile)document.getElementById('canvas').requestPointerLock();
+    }else{
+      paused.style.display='flex';
+    }
+  }else if(!opt)_gpPausePressed=false;
+
+  // ── L1 (4) / R? : changer slot hotbar ────────────────
+  var l1=btns[4]&&btns[4].pressed;
+  if(l1&&!_gpPrevPressed){_gpPrevPressed=true;selectSlot(selectedSlot-1);}
+  else if(!l1)_gpPrevPressed=false;
+
+  var r3=btns[11]&&btns[11].pressed;
+  if(r3&&!_gpNextPressed){_gpNextPressed=true;selectSlot(selectedSlot+1);}
+  else if(!r3)_gpNextPressed=false;
+
+  // ── D-pad gauche/droite : changer slot ───────────────
+  var dpL=btns[14]&&btns[14].pressed;
+  var dpR=btns[15]&&btns[15].pressed;
+  if(dpL&&!_gpPrevPressed){_gpPrevPressed=true;selectSlot(selectedSlot-1);}
+  else if(dpR&&!_gpNextPressed){_gpNextPressed=true;selectSlot(selectedSlot+1);}
+  if(!dpL&&!l1)_gpPrevPressed=false;
+  if(!dpR&&!r3)_gpNextPressed=false;
+
+  // ── Carré (2) : interaction (E) ──────────────────────
+  var sq=btns[2]&&btns[2].pressed;
+  if(sq&&!_gpInteractPressed){
+    _gpInteractPressed=true;
+    var h3=raycast();
+    if(h3)tryInteractBlock(h3.bx,h3.by,h3.bz);
+  }else if(!sq)_gpInteractPressed=false;
+}
+
+
+// ════════════════════════════════════════════════════════
+//  LANCE-PIERRE — Système de tension et tir
+// ════════════════════════════════════════════════════════
+var _slingActive=false;   // est-ce qu'on est en train de tendre ?
+var _slingCharge=0;       // 0 → 1 (charge max)
+var _slingMaxTime=1.8;    // secondes pour charge complète
+var _slingAmmo=null;      // Pierre en main ?
+
+// Détecter si le joueur a des pierres dans l'inventaire
+function _findStoneAmmo(){
+  for(var i=0;i<INV.length;i++){
+    if(INV[i].id===B_STONE||INV[i].id===B_GRAVEL){return i;}
+  }
+  return -1;
+}
+
+// Commencer à tendre
+function slingStartCharge(){
+  var slot=INV[selectedSlot];
+  if(!slot||slot.id!==ITEM_SLING)return false;
+  var ammoIdx=_findStoneAmmo();
+  if(ammoIdx<0){
+    showPopup('🪨 Pas de pierres en inventaire!',player.pos.clone().add(new THREE.Vector3(0,1.5,0)));
+    return false;
+  }
+  _slingActive=true;
+  _slingCharge=0;
+  _slingAmmo=ammoIdx;
+  document.getElementById('sling-overlay').classList.add('active');
+  if(typeof playSoundPlace==='function'){
+    // Son de tension (corde qui s'étire)
+    if(_ac){
+      var og=_ac.createGain();og.gain.setValueAtTime(0.05,_ac.currentTime);og.gain.linearRampToValueAtTime(0,_ac.currentTime+_slingMaxTime);og.connect(_sfxGain);
+      var oo=_ac.createOscillator();oo.type='sine';oo.frequency.setValueAtTime(200,_ac.currentTime);oo.frequency.linearRampToValueAtTime(600,_ac.currentTime+_slingMaxTime);oo.connect(og);oo.start();oo.stop(_ac.currentTime+_slingMaxTime+0.1);
+    }
+  }
+  return true;
+}
+
+// Relâcher et tirer
+function slingRelease(){
+  if(!_slingActive)return;
+  _slingActive=false;
+  document.getElementById('sling-overlay').classList.remove('active');
+  document.getElementById('sling-charge-fill').style.width='0%';
+  document.getElementById('sling-vignette').style.opacity='0';
+  var ch=document.getElementById('sling-crosshair');
+  if(ch)ch.style.transform='translate(-50%,-50%)';
+  if(_slingCharge<0.1){_slingCharge=0;return;}
+  var ammoIdx=_findStoneAmmo();
+  if(ammoIdx<0){_slingCharge=0;return;}
+  INV[ammoIdx].qty--;
+  if(INV[ammoIdx].qty<=0)INV[ammoIdx]={id:0,qty:0};
+  syncHotbar();
+  _fireSlingProjectile(_slingCharge,false);
+  _slingCharge=0;
+}
+
+// ── ARC ──────────────────────────────────────────────────
+var _bowActive=false,_bowCharge=0,_bowMaxTime=1.4;
+
+function _findArrow(){
+  for(var i=0;i<INV.length;i++){if(INV[i].id===ITEM_ARROW&&INV[i].qty>0)return i;}
+  return -1;
+}
+
+function bowStartCharge(){
+  var slot=INV[selectedSlot];
+  if(!slot||slot.id!==ITEM_BOW)return false;
+  if(_findArrow()<0){
+    showPopup('🏹 Pas de flèches!',player.pos.clone().add(new THREE.Vector3(0,1.5,0)));
+    return false;
+  }
+  _bowActive=true;_bowCharge=0;
+  document.getElementById('sling-overlay').classList.add('active');
+  if(_ac){
+    var og=_ac.createGain();og.gain.setValueAtTime(0.04,_ac.currentTime);og.gain.linearRampToValueAtTime(0,_ac.currentTime+_bowMaxTime);og.connect(_sfxGain);
+    var oo=_ac.createOscillator();oo.type='triangle';oo.frequency.setValueAtTime(300,_ac.currentTime);oo.frequency.linearRampToValueAtTime(700,_ac.currentTime+_bowMaxTime);oo.connect(og);oo.start();oo.stop(_ac.currentTime+_bowMaxTime+0.1);
+  }
+  return true;
+}
+
+function bowRelease(){
+  if(!_bowActive)return;
+  _bowActive=false;
+  document.getElementById('sling-overlay').classList.remove('active');
+  document.getElementById('sling-charge-fill').style.width='0%';
+  document.getElementById('sling-vignette').style.opacity='0';
+  var ch=document.getElementById('sling-crosshair');
+  if(ch)ch.style.transform='translate(-50%,-50%)';
+  if(_bowCharge<0.15){_bowCharge=0;return;}
+  var ai=_findArrow();
+  if(ai<0){_bowCharge=0;return;}
+  INV[ai].qty--;
+  if(INV[ai].qty<=0)INV[ai]={id:0,qty:0};
+  syncHotbar();
+  _fireSlingProjectile(_bowCharge,true);
+  _bowCharge=0;
+}
+
+// Fonction commune de tir pour fronde ET arc
+function _fireSlingProjectile(charge,isArrow){
+  var cp=Math.cos(player.pitch),sp=Math.sin(player.pitch);
+  var sy=Math.sin(player.yaw),cy=Math.cos(player.yaw);
+  var dirX=-sy*cp,dirY=sp,dirZ=-cy*cp;
+  var speed=isArrow?(28+charge*22):(18+charge*14);
+  var dmg=isArrow?Math.round(2+charge*4):Math.round(1+charge*3);
+
+  // Son de tir
+  if(_ac){
+    var tg=_ac.createGain();tg.gain.setValueAtTime(0.35,_ac.currentTime);tg.gain.exponentialRampToValueAtTime(0.001,_ac.currentTime+0.2);tg.connect(_sfxGain);
+    var to=_ac.createOscillator();to.type=isArrow?'triangle':'sawtooth';
+    to.frequency.setValueAtTime(isArrow?800:500,_ac.currentTime);
+    to.frequency.exponentialRampToValueAtTime(80,_ac.currentTime+0.2);
+    to.connect(tg);to.start();to.stop(_ac.currentTime+0.2);
+  }
+
+  // Mesh
+  var geo=new THREE.BoxGeometry(isArrow?0.04:0.18,isArrow?0.04:0.18,isArrow?0.5:0.18);
+  var mat=new THREE.MeshBasicMaterial({color:isArrow?0x8B5E1A:0x888888});
+  var mesh=new THREE.Mesh(geo,mat);
+  mesh.position.set(
+    player.pos.x+dirX*0.9,
+    player.pos.y+1.4+dirY*0.9,
+    player.pos.z+dirZ*0.9
+  );
+  if(isArrow){
+    mesh.rotation.x=Math.atan2(dirY,Math.sqrt(dirX*dirX+dirZ*dirZ));
+    mesh.rotation.y=Math.atan2(-dirX,-dirZ);
+  }
+  scene.add(mesh);
+
+  _slingProjectiles.push({
+    mesh:mesh,vx:dirX*speed,vy:dirY*speed,vz:dirZ*speed,
+    dmg:dmg,life:isArrow?3.5:2.5,done:false,isArrow:isArrow
+  });
+}
+
+function updateBow(dt){
+  if(!_bowActive)return;
+  _bowCharge=Math.min(1,_bowCharge+dt/_bowMaxTime);
+  var fill=document.getElementById('sling-charge-fill');
+  if(fill)fill.style.width=Math.round(_bowCharge*100)+'%';
+  var vig=document.getElementById('sling-vignette');
+  if(vig)vig.style.opacity=_bowCharge*0.45;
+}
+
+// Projectiles actifs
+var _slingProjectiles=[];
+
+function slingRelease(){
+  if(!_slingActive)return;
+  _slingActive=false;
+  document.getElementById('sling-overlay').classList.remove('active');
+  document.getElementById('sling-charge-fill').style.width='0%';
+  document.getElementById('sling-vignette').style.opacity='0';
+
+  if(_slingCharge<0.1){_slingCharge=0;return;}
+
+  // Consommer une pierre
+  var ammoIdx=_findStoneAmmo();
+  if(ammoIdx<0){_slingCharge=0;return;}
+  INV[ammoIdx].qty--;
+  if(INV[ammoIdx].qty<=0)INV[ammoIdx]={id:0,qty:0};
+  syncHotbar();
+
+  // Direction de tir depuis l'orientation camera actuelle
+  var cp=Math.cos(player.pitch),sp=Math.sin(player.pitch);
+  var sy=Math.sin(player.yaw),cy=Math.cos(player.yaw);
+  var dirX=-sy*cp, dirY=sp, dirZ=-cy*cp;
+  var speed=18+_slingCharge*14; // vitesse 18-32 blocs/s
+  var dmg=Math.round(1+_slingCharge*3); // dégâts 1-4
+
+  // Son de tir
+  if(_ac){
+    var tg=_ac.createGain();
+    tg.gain.setValueAtTime(0.35,_ac.currentTime);
+    tg.gain.exponentialRampToValueAtTime(0.001,_ac.currentTime+0.2);
+    tg.connect(_sfxGain);
+    var to=_ac.createOscillator();to.type='sawtooth';
+    to.frequency.setValueAtTime(500,_ac.currentTime);
+    to.frequency.exponentialRampToValueAtTime(80,_ac.currentTime+0.2);
+    to.connect(tg);to.start();to.stop(_ac.currentTime+0.2);
+    // Whoosh
+    _noise(0.15,0.2,{type:'bandpass',freq:800},_sfxGain);
+  }
+
+  // Créer le mesh projectile (petite sphère grise)
+  var geo=new THREE.BoxGeometry(0.18,0.18,0.18);
+  var mat=new THREE.MeshBasicMaterial({color:0x888888});
+  var mesh=new THREE.Mesh(geo,mat);
+  mesh.position.set(
+    player.pos.x+dirX*0.8,
+    player.pos.y+1.4+dirY*0.8,
+    player.pos.z+dirZ*0.8
+  );
+  scene.add(mesh);
+
+  _slingProjectiles.push({
+    mesh:mesh,
+    vx:dirX*speed, vy:dirY*speed, vz:dirZ*speed,
+    dmg:dmg,
+    life:2.5, // secondes avant disparition
+    done:false
+  });
+
+  _slingCharge=0;
+}
+
+function updateSlingProjectiles(dt){
+  for(var i=_slingProjectiles.length-1;i>=0;i--){
+    var p=_slingProjectiles[i];
+    if(p.done){scene.remove(p.mesh);_slingProjectiles.splice(i,1);continue;}
+
+    p.life-=dt;
+    if(p.life<=0){p.done=true;continue;}
+
+    // Gravité sur le projectile
+    p.vy-=9.8*dt;
+
+    // Déplacer
+    p.mesh.position.x+=p.vx*dt;
+    p.mesh.position.y+=p.vy*dt;
+    p.mesh.position.z+=p.vz*dt;
+
+    // Rotation visuelle (pierre tourne, flèche pointe dans sa direction)
+    if(p.isArrow){
+      var speed2=Math.sqrt(p.vx*p.vx+p.vy*p.vy+p.vz*p.vz);
+      if(speed2>0.01){
+        p.mesh.rotation.x=Math.atan2(p.vy,Math.sqrt(p.vx*p.vx+p.vz*p.vz));
+        p.mesh.rotation.y=Math.atan2(-p.vx,-p.vz);
+      }
+    } else {
+      p.mesh.rotation.x+=8*dt;
+      p.mesh.rotation.y+=6*dt;
+    }
+
+    var px=p.mesh.position.x;
+    var py=p.mesh.position.y;
+    var pz=p.mesh.position.z;
+
+    // Collision avec animaux
+    var hit=false;
+    for(var ai=0;ai<animals.length;ai++){
+      var a=animals[ai];
+      if(a.dead||a.dying)continue;
+      var dx=a.pos.x-px,dy=(a.pos.y+0.8)-py,dz=a.pos.z-pz;
+      if(Math.sqrt(dx*dx+dy*dy+dz*dz)<1.0){
+        // Impact !
+        hitAnimal(a,p.dmg);
+        showPopup('-'+p.dmg+'❤️ 🪨',a.pos.clone().add(new THREE.Vector3(0,2,0)));
+        if(_ac)_noise(0.1,0.35,{type:'highpass',freq:400},_sfxGain);
+        p.done=true;hit=true;break;
+      }
+    }
+    if(hit)continue;
+
+    // Collision avec blocs
+    var bx=Math.floor(px),by=Math.floor(py),bz=Math.floor(pz);
+    var bl=getBlock(bx,by,bz);
+    if(bl&&bl!==B_AIR&&bl!==B_WATER&&bl!==B_LEAF){
+      if(_ac)_noise(0.1,0.25,{type:'bandpass',freq:600},_sfxGain);
+      p.done=true;
+    }
+
+    // Tombe sous le sol
+    if(py<-10)p.done=true;
+  }
+}
+
+// Update de la charge (appelé dans la boucle)
+function updateSling(dt){
+  updateSlingProjectiles(dt);
+  updateBow(dt);
+  if(!_slingActive)return;
+  _slingCharge=Math.min(1,_slingCharge+dt/_slingMaxTime);
+
+  // Pendant la tension : mouvements caméra normaux (rien à bloquer)
+  // La caméra reste libre pour viser
+
+  // Mettre à jour la jauge
+  var fill=document.getElementById('sling-charge-fill');
+  if(fill)fill.style.width=Math.round(_slingCharge*100)+'%';
+  // Vignette proportionnelle à la charge
+  var vig=document.getElementById('sling-vignette');
+  if(vig)vig.style.opacity=_slingCharge*0.5;
+  // Crosshair tremble quand charge max
+  if(_slingCharge>=1){
+    var ch=document.getElementById('sling-crosshair');
+    if(ch){var shake=(Math.sin(Date.now()*0.025)*3);ch.style.transform='translate(-50%,-50%) rotate('+shake+'deg)';}
+  } else {
+    var ch2=document.getElementById('sling-crosshair');
+    if(ch2)ch2.style.transform='translate(-50%,-50%)';
+  }
+}
 
 // ── Game Loop ──────────────────────────────────────────────
 var lastTime=0,fpsBuf=[],lastFPSt=0;
@@ -7171,7 +7793,7 @@ function animate(now){
   fpsBuf.push(1/dt);if(fpsBuf.length>20)fpsBuf.shift();
   if(now-lastFPSt>500){document.getElementById('fps').textContent=Math.round(fpsBuf.reduce(function(a,b){return a+b;},0)/fpsBuf.length);lastFPSt=now;}
   document.getElementById('pos').textContent=Math.floor(player.pos.x)+','+Math.floor(player.pos.y)+','+Math.floor(player.pos.z);
-  movePlayer(dt);updateAutoSave(dt);if(typeof updateAudio==='function')updateAudio(dt);updateChunks();updateChunkVisibility();updateAnimals(dt);updateSurvival(dt);updateBreaking(dt);spawnNightEnemies(dt);updateRegrowth(dt);updateWeather(dt);renderRain();updateVolFog(_fogIntensity);updateFallingTrees(dt);_fogUpdateTimer+=dt;if(_fogUpdateTimer>0.5){_fogUpdateTimer=0;updateFogReveal();}
+  updateGamepad(dt);updateSling(dt);movePlayer(dt);updateAutoSave(dt);if(typeof updateAudio==='function')updateAudio(dt);updateChunks();updateChunkVisibility();updateAnimals(dt);updateSurvival(dt);updateBreaking(dt);spawnNightEnemies(dt);updateRegrowth(dt);updateWeather(dt);renderRain();updateVolFog(_fogIntensity);updateFallingTrees(dt);_fogUpdateTimer+=dt;if(_fogUpdateTimer>0.5){_fogUpdateTimer=0;updateFogReveal();}
   // ── Marqueur de mort : timer + faisceau + récupération ──────
   if(_deathMarker){
     _deathMarker.timer-=dt;
