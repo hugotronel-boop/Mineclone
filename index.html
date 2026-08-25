@@ -5828,38 +5828,26 @@ function getAnimalTex(type){
     },
     // ── CHASSEUR : grand, primitif, marqué de runes ──────
     chasseur:function(ctx){
-      // Peau tannée, runes gravées, peaux d'animaux
-      ctx.fillStyle='#7a4820';ctx.fillRect(0,0,16,16);
-      // Peaux/fourrures sur le corps
-      ctx.fillStyle='#4a2808';ctx.fillRect(0,0,6,6);ctx.fillRect(10,5,6,6);
-      ctx.fillStyle='#c8a858';ctx.fillRect(2,2,3,3);ctx.fillRect(11,7,3,3);// poils clairs
-      // Runes peintes (ocre)
-      ctx.fillStyle='#e87830';
-      ctx.fillRect(4,1,1,3);ctx.fillRect(3,2,3,1);// rune 1
-      ctx.fillRect(10,1,1,4);ctx.fillRect(9,3,3,1);ctx.fillRect(9,1,3,1);// rune 2
-      ctx.fillRect(6,10,4,1);ctx.fillRect(7,8,2,4);// rune 3
-      // Tatouages/scarifications
-      ctx.fillStyle='#cc5520';ctx.fillRect(0,8,3,1);ctx.fillRect(1,7,1,3);
-      ctx.fillStyle='#aa3310';ctx.fillRect(13,10,2,4);ctx.fillRect(12,11,4,2);
+      // Chair pâle cannibale + sang + runes
+      ctx.fillStyle='#d0c8b8';ctx.fillRect(0,0,16,16);
+      ctx.fillStyle='#b8b0a0';ctx.fillRect(0,0,16,4);ctx.fillRect(0,10,16,6);
+      ctx.fillStyle='#8a1a10';
+      ctx.fillRect(3,1,1,4);ctx.fillRect(2,2,3,1);
+      ctx.fillRect(11,1,1,5);ctx.fillRect(10,3,3,1);
+      ctx.fillRect(6,8,4,1);ctx.fillRect(7,6,2,5);
+      ctx.fillStyle='#5a1010';ctx.fillRect(0,7,16,2);
+      ctx.fillStyle='#efe6c8';ctx.fillRect(1,12,3,3);ctx.fillRect(12,4,3,3);
     },
     chasseurHead:function(ctx){
-      // Visage bestial avec peintures de guerre
-      ctx.fillStyle='#7a4820';ctx.fillRect(0,0,16,16);
-      // Peintures noires (yeux)
+      ctx.fillStyle='#d8d0c4';ctx.fillRect(0,0,16,16);
       ctx.fillStyle='#1a0a00';ctx.fillRect(0,3,16,5);
-      // Yeux orange-rouge intenses
-      ctx.fillStyle='#ff6600';ctx.fillRect(2,4,4,4);ctx.fillRect(10,4,4,4);
-      ctx.fillStyle='#ffaa00';ctx.fillRect(3,5,2,2);ctx.fillRect(11,5,2,2);
-      ctx.fillStyle='#fff';ctx.fillRect(4,5,1,1);ctx.fillRect(12,5,1,1);// reflet
-      // Peintures ocre sur joues
-      ctx.fillStyle='#e87830';ctx.fillRect(0,8,4,2);ctx.fillRect(12,8,4,2);
-      // Bouche ouverte (dents)
-      ctx.fillStyle='#3a1a00';ctx.fillRect(3,11,10,4);
-      ctx.fillStyle='#f0e8c0';ctx.fillRect(4,11,2,2);ctx.fillRect(7,11,2,3);ctx.fillRect(10,11,2,2);
-      ctx.fillStyle='#cc3300';ctx.fillRect(5,13,6,2);// langue
-      // Ornement crâne sur front
-      ctx.fillStyle='#c8b888';ctx.fillRect(5,0,6,3);
-      ctx.fillStyle='#1a1a1a';ctx.fillRect(6,0,1,2);ctx.fillRect(9,0,1,2);
+      ctx.fillStyle='#ff5500';ctx.fillRect(2,4,5,4);ctx.fillRect(9,4,5,4);
+      ctx.fillStyle='#ffcc44';ctx.fillRect(3,5,2,2);ctx.fillRect(10,5,2,2);
+      ctx.fillStyle='#8a1a10';ctx.fillRect(0,8,4,2);ctx.fillRect(12,8,4,2);
+      ctx.fillStyle='#3a1010';ctx.fillRect(3,11,10,5);
+      ctx.fillStyle='#f8f0e0';ctx.fillRect(4,11,2,3);ctx.fillRect(7,11,2,4);ctx.fillRect(10,11,2,3);
+      ctx.fillStyle='#8a1010';ctx.fillRect(5,14,6,2);
+      ctx.fillStyle='#efe6c8';ctx.fillRect(4,0,8,3);
     },
     chasseurLeg:function(ctx){
       // Jambes avec ligatures et scarifications
@@ -5960,6 +5948,9 @@ function buildAnimalMesh(type){
   var tex=getAnimalTex(type);
   group.userData.legs=[];
   group.userData.segments=[];
+  group.userData.arms=[];
+  group.userData.jaws=[];
+  group.userData.glow=[];
 
   function boxTex(w,h,d,texture,x,y,z){
     var g=new THREE.BoxGeometry(w,h,d);
@@ -5974,6 +5965,14 @@ function buildAnimalMesh(type){
   function addLeg(w,h,d,t,x,y,z){
     var m=boxTex(w,h,d,t||tex.leg,x,y,z);
     group.userData.legs.push(m);return m;
+  }
+  function addArm(w,h,d,t,x,y,z){
+    var m=boxTex(w,h,d,t||tex.leg,x,y,z);
+    group.userData.arms.push(m);return m;
+  }
+  function glow(w,h,d,color,x,y,z){
+    var m=boxCol(w,h,d,color,x,y,z);
+    group.userData.glow.push(m);return m;
   }
   function mkTex(draw){return makeAnimalTex(draw);}
 
@@ -6134,111 +6133,247 @@ function buildAnimalMesh(type){
   //  ENNEMIS — cannibales Forest / mutants
   // ════════════════════════════════════════════════
   else if(type==='rodeur'){
-    // Accroupi, capuche, lames, yeux téal
-    boxTex(W*0.85,H*0.7,D*0.7,tex.body,0,y0+H*0.42,0.04);
-    boxTex(W*0.7,H*0.38,D*0.55,tex.body,0,y0+H*0.78,-0.04);
-    boxTex(W*0.62,W*0.55,W*0.62,tex.head,0,y0+H*1.05,D*0.12);
-    var hoodT=mkTex(function(ctx){ctx.fillStyle='#0c0c16';ctx.fillRect(0,0,16,16);ctx.fillStyle='#1a1a2a';ctx.fillRect(1,1,14,8);ctx.fillStyle='#00443a';ctx.fillRect(7,0,2,16);});
-    boxTex(W*0.82,W*0.48,W*0.82,hoodT,0,y0+H+W*0.42,D*0.06);
-    boxCol(0.11,0.06,0.03,0x00ffcc,-W*0.14,y0+H*1.08,D*0.12+W*0.34);
-    boxCol(0.11,0.06,0.03,0x00ffcc, W*0.14,y0+H*1.08,D*0.12+W*0.34);
-    boxCol(0.04,0.04,0.02,0xeeffff,-W*0.14,y0+H*1.08,D*0.12+W*0.36);
-    boxCol(0.04,0.04,0.02,0xeeffff, W*0.14,y0+H*1.08,D*0.12+W*0.36);
-    // longs bras pendants
-    boxTex(W*0.18,H*0.85,W*0.18,tex.leg,-W*0.58,y0+H*0.35,D*0.08);
-    boxTex(W*0.18,H*0.85,W*0.18,tex.leg, W*0.58,y0+H*0.35,D*0.08);
-    var dagT=mkTex(function(ctx){ctx.fillStyle='#c8d0d8';ctx.fillRect(0,0,16,16);ctx.fillStyle='#889098';ctx.fillRect(5,0,6,11);ctx.fillStyle='#5a3800';ctx.fillRect(4,11,8,5);});
-    boxTex(0.05,H*0.45,0.05,dagT,-W*0.62,y0+H*0.05,D*0.18);
-    boxTex(0.05,H*0.45,0.05,dagT, W*0.62,y0+H*0.05,D*0.18);
-    boxCol(W*0.08,H*0.22,W*0.08,0x00aa88,0,y0+H*0.95,-D*0.28);
-    addLeg(W*0.2,y0,W*0.22,tex.leg,-W*0.22,y0/2, D*0.12);
-    addLeg(W*0.2,y0,W*0.22,tex.leg, W*0.22,y0/2, D*0.12);
-    addLeg(W*0.18,y0*0.85,W*0.2,tex.leg,-W*0.2,y0*0.42,-D*0.18);
-    addLeg(W*0.18,y0*0.85,W*0.2,tex.leg, W*0.2,y0*0.42,-D*0.18);
+    // Cannibale accroupi : cage thoracique, capuche de peau, mâchoire, griffes
+    var skin=0xc8b8a0, bone=0xe8dcc0, rag=0x1a1a24, blood=0x6a1010;
+    boxTex(W*0.72,H*0.55,D*0.55,tex.body,0,y0+H*0.48,0.06);
+    // côtes exposées
+    for(var ri=0;ri<4;ri++){
+      boxCol(W*0.78,0.045,0.045,bone,0,y0+H*0.38+ri*0.09,D*0.30);
+    }
+    boxCol(W*0.12,H*0.42,0.04,0x8a3030,0,y0+H*0.5,D*0.32); // sternum sanglant
+    // capuche de peau + crâne
+    boxTex(W*0.7,W*0.5,W*0.62,tex.head,0,y0+H*0.95,D*0.16);
+    var hoodT=mkTex(function(ctx){
+      ctx.fillStyle='#12121c';ctx.fillRect(0,0,16,16);
+      ctx.fillStyle='#c8b090';ctx.fillRect(3,6,10,8);
+      ctx.fillStyle='#0a0a12';ctx.fillRect(0,0,16,7);
+      ctx.fillStyle='#00443a';ctx.fillRect(7,0,2,7);
+      ctx.fillStyle='#5a1010';ctx.fillRect(5,12,6,3);
+    });
+    boxTex(W*0.88,W*0.55,W*0.88,hoodT,0,y0+H+W*0.38,D*0.08);
+    // yeux fentes lumineuses
+    glow(0.14,0.05,0.04,0x00ffcc,-W*0.14,y0+H*1.02,D*0.16+W*0.34);
+    glow(0.14,0.05,0.04,0x00ffcc, W*0.14,y0+H*1.02,D*0.16+W*0.34);
+    glow(0.05,0.03,0.02,0xeeffff,-W*0.14,y0+H*1.02,D*0.16+W*0.36);
+    glow(0.05,0.03,0.02,0xeeffff, W*0.14,y0+H*1.02,D*0.16+W*0.36);
+    // mâchoire pendante
+    var jaw=boxCol(W*0.42,W*0.16,W*0.38,0xd8c8b0,0,y0+H*0.78,D*0.16+W*0.28);
+    jaw.rotation.x=0.45;group.userData.jaws.push(jaw);
+    boxCol(0.05,0.1,0.05,0xf4eee0,-W*0.1,y0+H*0.72,D*0.16+W*0.42);
+    boxCol(0.05,0.1,0.05,0xf4eee0,0,y0+H*0.70,D*0.16+W*0.44);
+    boxCol(0.05,0.1,0.05,0xf4eee0, W*0.1,y0+H*0.72,D*0.16+W*0.42);
+    // colonne vertébrale
+    for(var sp=0;sp<5;sp++){
+      boxCol(0.08,0.08,0.08,bone,0,y0+H*0.35+sp*0.12,-D*0.32);
+    }
+    // bras trop longs + griffes
+    addArm(W*0.16,H*0.95,W*0.16,tex.leg,-W*0.58,y0+H*0.28,D*0.12);
+    addArm(W*0.16,H*0.95,W*0.16,tex.leg, W*0.58,y0+H*0.28,D*0.12);
+    boxCol(0.04,0.04,0.22,0xd8d0c0,-W*0.62,y0+0.04,D*0.28);
+    boxCol(0.04,0.04,0.18,0xd8d0c0,-W*0.52,y0+0.02,D*0.26);
+    boxCol(0.04,0.04,0.2,0xd8d0c0,-W*0.70,y0+0.06,D*0.24);
+    boxCol(0.04,0.04,0.22,0xd8d0c0, W*0.62,y0+0.04,D*0.28);
+    boxCol(0.04,0.04,0.18,0xd8d0c0, W*0.52,y0+0.02,D*0.26);
+    boxCol(0.04,0.04,0.2,0xd8d0c0, W*0.70,y0+0.06,D*0.24);
+    // lame d'os
+    boxCol(0.05,H*0.5,0.05,0xc8d0d4,-W*0.64,y0+H*0.08,D*0.22);
+    boxCol(0.05,H*0.5,0.05,0xc8d0d4, W*0.64,y0+H*0.08,D*0.22);
+    // trophée crâne à la ceinture
+    boxCol(W*0.22,W*0.22,W*0.22,bone, W*0.28,y0+H*0.22,D*0.22);
+    boxCol(0.04,0.03,0.02,0x111,-W*0.02+W*0.24,y0+H*0.24,D*0.34);
+    addLeg(W*0.16,y0,W*0.18,tex.leg,-W*0.22,y0/2, D*0.12);
+    addLeg(W*0.16,y0,W*0.18,tex.leg, W*0.22,y0/2, D*0.12);
+    addLeg(W*0.14,y0*0.8,W*0.16,tex.leg,-W*0.18,y0*0.4,-D*0.16);
+    addLeg(W*0.14,y0*0.8,W*0.16,tex.leg, W*0.18,y0*0.4,-D*0.16);
   }
   else if(type==='chasseur'){
-    // Grand, élancé, lance, collier d'os
-    boxTex(W*0.62,H*0.85,D*0.48,tex.body,0,y0+H*0.52,0);
-    boxTex(W*0.28,H*0.4,W*0.28,tex.body,0,y0+H*1.05,0.04);
-    boxTex(W*0.52,W*0.48,W*0.52,tex.head,0,y0+H*1.28,D*0.08);
-    boxCol(0.1,0.07,0.03,eye,-W*0.14,y0+H*1.32,D*0.08+W*0.28);
-    boxCol(0.1,0.07,0.03,eye, W*0.14,y0+H*1.32,D*0.08+W*0.28);
-    boxCol(0.04,0.04,0.02,0xffee88,-W*0.14,y0+H*1.32,D*0.08+W*0.30);
-    boxCol(0.04,0.04,0.02,0xffee88, W*0.14,y0+H*1.32,D*0.08+W*0.30);
-    boxCol(W*0.55,0.06,W*0.08,0xe87830,0,y0+H*1.18,D*0.08+W*0.26);
-    var boneT=mkTex(function(ctx){ctx.fillStyle='#e8dcb0';ctx.fillRect(0,0,16,16);ctx.fillStyle='#c8b888';ctx.fillRect(0,6,16,4);for(var i=0;i<5;i++){ctx.fillStyle='#f4ecd0';ctx.fillRect(i*3+1,1,2,7);}});
-    boxTex(W*0.85,0.1,D*0.22,boneT,0,y0+H*0.92,D*0.22);
-    boxCol(W*0.08,W*0.22,W*0.08,0xd8c898,-W*0.18,y0+H*1.55,D*0.02);
-    boxCol(W*0.08,W*0.22,W*0.08,0xd8c898, W*0.18,y0+H*1.55,D*0.02);
-    var lanceT=mkTex(function(ctx){ctx.fillStyle='#6a3810';ctx.fillRect(6,2,4,14);ctx.fillStyle='#d8dce0';ctx.fillRect(4,0,8,5);ctx.fillStyle='#f4f6f8';ctx.fillRect(6,0,4,3);});
-    var lance=boxTex(0.07,H*1.65,0.07,lanceT,W*0.58,y0+H*0.7,D*0.18);lance.rotation.z=-0.25;
-    boxTex(0.16,0.16,0.22,lanceT,W*0.52,y0+H*1.45,D*0.28);
-    boxTex(W*0.16,H*0.7,W*0.16,tex.leg,-W*0.48,y0+H*0.45,D*0.1);
-    boxTex(W*0.16,H*0.7,W*0.16,tex.leg, W*0.48,y0+H*0.45,D*0.1);
-    addLeg(W*0.16,y0,W*0.16,tex.leg,-W*0.2,y0/2, D*0.08);
-    addLeg(W*0.16,y0,W*0.16,tex.leg, W*0.2,y0/2, D*0.08);
-    addLeg(W*0.16,y0,W*0.16,tex.leg,-W*0.2,y0/2,-D*0.12);
-    addLeg(W*0.16,y0,W*0.16,tex.leg, W*0.2,y0/2,-D*0.12);
+    // Pale allongé façon Forest : cou démesuré, mâchoire fendue, lance à crâne
+    var pale=0xd8d0c4, bone=0xefe6c8, paint=0x8a1a10;
+    boxTex(W*0.5,H*0.72,D*0.38,tex.body,0,y0+H*0.5,0);
+    for(var ri=0;ri<5;ri++){
+      boxCol(W*0.58,0.04,0.04,bone,0,y0+H*0.32+ri*0.1,D*0.22);
+    }
+    boxCol(W*0.08,H*0.5,0.03,0x7a2020,0,y0+H*0.5,D*0.24);
+    // cou trop long
+    boxTex(W*0.22,H*0.55,W*0.22,tex.body,0,y0+H*1.05,0.06);
+    boxCol(0.07,H*0.45,0.07,bone,0,y0+H*1.05,-W*0.14);
+    // tête étirée + bois
+    boxTex(W*0.48,W*0.42,W*0.55,tex.head,0,y0+H*1.38,D*0.14);
+    glow(0.12,0.07,0.04,0xff6600,-W*0.13,y0+H*1.42,D*0.14+W*0.28);
+    glow(0.12,0.07,0.04,0xff6600, W*0.13,y0+H*1.42,D*0.14+W*0.28);
+    glow(0.04,0.04,0.02,0xffee88,-W*0.13,y0+H*1.42,D*0.14+W*0.30);
+    glow(0.04,0.04,0.02,0xffee88, W*0.13,y0+H*1.42,D*0.14+W*0.30);
+    boxCol(W*0.5,0.05,0.05,paint,0,y0+H*1.28,D*0.14+W*0.26);
+    // mâchoire fendue
+    var jaw=boxCol(W*0.38,W*0.14,W*0.42,pale,0,y0+H*1.18,D*0.14+W*0.28);
+    jaw.rotation.x=0.55;group.userData.jaws.push(jaw);
+    boxCol(0.05,0.12,0.05,0xf8f0e0,-W*0.1,y0+H*1.12,D*0.14+W*0.44);
+    boxCol(0.05,0.14,0.05,0xf8f0e0,0,y0+H*1.10,D*0.14+W*0.46);
+    boxCol(0.05,0.12,0.05,0xf8f0e0, W*0.1,y0+H*1.12,D*0.14+W*0.44);
+    boxCol(W*0.22,0.05,W*0.08,0x8a1010,0,y0+H*1.14,D*0.14+W*0.32); // langue
+    // bois d'os
+    boxCol(0.07,0.55,0.07,bone,-W*0.2,y0+H*1.72,D*0.04);
+    boxCol(0.28,0.06,0.06,bone,-W*0.32,y0+H*1.88,D*0.04);
+    boxCol(0.06,0.22,0.06,bone,-W*0.44,y0+H*1.96,D*0.04);
+    boxCol(0.07,0.55,0.07,bone, W*0.2,y0+H*1.72,D*0.04);
+    boxCol(0.28,0.06,0.06,bone, W*0.32,y0+H*1.88,D*0.04);
+    boxCol(0.06,0.22,0.06,bone, W*0.44,y0+H*1.96,D*0.04);
+    // collier de crânes
+    boxCol(W*0.18,W*0.18,W*0.18,bone,-W*0.28,y0+H*0.88,D*0.22);
+    boxCol(W*0.16,W*0.16,W*0.16,bone,0,y0+H*0.84,D*0.26);
+    boxCol(W*0.18,W*0.18,W*0.18,bone, W*0.28,y0+H*0.88,D*0.22);
+    // lance à pointe-crâne
+    var lanceT=mkTex(function(ctx){ctx.fillStyle='#5a3010';ctx.fillRect(6,3,4,13);ctx.fillStyle='#efe6c8';ctx.fillRect(3,0,10,6);ctx.fillStyle='#111';ctx.fillRect(5,1,2,2);ctx.fillRect(9,1,2,2);});
+    var lance=boxTex(0.07,H*1.85,0.07,lanceT,W*0.55,y0+H*0.75,D*0.2);lance.rotation.z=-0.28;
+    boxCol(0.22,0.22,0.26,bone,W*0.48,y0+H*1.62,D*0.32);
+    boxCol(0.06,0.06,0.04,0x111,W*0.42,y0+H*1.64,D*0.46);
+    addArm(W*0.13,H*0.85,W*0.13,tex.leg,-W*0.42,y0+H*0.42,D*0.1);
+    addArm(W*0.13,H*0.85,W*0.13,tex.leg, W*0.42,y0+H*0.42,D*0.1);
+    boxCol(0.04,0.04,0.2,bone,-W*0.46,y0+H*0.05,D*0.22);
+    boxCol(0.04,0.04,0.16,bone,-W*0.38,y0+H*0.02,D*0.2);
+    addLeg(W*0.13,y0,W*0.13,tex.leg,-W*0.18,y0/2, D*0.08);
+    addLeg(W*0.13,y0,W*0.13,tex.leg, W*0.18,y0/2, D*0.08);
+    addLeg(W*0.13,y0,W*0.13,tex.leg,-W*0.18,y0/2,-D*0.12);
+    addLeg(W*0.13,y0,W*0.13,tex.leg, W*0.18,y0/2,-D*0.12);
   }
   else if(type==='brute'){
-    // Colosse : épaules énormes, plaques d'os, cornes, veines
-    boxTex(W*0.95,H*0.85,D*0.85,tex.body,0,y0+H*0.48,0);
-    boxTex(W*0.7,W*0.62,W*0.7,tex.head,0,y0+H*1.05,D*0.12);
-    boxCol(0.16,0.1,0.04,eye,-W*0.2,y0+H*1.08,D*0.12+W*0.38);
-    boxCol(0.16,0.1,0.04,eye, W*0.2,y0+H*1.08,D*0.12+W*0.38);
-    boxCol(0.06,0.06,0.02,0xff6622,-W*0.2,y0+H*1.08,D*0.12+W*0.40);
-    boxCol(0.06,0.06,0.02,0xff6622, W*0.2,y0+H*1.08,D*0.12+W*0.40);
-    var boneP=mkTex(function(ctx){ctx.fillStyle='#d8d0a8';ctx.fillRect(0,0,16,16);ctx.fillStyle='#0a0a10';ctx.fillRect(3,3,10,10);ctx.fillStyle='#b00';ctx.fillRect(7,0,2,16);ctx.fillRect(0,7,16,2);});
-    boxTex(W*0.85,H*0.42,D*0.7,boneP,-W*0.85,y0+H*0.88,0);
-    boxTex(W*0.85,H*0.42,D*0.7,boneP, W*0.85,y0+H*0.88,0);
-    boxTex(W*0.5,H*0.18,D*0.7,boneP,0,y0+H*0.95,-D*0.15);
-    var horn=0xd4cc98;
-    var hL=boxCol(0.12,0.55,0.12,horn,-W*0.28,y0+H*1.45,D*0.08);hL.rotation.z=0.4;
-    var hR=boxCol(0.12,0.55,0.12,horn, W*0.28,y0+H*1.45,D*0.08);hR.rotation.z=-0.4;
-    boxCol(W*0.55,0.08,0.08,0xaa1100,0,y0+H*0.55,D*0.44);
-    boxCol(0.08,H*0.6,0.08,0x660800,0.1,y0+H*0.5,D*0.42);
-    boxTex(W*0.28,H*0.7,W*0.28,tex.leg,-W*0.85,y0+H*0.35,D*0.15);
-    boxTex(W*0.28,H*0.7,W*0.28,tex.leg, W*0.85,y0+H*0.35,D*0.15);
-    addLeg(W*0.28,y0,W*0.28,tex.leg,-W*0.38,y0/2, D*0.18);
-    addLeg(W*0.28,y0,W*0.28,tex.leg, W*0.38,y0/2, D*0.18);
-    addLeg(W*0.28,y0,W*0.28,tex.leg,-W*0.38,y0/2,-D*0.18);
-    addLeg(W*0.28,y0,W*0.28,tex.leg, W*0.38,y0/2,-D*0.18);
+    // Colosse type Armsy : plaques, cornes, 3e bras, mâchoire de crâne, veines
+    var bone=0xe0d8b0, flesh=0x1a1214, vein=0x8a0808;
+    boxTex(W*1.0,H*0.88,D*0.9,tex.body,0,y0+H*0.48,0);
+    // ventre d'os + fissures
+    boxCol(W*0.7,H*0.45,D*0.2,bone,0,y0+H*0.38,D*0.42);
+    boxCol(W*0.08,H*0.7,0.08,vein,0.12,y0+H*0.5,D*0.48);
+    boxCol(W*0.7,0.08,0.08,vein,0,y0+H*0.55,D*0.48);
+    // tête-crâne fusionnée
+    boxTex(W*0.78,W*0.7,W*0.78,tex.head,0,y0+H*1.08,D*0.1);
+    boxCol(W*0.85,W*0.28,W*0.55,bone,0,y0+H*1.28,D*0.08); // calotte
+    glow(0.2,0.12,0.05,0xff0000,-W*0.22,y0+H*1.08,D*0.1+W*0.4);
+    glow(0.2,0.12,0.05,0xff0000, W*0.22,y0+H*1.08,D*0.1+W*0.4);
+    glow(0.08,0.06,0.03,0xff6622,-W*0.22,y0+H*1.08,D*0.1+W*0.42);
+    glow(0.08,0.06,0.03,0xff6622, W*0.22,y0+H*1.08,D*0.1+W*0.42);
+    // mâchoire trop large + crocs
+    var jaw=boxCol(W*0.85,W*0.22,W*0.55,bone,0,y0+H*0.82,D*0.22);
+    jaw.rotation.x=0.35;group.userData.jaws.push(jaw);
+    boxCol(0.1,0.22,0.1,0xf4ecd0,-W*0.28,y0+H*0.72,D*0.48);
+    boxCol(0.12,0.28,0.12,0xf4ecd0,-W*0.08,y0+H*0.68,D*0.5);
+    boxCol(0.12,0.28,0.12,0xf4ecd0, W*0.08,y0+H*0.68,D*0.5);
+    boxCol(0.1,0.22,0.1,0xf4ecd0, W*0.28,y0+H*0.72,D*0.48);
+    boxCol(W*0.4,0.08,0.12,0x6a0808,0,y0+H*0.78,D*0.4);
+    // cornes + pics d'épaules (côtes)
+    var hL=boxCol(0.14,0.7,0.14,bone,-W*0.32,y0+H*1.5,D*0.02);hL.rotation.z=0.45;
+    var hR=boxCol(0.14,0.7,0.14,bone, W*0.32,y0+H*1.5,D*0.02);hR.rotation.z=-0.45;
+    boxCol(0.1,0.45,0.1,bone,-W*0.95,y0+H*1.15,0); // pic épaule
+    boxCol(0.1,0.4,0.1,bone,-W*0.78,y0+H*1.22,-0.1);
+    boxCol(0.1,0.45,0.1,bone, W*0.95,y0+H*1.15,0);
+    boxCol(0.1,0.4,0.1,bone, W*0.78,y0+H*1.22,-0.1);
+    var boneP=mkTex(function(ctx){ctx.fillStyle='#e0d8b0';ctx.fillRect(0,0,16,16);ctx.fillStyle='#1a1214';ctx.fillRect(3,3,10,10);ctx.fillStyle='#8a0808';ctx.fillRect(7,0,2,16);ctx.fillRect(0,7,16,2);});
+    boxTex(W*0.9,H*0.48,D*0.75,boneP,-W*0.92,y0+H*0.9,0);
+    boxTex(W*0.9,H*0.48,D*0.75,boneP, W*0.92,y0+H*0.9,0);
+    // 3e bras (dos)
+    addArm(W*0.28,H*0.85,W*0.28,tex.leg, 0.15,y0+H*0.7,-D*0.55);
+    boxCol(W*0.32,W*0.2,W*0.4,0x2a1a1a, 0.15,y0+H*0.28,-D*0.7);
+    addArm(W*0.32,H*0.85,W*0.32,tex.leg,-W*0.95,y0+H*0.32,D*0.18);
+    addArm(W*0.32,H*0.85,W*0.32,tex.leg, W*0.95,y0+H*0.32,D*0.18);
+    boxCol(0.08,0.08,0.28,bone,-W*1.05,y0+0.08,D*0.38);
+    boxCol(0.08,0.08,0.28,bone,-W*0.88,y0+0.04,D*0.36);
+    boxCol(0.08,0.08,0.28,bone, W*1.05,y0+0.08,D*0.38);
+    boxCol(0.08,0.08,0.28,bone, W*0.88,y0+0.04,D*0.36);
+    addLeg(W*0.32,y0,W*0.32,tex.leg,-W*0.4,y0/2, D*0.2);
+    addLeg(W*0.32,y0,W*0.32,tex.leg, W*0.4,y0/2, D*0.2);
+    addLeg(W*0.32,y0,W*0.32,tex.leg,-W*0.4,y0/2,-D*0.2);
+    addLeg(W*0.32,y0,W*0.32,tex.leg, W*0.4,y0/2,-D*0.2);
   }
   else if(type==='mutant'){
-    // Asymétrique, bosse, bras-griffe énorme
-    boxTex(W*0.85,H*0.75,D*0.7,tex.body,-0.08,y0+H*0.48,0);
-    boxCol(W*0.55,H*0.45,D*0.45,0x2a5a18,0.18,y0+H*0.92,-D*0.18);
-    boxTex(W*0.55,W*0.5,W*0.55,tex.head,-0.12,y0+H*1.12,D*0.12);
-    boxCol(0.12,0.1,0.03,eye,-W*0.22,y0+H*1.16,D*0.12+W*0.28);
-    boxCol(0.18,0.14,0.04,0xff4400, 0.05,y0+H*1.12,D*0.12+W*0.28);
-    boxCol(W*0.55,0.05,0.05,0xaa2200,0,y0+H*0.62,D*0.38);
-    // bras mutant (droit)
-    boxTex(W*0.38,H*0.95,W*0.38,tex.leg, W*0.72,y0+H*0.42,D*0.1);
-    boxCol(W*0.42,W*0.22,W*0.55,0x3a7a28, W*0.78,y0+H*0.05,D*0.28);
-    boxCol(0.08,0.08,0.28,0xc8d890, W*0.62,y0+H*0.02,D*0.52);
-    boxCol(0.08,0.08,0.28,0xc8d890, W*0.82,y0+H*0.08,D*0.52);
-    boxCol(0.08,0.08,0.22,0xc8d890, W*0.94,y0-0.02,D*0.48);
-    boxTex(W*0.18,H*0.55,W*0.18,tex.leg,-W*0.58,y0+H*0.5,D*0.08);
-    addLeg(W*0.22,y0,W*0.22,tex.leg,-W*0.32,y0/2, D*0.12);
-    addLeg(W*0.28,y0*1.05,W*0.28,tex.leg, W*0.28,y0/2, D*0.12);
-    addLeg(W*0.2,y0*0.9,W*0.2,tex.leg,-W*0.28,y0*0.45,-D*0.16);
-    addLeg(W*0.22,y0,W*0.22,tex.leg, W*0.22,y0/2,-D*0.16);
+    // Virginia-like : 2e tête, bouche sur le torse, griffe, pustules
+    var gore=0x6a2020, pus=0xc8d440, flesh=0x3d6a2a;
+    boxTex(W*0.82,H*0.78,D*0.68,tex.body,-0.1,y0+H*0.48,0);
+    boxCol(W*0.58,H*0.5,D*0.5,0x2a4a18,0.22,y0+H*0.95,-D*0.16);
+    // tête principale déformée
+    boxTex(W*0.52,W*0.48,W*0.52,tex.head,-0.18,y0+H*1.18,D*0.14);
+    glow(0.1,0.08,0.03,0xff2200,-W*0.28,y0+H*1.22,D*0.14+W*0.26);
+    glow(0.2,0.16,0.04,0xff4400, 0.02,y0+H*1.16,D*0.14+W*0.26);
+    var jaw=boxCol(W*0.4,W*0.12,W*0.32,0x5a2018,-0.18,y0+H*0.98,D*0.28);
+    jaw.rotation.x=0.4;group.userData.jaws.push(jaw);
+    boxCol(0.05,0.1,0.05,0xf0e8d0,-0.28,y0+H*0.94,D*0.42);
+    boxCol(0.05,0.12,0.05,0xf0e8d0,-0.18,y0+H*0.92,D*0.44);
+    boxCol(0.05,0.1,0.05,0xf0e8d0,-0.08,y0+H*0.94,D*0.42);
+    // 2e tête (épaule)
+    boxTex(W*0.38,W*0.36,W*0.38,tex.head, W*0.48,y0+H*0.95,D*0.05);
+    glow(0.08,0.06,0.03,0xaa2200, W*0.42,y0+H*0.98,D*0.05+W*0.2);
+    glow(0.08,0.06,0.03,0xaa2200, W*0.54,y0+H*0.98,D*0.05+W*0.2);
+    boxCol(W*0.22,W*0.08,W*0.18,gore, W*0.48,y0+H*0.82,D*0.18);
+    // bouche de torse
+    boxCol(W*0.4,H*0.22,0.08,gore,0,y0+H*0.5,D*0.38);
+    boxCol(0.06,0.1,0.06,0xf0e8d0,-0.1,y0+H*0.48,D*0.44);
+    boxCol(0.06,0.12,0.06,0xf0e8d0,0,y0+H*0.46,D*0.46);
+    boxCol(0.06,0.1,0.06,0xf0e8d0, 0.1,y0+H*0.48,D*0.44);
+    // pustules
+    boxCol(0.14,0.14,0.14,pus,-W*0.35,y0+H*0.7,D*0.32);
+    boxCol(0.1,0.1,0.1,pus, W*0.15,y0+H*0.35,D*0.3);
+    boxCol(0.12,0.12,0.12,0xaacc20,0.05,y0+H*0.85,-D*0.28);
+    // bras-griffe
+    addArm(W*0.4,H*1.05,W*0.4,tex.leg, W*0.78,y0+H*0.4,D*0.12);
+    boxCol(W*0.48,W*0.22,W*0.6,0x3a7a28, W*0.85,y0+H*0.02,D*0.32);
+    boxCol(0.09,0.09,0.34,0xc8d890, W*0.68,y0-0.02,D*0.58);
+    boxCol(0.09,0.09,0.38,0xc8d890, W*0.88,y0+0.04,D*0.6);
+    boxCol(0.09,0.09,0.3,0xc8d890, W*1.02,y0-0.04,D*0.52);
+    boxCol(0.09,0.09,0.26,0xc8d890, W*0.78,y0+0.1,D*0.54);
+    addArm(W*0.16,H*0.55,W*0.16,tex.leg,-W*0.55,y0+H*0.52,D*0.08);
+    // 3e membre (hanche)
+    boxTex(W*0.18,H*0.5,W*0.18,tex.leg, W*0.15,y0+H*0.15,-D*0.35);
+    addLeg(W*0.2,y0,W*0.2,tex.leg,-W*0.32,y0/2, D*0.12);
+    addLeg(W*0.3,y0*1.08,W*0.3,tex.leg, W*0.3,y0/2, D*0.12);
+    addLeg(W*0.18,y0*0.85,W*0.18,tex.leg,-W*0.26,y0*0.42,-D*0.16);
+    addLeg(W*0.22,y0,W*0.22,tex.leg, W*0.2,y0/2,-D*0.16);
   }
   else if(type==='guerrier'){
-    // Heaume crâne, épaulières os, massue
-    boxTex(W*0.9,H*0.8,D*0.75,tex.body,0,y0+H*0.5,0);
-    boxTex(W*0.62,W*0.58,W*0.62,tex.head,0,y0+H*1.05,D*0.08);
-    var helmT=mkTex(function(ctx){ctx.fillStyle='#d8c898';ctx.fillRect(0,0,16,16);ctx.fillStyle='#222';ctx.fillRect(1,5,14,4);ctx.fillStyle='#ff6600';ctx.fillRect(2,6,5,2);ctx.fillRect(9,6,5,2);ctx.fillStyle='#1a1a1a';ctx.fillRect(6,0,4,4);});
-    boxTex(W*0.72,W*0.55,W*0.72,helmT,0,y0+H*1.18,D*0.08);
-    boxCol(0.1,0.05,0.03,eye,-W*0.14,y0+H*1.12,D*0.08+W*0.34);
-    boxCol(0.1,0.05,0.03,eye, W*0.14,y0+H*1.12,D*0.08+W*0.34);
-    var epaulT=mkTex(function(ctx){ctx.fillStyle='#e0d4a0';ctx.fillRect(0,0,16,16);ctx.fillStyle='#a09060';ctx.fillRect(0,8,16,8);ctx.fillStyle='#3a1a00';ctx.fillRect(6,0,4,16);});
-    boxTex(W*0.48,W*0.28,D*0.5,epaulT,-W*0.68,y0+H*0.92,0);
-    boxTex(W*0.48,W*0.28,D*0.5,epaulT, W*0.68,y0+H*0.92,0);
-    var maceT=mkTex(function(ctx){ctx.fillStyle='#5a3810';ctx.fillRect(6,4,4,12);ctx.fillStyle='#d8c898';ctx.fillRect(1,0,14,6);ctx.fillStyle='#f0e8c8';ctx.fillRect(4,1,8,3);});
-    boxTex(W*0.14,H*0.85,W*0.14,maceT, W*0.78,y0+H*0.38,D*0.12);
-    boxTex(W*0.38,W*0.38,W*0.38,maceT, W*0.78,y0+H*0.85,D*0.12);
-    boxTex(W*0.18,H*0.55,W*0.18,tex.leg,-W*0.55,y0+H*0.42,D*0.08);
+    // Chef de meute : armure de crânes, heaume à bois, massue-crâne, trophées
+    var bone=0xe8dcb0, blood=0x5a1010;
+    boxTex(W*0.92,H*0.82,D*0.78,tex.body,0,y0+H*0.5,0);
+    // plastron de crânes
+    boxCol(W*0.28,W*0.28,W*0.2,bone,-W*0.18,y0+H*0.62,D*0.42);
+    boxCol(W*0.28,W*0.28,W*0.2,bone, W*0.18,y0+H*0.62,D*0.42);
+    boxCol(W*0.24,W*0.24,W*0.18,bone,0,y0+H*0.38,D*0.42);
+    boxCol(0.04,0.03,0.02,0x111,-W*0.22,y0+H*0.64,D*0.54);
+    boxCol(0.04,0.03,0.02,0x111,-W*0.12,y0+H*0.64,D*0.54);
+    boxCol(0.04,0.03,0.02,0x111, W*0.12,y0+H*0.64,D*0.54);
+    boxCol(0.04,0.03,0.02,0x111, W*0.22,y0+H*0.64,D*0.54);
+    boxCol(W*0.5,0.06,0.06,blood,0,y0+H*0.48,D*0.46);
+    // heaume crâne + bois
+    boxTex(W*0.68,W*0.62,W*0.68,tex.head,0,y0+H*1.08,D*0.08);
+    var helmT=mkTex(function(ctx){
+      ctx.fillStyle='#e8dcb0';ctx.fillRect(0,0,16,16);
+      ctx.fillStyle='#222';ctx.fillRect(1,6,14,4);
+      ctx.fillStyle='#ff5500';ctx.fillRect(2,7,5,2);ctx.fillRect(9,7,5,2);
+      ctx.fillStyle='#3a1a08';ctx.fillRect(6,0,4,5);
+      ctx.fillStyle='#5a1010';ctx.fillRect(4,12,8,3);
+    });
+    boxTex(W*0.8,W*0.58,W*0.8,helmT,0,y0+H*1.22,D*0.08);
+    glow(0.12,0.05,0.03,0xff6600,-W*0.16,y0+H*1.16,D*0.08+W*0.38);
+    glow(0.12,0.05,0.03,0xff6600, W*0.16,y0+H*1.16,D*0.08+W*0.38);
+    boxCol(0.08,0.5,0.08,bone,-W*0.22,y0+H*1.58,0);
+    boxCol(0.26,0.07,0.07,bone,-W*0.34,y0+H*1.74,0);
+    boxCol(0.07,0.2,0.07,bone,-W*0.46,y0+H*1.82,0);
+    boxCol(0.08,0.5,0.08,bone, W*0.22,y0+H*1.58,0);
+    boxCol(0.26,0.07,0.07,bone, W*0.34,y0+H*1.74,0);
+    boxCol(0.07,0.2,0.07,bone, W*0.46,y0+H*1.82,0);
+    var epaulT=mkTex(function(ctx){ctx.fillStyle='#e8dcb0';ctx.fillRect(0,0,16,16);ctx.fillStyle='#8a7050';ctx.fillRect(0,9,16,7);ctx.fillStyle='#5a1010';ctx.fillRect(6,0,4,16);});
+    boxTex(W*0.55,W*0.32,D*0.55,epaulT,-W*0.72,y0+H*0.95,0);
+    boxTex(W*0.55,W*0.32,D*0.55,epaulT, W*0.72,y0+H*0.95,0);
+    // pics d'os
+    boxCol(0.08,0.32,0.08,bone,-W*0.85,y0+H*1.18,0);
+    boxCol(0.08,0.32,0.08,bone, W*0.85,y0+H*1.18,0);
+    // massue-crâne
+    var maceT=mkTex(function(ctx){ctx.fillStyle='#4a2808';ctx.fillRect(6,5,4,11);ctx.fillStyle='#e8dcb0';ctx.fillRect(1,0,14,7);ctx.fillStyle='#111';ctx.fillRect(4,2,3,2);ctx.fillRect(9,2,3,2);});
+    boxTex(W*0.13,H*0.95,W*0.13,maceT, W*0.82,y0+H*0.4,D*0.14);
+    boxCol(W*0.42,W*0.42,W*0.42,bone, W*0.82,y0+H*0.92,D*0.14);
+    boxCol(0.06,0.05,0.03,0x111,W*0.72,y0+H*0.96,D*0.36);
+    boxCol(0.06,0.05,0.03,0x111,W*0.88,y0+H*0.96,D*0.36);
+    // trophées ceinture
+    boxCol(W*0.18,W*0.18,W*0.18,bone,-W*0.35,y0+H*0.18,D*0.32);
+    boxCol(W*0.16,W*0.16,W*0.16,bone, W*0.32,y0+H*0.16,D*0.32);
+    addArm(W*0.18,H*0.6,W*0.18,tex.leg,-W*0.58,y0+H*0.42,D*0.08);
+    addArm(W*0.18,H*0.55,W*0.18,tex.leg, W*0.55,y0+H*0.4,D*0.1);
     addLeg(W*0.2,y0,W*0.2,tex.leg,-W*0.26,y0/2, D*0.16);
     addLeg(W*0.2,y0,W*0.2,tex.leg, W*0.26,y0/2, D*0.16);
     addLeg(W*0.2,y0,W*0.2,tex.leg,-W*0.26,y0/2,-D*0.16);
@@ -6798,17 +6933,27 @@ function updateAnimals(dt){
 
     // ── Animation pattes ────────────────────────────────────
     var moving=Math.abs(a.vel.x)>0.05||Math.abs(a.vel.z)>0.05;
+    var lp=Math.sin(legPhase*(a.type==='rodeur'||a.type==='chasseur'?1.25:1));
     if(moving){
       var legs=a.mesh.userData.legs;
       if(legs&&legs.length>=2){
-        var lp=Math.sin(legPhase*(a.type==='rodeur'||a.type==='chasseur'?1.25:1));
         var amp=(a.type==='brute')?0.28:(a.type==='rodeur')?0.55:0.42;
         for(var li=0;li<legs.length;li++){if(legs[li])legs[li].rotation.x=lp*amp*((li%2===0)?1:-1);}
+      }
+      var arms=a.mesh.userData.arms;
+      if(arms&&arms.length){
+        for(var ai=0;ai<arms.length;ai++){if(arms[ai])arms[ai].rotation.x=-lp*0.5*((ai%2===0)?1:-1);}
       }
       var segs=a.mesh.userData.segments;
       if(segs&&segs.length){
         for(var si=0;si<segs.length;si++){if(segs[si])segs[si].position.x=Math.sin(legPhase*1.4+si*0.9)*0.07;}
       }
+    }
+    var jaws=a.mesh.userData.jaws;
+    if(jaws&&jaws.length){
+      var jn=0.35+0.18*Math.sin(legPhase*0.7);
+      if(a.aiState==='attack')jn=0.55+0.25*Math.sin(legPhase*2.2);
+      for(var ji=0;ji<jaws.length;ji++)if(jaws[ji])jaws[ji].rotation.x=jn;
     }
     // Orienter la barre de vie vers la caméra
     var hbm=a.mesh.userData.hbMesh;
