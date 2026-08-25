@@ -4992,7 +4992,17 @@ var RECIPES=[
   // Médicament aux herbes : herbe + fibre
   {grid:[0,ITEM_HERB,0,0,Fi,0,0,0,0],result:{id:ITEM_ANTIDOTE,qty:2}},
   // Bol en bois : bois (×4) + fibre
-  {grid:[W,0,W,W,Fi,W,0,W,0],result:{id:ITEM_BOWL,qty:1}}
+  {grid:[W,0,W,W,Fi,W,0,W,0],result:{id:ITEM_BOWL,qty:1}},
+  // Flèches avec plumes (meilleures)
+  {grid:[0,S,0,0,W,0,0,ITEM_FEATHER,0],result:{id:ITEM_ARROW,qty:8}},
+  // Torches à la graisse
+  {grid:[0,ITEM_FAT,0,0,W,0,0,0,0],result:{id:ITEM_TORCH,qty:4}},
+  // Veste de cuir
+  {grid:[C,C,C,C,0,C,C,C,C],result:{id:ITEM_LEATHER_VEST,qty:1}},
+  // Cape en laine
+  {grid:[L,L,L,L,Fa,L,0,L,0],result:{id:ITEM_WOOL_CLOAK,qty:1}},
+  // Os → 3 flèches (pointes)
+  {grid:[0,ITEM_BONE,0,0,W,0,0,Fi,0],result:{id:ITEM_ARROW,qty:6}}
 ];
 
 // ── Inventaire ─────────────────────────────────────────────
@@ -5456,7 +5466,7 @@ function buildInvUI(){
 }
 function clickEquipSlot(key){var slot=EQUIP[key];if(heldItem.id){
   if(key==='bag'&&heldItem.id!==ITEM_BACKPACK){showPopup('Seulement un sac ici!',player.pos.clone().add(new THREE.Vector3(0,1,0)));return;}
-  if(key==='chest'&&heldItem.id!==ITEM_FUR_COAT){showPopup('Slot vêtement uniquement!',player.pos.clone().add(new THREE.Vector3(0,1,0)));return;}
+  if(key==='chest'&&heldItem.id!==ITEM_FUR_COAT&&heldItem.id!==ITEM_LEATHER_VEST&&heldItem.id!==ITEM_WOOL_CLOAK){showPopup('Slot vêtement uniquement!',player.pos.clone().add(new THREE.Vector3(0,1,0)));return;}
   if(key==='chest'&&heldItem.id){// Init durabilité
     var maxDur={};maxDur[ITEM_FUR_COAT]=200;maxDur[ITEM_LEATHER_VEST]=300;maxDur[ITEM_WOOL_CLOAK]=150;
     if(!slot.id)slot.durability=maxDur[heldItem.id]||200;
@@ -5473,7 +5483,13 @@ ITEM_DESC[ITEM_LEATHER_VEST]='🧥 +1°C · Durabilité 300 · Résistant, mais 
 ITEM_DESC[ITEM_WOOL_CLOAK]='🧥 +2°C · Durabilité 150 · Léger et chaud · Slot Torse';
 ITEM_DESC[ITEM_BANDAGE]='🩹 +½ ❤️ ou arrête le saignement · À utiliser en main';
 ITEM_DESC[ITEM_CANTEEN]='💧 Récipient vide · Se remplit dans l\'eau (clic droit)';
-ITEM_DESC[ITEM_WATER_FILTER]='🔬 Transforme eau brute en eau filtrée (craft) · Réduit risque maladie';
+ITEM_DESC[ITEM_WATER_FILTER]='🔬 Clic droit : filtre une gourde d\'eau brute (5 usages) → eau filtrée';
+ITEM_DESC[ITEM_BOAT]='🪵 Clic droit près de l\'eau : pose un radeau · F pour monter/descendre · Tape-le pour le récupérer';
+ITEM_DESC[ITEM_BONE]='🦴 Engrais : clic droit sur une pousse (arbre instantané) ou un buisson (récolte extra)';
+ITEM_DESC[ITEM_FAT]='🧈 Manger (+2🍖 +chaleur) ou crafter en torches avec un bâton';
+ITEM_DESC[ITEM_FEATHER]='🪶 Craft de flèches (pierre + bois + plume)';
+ITEM_DESC[ITEM_KNIFE_WOOD]='🔪 3 dégâts · Dépecer : loot bonus sur les animaux';
+ITEM_DESC[ITEM_KNIFE_IRON]='🔪 5 dégâts · Dépecer : loot bonus sur les animaux';
 ITEM_DESC[ITEM_CAMPFIRE]='🔥 Zone de chaleur +6°C · Point de spawn · Cuisine viande';
 ITEM_DESC[ITEM_GRILL]='🍳 Cuit toutes les viandes au feu de camp';
 ITEM_DESC[ITEM_TORCH]='🕯 Éclaire · Réchauffe légèrement · Se consomme en 60s';
@@ -5493,7 +5509,7 @@ function buildCraftCatalogue(){
   var cat=document.getElementById('craft-catalogue');if(!cat)return;cat.innerHTML='';
   // Grouper les recettes par catégorie
   var CATS=[
-    {label:'🧥 Vêtements',ids:[ITEM_FUR_COAT]},
+    {label:'🧥 Vêtements',ids:[ITEM_FUR_COAT,ITEM_LEATHER_VEST,ITEM_WOOL_CLOAK]},
     {label:'⚔️ Outils & Armes',ids:[ITEM_AXE_WOOD,ITEM_AXE_STONE,ITEM_AXE_IRON,ITEM_PICK_WOOD,ITEM_PICK_STONE,ITEM_PICK_IRON,ITEM_BOW,ITEM_ARROW,ITEM_SPEAR,ITEM_CLUB,ITEM_SLING,ITEM_FISHING_ROD,ITEM_KNIFE_WOOD,ITEM_KNIFE_IRON]},
     {label:'🏕 Survie',ids:[ITEM_BANDAGE,ITEM_ANTIDOTE,ITEM_CAMPFIRE,ITEM_TORCH,ITEM_BED,ITEM_TENT,ITEM_BACKPACK,ITEM_BOWL,ITEM_CANTEEN,ITEM_WATER_FILTER,ITEM_BOAT]},
     {label:'🏗 Construction',ids:[ITEM_FENCE,ITEM_DOOR,ITEM_STAIRS,ITEM_CHEST,ITEM_GRILL]},
@@ -5888,9 +5904,47 @@ function tryUseItem(){
     }
     return true;
   } else if(id===ITEM_SLING){
-    return true; // géré via maintien
+    return true;
   } else if(id===ITEM_BOW){
-    return true; // géré via maintien
+    return true;
+  } else if(id===ITEM_FAT){
+    if(player.food>=player.maxFood&&player.temp>=10){showPopup('Pas faim!',pos);return true;}
+    slot.qty--;if(slot.qty<=0)slot.id=0;
+    player.food=Math.min(player.maxFood,player.food+2);
+    player.stamina=Math.min(player.maxStamina,player.stamina+1);
+    player.temp=Math.min(12,(player.temp||6)+2);
+    updateBars();showPopup('🧈 +2🍖 +chaleur',pos);
+    if(typeof playSoundEat==='function')playSoundEat();
+  } else if(id===ITEM_WATER_FILTER){
+    var dirty=[ITEM_WATER_LAKE,ITEM_WATER_SEA,ITEM_CANTEEN_WATER];
+    var found=-1;
+    for(var fi=0;fi<INV.length;fi++)if(INV[fi]&&dirty.indexOf(INV[fi].id)>=0&&INV[fi].qty>0){found=fi;break;}
+    if(found<0){showPopup('Pas d\'eau brute à filtrer (lac/mer/gourde)!',pos);return true;}
+    INV[found].qty--;if(INV[found].qty<=0)INV[found].id=0;
+    giveItem(ITEM_WATER_FILTERED,1);
+    slot._uses=(slot._uses==null?5:slot._uses)-1;
+    if(slot._uses<=0){slot.qty--;if(slot.qty<=0)slot.id=0;showPopup('🔬 Filtre usé — eau filtrée obtenue',pos);}
+    else showPopup('🔬 Eau filtrée ('+slot._uses+'/5)',pos);
+  } else if(id===ITEM_BONE){
+    var hb=typeof raycast==='function'?raycast():null;
+    if(!hb||hb.bx===null){showPopup('Vise une pousse ou un buisson!',pos);return true;}
+    var bb=getBlock(hb.bx,hb.by,hb.bz);
+    if(bb===B_SAPLING){
+      slot.qty--;if(slot.qty<=0)slot.id=0;
+      setBlock(hb.bx,hb.by,hb.bz,B_AIR);
+      if(typeof growTreeAt==='function')growTreeAt(hb.bx,hb.bz);
+      showPopup('🌳 Engrais — arbre poussé!',pos);
+    } else if(bb===B_BERRY_BUSH||bb===B_MUSHROOM_BLOCK||bb===B_HERB_BLOCK){
+      slot.qty--;if(slot.qty<=0)slot.id=0;
+      var drop=bb===B_BERRY_BUSH?ITEM_BERRY:(bb===B_MUSHROOM_BLOCK?ITEM_MUSHROOM:ITEM_HERB);
+      if(typeof spawnWorldDrop==='function')spawnWorldDrop(drop,2,hb.bx+0.5,hb.by+0.8,hb.bz+0.5);
+      else giveItem(drop,2);
+      showPopup('🌱 Récolte boostée!',pos);
+    } else {showPopup('Ça ne pousse pas là',pos);return true;}
+  } else if(id===ITEM_BOAT){
+    if(typeof tryPlaceRaft==='function'&&tryPlaceRaft()){
+      slot.qty--;if(slot.qty<=0)slot.id=0;
+    } else return true;
   } else return false;
   syncHotbar();return true;
 }
@@ -6344,7 +6398,7 @@ function updateSurvival(dt){
 
   // Protection : vêtement équipé → bonus de chaleur + protection hypothermie
   var clothingWarmth=0;
-  var clothingItems={};clothingItems[ITEM_FUR_COAT]=3;
+  var clothingItems={};clothingItems[ITEM_FUR_COAT]=3;clothingItems[ITEM_LEATHER_VEST]=1;clothingItems[ITEM_WOOL_CLOAK]=2;
   if(EQUIP.chest&&EQUIP.chest.id&&clothingItems[EQUIP.chest.id]){
     clothingWarmth=clothingItems[EQUIP.chest.id];
     targetTemp=Math.min(12,targetTemp+clothingWarmth);
@@ -8210,7 +8264,7 @@ function spawnNightEnemies(dt){
 }
 
 function attackAnimalRaycast(){var cp2=Math.cos(player.pitch),sp2=Math.sin(player.pitch),syw=Math.sin(player.yaw),cyw=Math.cos(player.yaw),dir=new THREE.Vector3(-syw*cp2,sp2,-cyw*cp2);for(var i=0;i<animals.length;i++){var a=animals[i];if(a.dead||a.dying)continue;var dx=a.pos.x-camera.position.x,dy=a.pos.y-camera.position.y,dz=a.pos.z-camera.position.z,dist=Math.sqrt(dx*dx+dy*dy+dz*dz);if(dist>4)continue;if((dx*dir.x+dy*dir.y+dz*dir.z)/dist>0.8)return a;}return null;}
-function getWeaponDmg(itemId){if(!itemId)return 2;if(itemId===ITEM_CLUB)return 5;if(itemId===ITEM_SPEAR)return 4;if(itemId===ITEM_BOW)return 3;if(itemId===ITEM_AXE_WOOD)return 3;if(itemId===ITEM_AXE_STONE)return 4;if(itemId===ITEM_AXE_IRON)return 5;return 2;}
+function getWeaponDmg(itemId){if(!itemId)return 2;if(itemId===ITEM_CLUB)return 5;if(itemId===ITEM_SPEAR)return 4;if(itemId===ITEM_BOW)return 3;if(itemId===ITEM_AXE_WOOD)return 3;if(itemId===ITEM_AXE_STONE)return 4;if(itemId===ITEM_AXE_IRON)return 5;if(itemId===ITEM_KNIFE_WOOD)return 3;if(itemId===ITEM_KNIFE_IRON)return 5;return 2;}
 function hitAnimal(a,forceDmg){
   var def=MOB_DEF[a.type],tool=INV[selectedSlot];
   var dmg=(forceDmg!==undefined)?forceDmg:getWeaponDmg(tool?tool.id:0);
@@ -8239,6 +8293,21 @@ function hitAnimal(a,forceDmg){
       var qty=d.qty+(d.bonus&&Math.random()<0.4?1:0);
       a.loot.push({id:d.id,qty:qty});
     });
+    var ktool=INV[selectedSlot];
+    if(ktool&&(ktool.id===ITEM_KNIFE_WOOD||ktool.id===ITEM_KNIFE_IRON)){
+      var extra=ktool.id===ITEM_KNIFE_IRON?2:1;
+      if(def.drops){
+        var got=false;
+        for(var di=0;di<def.drops.length;di++){
+          var did=def.drops[di].id;
+          if(did===ITEM_FUR||did===ITEM_LEATHER||did===ITEM_FAT||did===ITEM_FEATHER){
+            a.loot.push({id:did,qty:extra});got=true;
+          }
+        }
+        if(!got)a.loot.push({id:ITEM_FAT,qty:extra});
+      }
+      showPopup('🔪 Dépecé +'+extra,a.pos.clone().add(new THREE.Vector3(0,2.3,0)));
+    }
     a.deathRotTarget=Math.PI/2;a.deathRot=0;
     if(a.mesh.userData.hbMesh)a.mesh.userData.hbMesh.visible=false;
   }
@@ -8382,8 +8451,113 @@ function updateBreaking(dt){
 // ── Physics ────────────────────────────────────────────────
 function isSolid(x,y,z){var b=getBlock(Math.floor(x),Math.floor(y),Math.floor(z));return b&&b!==B_WATER&&b!==B_LEAF&&b!==B_AIR;}
 function isInWater(x,y,z){return getBlock(Math.floor(x),Math.floor(y),Math.floor(z))===B_WATER;}
+
+function waterTopY(x,z){
+  var ix=Math.floor(x),iz=Math.floor(z);
+  var y0=Math.min(CHUNK_HEIGHT-2,SEA_LEVEL+12);
+  for(var y=y0;y>=1;y--){
+    if(getBlock(ix,y,iz)===B_WATER&&getBlock(ix,y+1,iz)!==B_WATER)return y+0.58;
+  }
+  return null;
+}
+var _rafts=[];
+var _mountedRaft=null;
+function makeRaftMesh(){
+  var g=new THREE.Group();
+  var mat=new THREE.MeshBasicMaterial({map:(TEX[B_WOOD]&&TEX[B_WOOD].side)||null,color:TEX[B_WOOD]?0xffffff:0x7A5C2A});
+  function plank(w,h,d,x,y,z){
+    var m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(x,y,z);g.add(m);return m;
+  }
+  plank(2.3,0.16,1.5,0,0,0);
+  plank(0.16,0.32,1.4,-1.1,0.12,0);
+  plank(0.16,0.32,1.4, 1.1,0.12,0);
+  plank(2.1,0.08,0.18,0,0.12,-0.7);
+  plank(2.1,0.08,0.18,0,0.12, 0.7);
+  return g;
+}
+function tryPlaceRaft(){
+  var fx=-Math.sin(player.yaw)*2.2,fz=-Math.cos(player.yaw)*2.2;
+  var wx=player.pos.x+fx,wz=player.pos.z+fz;
+  var wy=waterTopY(wx,wz);
+  if(wy==null){wx=player.pos.x;wz=player.pos.z;wy=waterTopY(wx,wz);}
+  if(wy==null){showPopup("Il faut de l'eau pour le radeau!",player.pos.clone().add(new THREE.Vector3(0,1.2,0)));return false;}
+  var mesh=makeRaftMesh();
+  mesh.position.set(wx,wy,wz);mesh.rotation.y=player.yaw;scene.add(mesh);
+  var r={mesh:mesh,pos:new THREE.Vector3(wx,wy,wz)};
+  _rafts.push(r);_mountedRaft=r;
+  showPopup('Radeau ! WASD pour ramer, F pour descendre',player.pos.clone().add(new THREE.Vector3(0,1.4,0)));
+  if(typeof fbToast==='function')fbToast('Radeau');
+  return true;
+}
+function nearestRaft(maxD){
+  var best=null,bd=maxD||2.6;
+  for(var i=0;i<_rafts.length;i++){
+    var dx=_rafts[i].pos.x-player.pos.x,dz=_rafts[i].pos.z-player.pos.z;
+    var d=Math.sqrt(dx*dx+dz*dz);
+    if(d<bd){bd=d;best=_rafts[i];}
+  }
+  return best;
+}
+function dismountRaft(){
+  if(!_mountedRaft)return;
+  var r=_mountedRaft;
+  _mountedRaft=null;
+  var ox=Math.sin(player.yaw)*1.5,oz=Math.cos(player.yaw)*1.5;
+  player.pos.x=r.pos.x+ox;player.pos.z=r.pos.z+oz;player.pos.y=r.pos.y+1.35;
+  player.vel.set(0,0,0);
+  showPopup('Tu descends du radeau',player.pos.clone().add(new THREE.Vector3(0,1,0)));
+}
+function tryRaftInteract(){
+  if(_mountedRaft){dismountRaft();return true;}
+  var r=nearestRaft(2.8);
+  if(!r)return false;
+  _mountedRaft=r;
+  showPopup('A bord du radeau',player.pos.clone().add(new THREE.Vector3(0,1.2,0)));
+  return true;
+}
+function punchRaft(){
+  if(_mountedRaft)return false;
+  var r=nearestRaft(3.0);if(!r)return false;
+  var dx=r.pos.x-player.pos.x,dz=r.pos.z-player.pos.z,dist=Math.sqrt(dx*dx+dz*dz)||1;
+  var sy=Math.sin(player.yaw),cy=Math.cos(player.yaw);
+  if((dx*(-sy)+dz*(-cy))/dist<0.35)return false;
+  scene.remove(r.mesh);
+  for(var i=0;i<_rafts.length;i++)if(_rafts[i]===r){_rafts.splice(i,1);break;}
+  giveItem(ITEM_BOAT,1);syncHotbar();
+  showPopup('Radeau recupere',player.pos.clone().add(new THREE.Vector3(0,1.2,0)));
+  return true;
+}
+function updateRafts(dt){
+  for(var i=0;i<_rafts.length;i++){
+    var r=_rafts[i], wy=waterTopY(r.pos.x,r.pos.z);
+    if(wy!=null)r.pos.y=wy;
+    r.mesh.position.copy(r.pos);
+  }
+  if(!_mountedRaft)return;
+  var r=_mountedRaft;
+  var sy=Math.sin(player.yaw),cy=Math.cos(player.yaw);
+  var dirx=0,dirz=0;
+  if(keys['KeyW']||keys['ArrowUp']){dirx+=-sy;dirz+=-cy;}
+  if(keys['KeyS']||keys['ArrowDown']){dirx+=sy;dirz+=cy;}
+  if(keys['KeyA']||keys['ArrowLeft']){dirx+=-cy;dirz+=sy;}
+  if(keys['KeyD']||keys['ArrowRight']){dirx+=cy;dirz+=-sy;}
+  if(joystick.active){dirx+=-sy*(-joystick.dy)+cy*joystick.dx;dirz+=-cy*(-joystick.dy)+(-sy)*joystick.dx;}
+  var len=Math.sqrt(dirx*dirx+dirz*dirz);
+  if(len>0.001){dirx/=len;dirz/=len;}
+  var sp=7.4;
+  var nx=r.pos.x+dirx*sp*dt, nz=r.pos.z+dirz*sp*dt;
+  var wy2=waterTopY(nx,nz);
+  if(wy2!=null){r.pos.x=nx;r.pos.z=nz;r.pos.y=wy2;}
+  r.mesh.position.copy(r.pos);
+  r.mesh.rotation.y=player.yaw;
+  player.pos.set(r.pos.x,r.pos.y+1.58,r.pos.z);
+  player.vel.set(0,0,0);player.onGround=true;
+}
+
+
 var pts=[[-0.3,-0.3],[0.3,-0.3],[-0.3,0.3],[0.3,0.3],[0,-0.3],[0,0.3],[-0.3,0],[0.3,0]];
 function movePlayer(dt){
+  if(_mountedRaft){updateRafts(dt);return;}
   var sy=Math.sin(player.yaw),cy=Math.cos(player.yaw),fwd=new THREE.Vector3(-sy,0,-cy),right=new THREE.Vector3(cy,0,-sy),dir=new THREE.Vector3();
   if(keys['KeyW']||keys['ArrowUp'])dir.add(fwd);if(keys['KeyS']||keys['ArrowDown'])dir.sub(fwd);if(keys['KeyA']||keys['ArrowLeft'])dir.sub(right);if(keys['KeyD']||keys['ArrowRight'])dir.add(right);
   if(joystick.active&&(Math.abs(joystick.dx)>0.05||Math.abs(joystick.dy)>0.05)){dir.addScaledVector(fwd,-joystick.dy);dir.addScaledVector(right,joystick.dx);}else if(_jLocked){dir.addScaledVector(fwd,-_jLockedDy);dir.addScaledVector(right,_jLockedDx);}
@@ -8432,7 +8606,7 @@ var keys={},mouseLocked=false,gameStarted=false,jumpHeld=false,_flyActive=false,
 var _mouseRightDown=false,_lastMouseX=-1,_lastMouseY=-1,_trackingActive=false;
 var _wLastTap=0;
 function setTracking(on){_trackingActive=on;_lastMouseX=-1;_lastMouseY=-1;document.getElementById('canvas').style.cursor=on?'none':'default';document.getElementById('tracking-hint').style.display=on?'none':'block';}
-document.addEventListener('keydown',function(e){keys[e.code]=true;if(_sleeping){e.preventDefault();return;}if(e.code==='KeyE'&&gameStarted)toggleInventory();if(e.code==='Escape'&&invOpen)closeInventory();if(e.code==='Escape'&&!invOpen&&_trackingActive){setTracking(false);document.getElementById('tracking-hint').style.display='block';}if(e.code==='Space'){jumpHeld=true;if(false){var now3=Date.now();if(now3-_lastSpaceTime<300){_flyActive=!_flyActive;if(!_flyActive)player.vel.y=0;}_lastSpaceTime=now3;}}if(!invOpen){for(var i=0;i<9;i++)if(e.code==='Digit'+(i+1))selectSlot(i);if(e.code==='KeyF'&&gameStarted&&!mouseLocked){var af=attackAnimalRaycast();if(af&&af.type==='wolf'&&!af.tamed){tryTameAnimal(af);return;}if(tryUseItem())return;tryFillCanteen();var hf=raycast();if(hf&&hf.px!==null)doPlace(hf.px,hf.py,hf.pz);}if(e.code==='KeyW'&&gameStarted){var now2=Date.now();if(now2-_wLastTap<300)setMobileSprint(!_mobileSprint);_wLastTap=now2;}}});
+document.addEventListener('keydown',function(e){keys[e.code]=true;if(_sleeping){e.preventDefault();return;}if(e.code==='KeyE'&&gameStarted)toggleInventory();if(e.code==='Escape'&&invOpen)closeInventory();if(e.code==='Escape'&&!invOpen&&_trackingActive){setTracking(false);document.getElementById('tracking-hint').style.display='block';}if(e.code==='Space'){jumpHeld=true;if(false){var now3=Date.now();if(now3-_lastSpaceTime<300){_flyActive=!_flyActive;if(!_flyActive)player.vel.y=0;}_lastSpaceTime=now3;}}if(!invOpen){for(var i=0;i<9;i++)if(e.code==='Digit'+(i+1))selectSlot(i);if(e.code==='KeyF'&&gameStarted){if(typeof tryRaftInteract==='function'&&tryRaftInteract())return;if(mouseLocked){return;}var af=attackAnimalRaycast();if(af&&af.type==='wolf'&&!af.tamed){tryTameAnimal(af);return;}if(tryUseItem())return;tryFillCanteen();var hf=raycast();if(hf&&hf.px!==null)doPlace(hf.px,hf.py,hf.pz);}if(e.code==='KeyW'&&gameStarted){var now2=Date.now();if(now2-_wLastTap<300)setMobileSprint(!_mobileSprint);_wLastTap=now2;}}});
 document.addEventListener('keyup',function(e){keys[e.code]=false;if(e.code==='Space')jumpHeld=false;});
 document.addEventListener('mousemove',function(e){if(invOpen||lootModalOpen)return;if(mouseLocked){var _s=SETTINGS.sensitivity*0.002;player.yaw-=e.movementX*_s;var _py=(SETTINGS.invertY?-1:1)*e.movementY*_s;player.pitch=Math.max(-Math.PI/2+0.05,Math.min(Math.PI/2-0.05,player.pitch+_py));}else if(_mouseRightDown&&gameStarted&&!isMobile){var dx=e.clientX-_lastMouseX,dy=e.clientY-_lastMouseY;var _s2=SETTINGS.sensitivity*0.003;player.yaw-=dx*_s2;var _py2=(SETTINGS.invertY?1:-1)*dy*_s2;player.pitch=Math.max(-Math.PI/2+0.05,Math.min(Math.PI/2-0.05,player.pitch+_py2));_lastMouseX=e.clientX;_lastMouseY=e.clientY;}});
 document.addEventListener('contextmenu',function(e){if(!invOpen)e.preventDefault();});
@@ -8468,7 +8642,7 @@ camZone.addEventListener('touchend',endCam,{passive:false});camZone.addEventList
 
 // Mouse events
 var _mobileActionUsed=false,placeTimer=null;
-document.addEventListener('mousedown',function(e){if(invOpen||lootModalOpen)return;if(_mobileActionUsed){_mobileActionUsed=false;return;}if(e.button===0){var a=attackAnimalRaycast();if(a){hitAnimal(a);return;}startBreaking();}if(e.button===2){if(!mouseLocked){_mouseRightDown=true;_lastMouseX=e.clientX;_lastMouseY=e.clientY;
+document.addEventListener('mousedown',function(e){if(invOpen||lootModalOpen)return;if(_mobileActionUsed){_mobileActionUsed=false;return;}if(e.button===0){if(typeof punchRaft==='function'&&punchRaft())return;var a=attackAnimalRaycast();if(a){hitAnimal(a);return;}startBreaking();}if(e.button===2){if(!mouseLocked){_mouseRightDown=true;_lastMouseX=e.clientX;_lastMouseY=e.clientY;
     var _curSlotNL=INV[selectedSlot];
     if(_curSlotNL&&_curSlotNL.id===ITEM_SLING){slingStartCharge();return;}
     if(_curSlotNL&&_curSlotNL.id===ITEM_BOW){bowStartCharge();return;}
@@ -8476,7 +8650,7 @@ document.addEventListener('mousedown',function(e){if(invOpen||lootModalOpen)retu
     var _curSlot=INV[selectedSlot];
     if(_curSlot&&_curSlot.id===ITEM_SLING){slingStartCharge();return;}
     if(_curSlot&&_curSlot.id===ITEM_BOW){bowStartCharge();return;}
-    var a2=attackAnimalRaycast();if(a2&&a2.type==='wolf'&&!a2.tamed){tryTameAnimal(a2);return;}if(tryUseItem())return;tryFillCanteen();var h2=raycast();if(h2){if(h2.bx!==null&&tryInteractBlock(h2.bx,h2.by,h2.bz))return;if(h2.px!==null)doPlace(h2.px,h2.py,h2.pz);}}}});
+    if(typeof tryRaftInteract==='function'&&tryRaftInteract())return;var a2=attackAnimalRaycast();if(a2&&a2.type==='wolf'&&!a2.tamed){tryTameAnimal(a2);return;}if(tryUseItem())return;tryFillCanteen();var h2=raycast();if(h2){if(h2.bx!==null&&tryInteractBlock(h2.bx,h2.by,h2.bz))return;if(h2.px!==null)doPlace(h2.px,h2.py,h2.pz);}}}});
 document.addEventListener('mouseup',function(e){if(e.button===0)stopBreaking();if(e.button===2){_mouseRightDown=false;if(_slingActive)slingRelease();else if(_bowActive)bowRelease();}});
 var _lastJumpTap=0;
 document.getElementById('btn-jump').addEventListener('pointerdown',function(e){e.stopPropagation();_mobileActionUsed=true;jumpHeld=true;player.jumpBuffer=0.2;if(false){var now4=Date.now();if(now4-_lastJumpTap<300){_flyActive=!_flyActive;if(!_flyActive)player.vel.y=0;}_lastJumpTap=now4;}});
@@ -10505,7 +10679,7 @@ function animate(now){
     if(typeof updateAudio==='function')updateAudio(dt);
     updateChunks();updateChunkVisibility();
   } else {
-    updateGamepad(dt);updateSling(dt);updateCooking(dt);movePlayer(dt);updateAutoSave(dt);if(typeof updateAudio==='function')updateAudio(dt);updateChunks();updateChunkVisibility();updateAnimals(dt);updateSurvival(dt);updateBreaking(dt);spawnNightEnemies(dt);updateRegrowth(dt);updateWeather(dt);renderRain();updateVolFog(_fogIntensity);updateFallingTrees(dt);if(typeof fbUpdate==='function')fbUpdate(dt);_fogUpdateTimer+=dt;if(_fogUpdateTimer>0.5){_fogUpdateTimer=0;updateFogReveal();}
+    updateGamepad(dt);updateSling(dt);updateCooking(dt);movePlayer(dt);updateAutoSave(dt);if(typeof updateAudio==='function')updateAudio(dt);updateChunks();updateChunkVisibility();updateAnimals(dt);updateSurvival(dt);updateBreaking(dt);spawnNightEnemies(dt);updateRegrowth(dt);updateWeather(dt);renderRain();updateVolFog(_fogIntensity);updateFallingTrees(dt);if(typeof updateRafts==='function'&&!_mountedRaft)updateRafts(dt);if(typeof fbUpdate==='function')fbUpdate(dt);_fogUpdateTimer+=dt;if(_fogUpdateTimer>0.5){_fogUpdateTimer=0;updateFogReveal();}
     var nowCave=typeof playerInCave==='function'&&playerInCave();
     if(nowCave&&!_wasInCave){if(typeof fbToast==='function')fbToast('Grotte');showPopup('Vous entrez dans la grotte...',player.pos.clone().add(new THREE.Vector3(0,1.4,0)));if(mapOpen)renderMap();}
     if(!nowCave&&_wasInCave){if(typeof fbToast==='function')fbToast('Surface');if(mapOpen)renderMap();}
