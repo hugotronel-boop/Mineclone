@@ -156,13 +156,14 @@ font-weight: bold;
 
 #overlay {
   position: fixed; inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   z-index: 100; overflow: hidden;
   background: #02060a;
   font-family: 'IM Fell English', Georgia, serif;
   width: 100%;
   height: 100%;
-  height: 100dvh;
-  height: 100svh;
 }
 #overlay-fx {
   position: absolute; inset: 0;
@@ -196,18 +197,16 @@ font-weight: bold;
 }
 
 #overlay-content {
-  position: absolute;
-  left: 50%;
-  top: 46%;
-  transform: translate(-50%, -50%);
-  transform-origin: center center;
+  position: relative;
   z-index: 10;
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: min(340px, 90vw);
+  width: min(340px, 88vw);
   text-align: center;
   padding: 0;
+  transform-origin: center center;
+  flex-shrink: 0;
 }
 .ov-badge {
   font-family: 'IM Fell English', Georgia, serif;
@@ -8778,21 +8777,47 @@ document.getElementById('btn-next').addEventListener('pointerdown',function(e){e
 
 // Fonction centrale : met à jour les boutons de la page d'accueil selon l'état de la save
 
+function viewportSize(){
+  var vv=window.visualViewport;
+  if(vv&&vv.width>0&&vv.height>0)return {w:vv.width,h:vv.height,x:vv.offsetLeft||0,y:vv.offsetTop||0};
+  return {w:window.innerWidth||document.documentElement.clientWidth,h:window.innerHeight||document.documentElement.clientHeight,x:0,y:0};
+}
 function fitTitleScreen(){
   var box=document.getElementById('overlay-content');
   var ov=document.getElementById('overlay');
   if(!box||!ov||ov.style.display==='none')return;
-  box.style.transform='translate(-50%, -50%) scale(1)';
-  var pad=16;
-  var vw=Math.max(320, window.innerWidth||document.documentElement.clientWidth);
-  var vh=Math.max(320, window.innerHeight||document.documentElement.clientHeight);
+  var vs=viewportSize();
+  ov.style.left=vs.x+'px';
+  ov.style.top=vs.y+'px';
+  ov.style.width=vs.w+'px';
+  ov.style.height=vs.h+'px';
+  ov.style.right='auto';
+  ov.style.bottom='auto';
+  ov.style.display='flex';
+  ov.style.alignItems='center';
+  ov.style.justifyContent='center';
+  box.style.transform='scale(1)';
   var r=box.getBoundingClientRect();
-  var sc=Math.min(1,(vw-pad*2)/Math.max(1,r.width),(vh-pad*2)/Math.max(1,r.height));
-  if(sc<0.45)sc=0.45;
-  box.style.transform='translate(-50%, -50%) scale('+sc+')';
+  var pad=Math.max(8, Math.min(vs.w,vs.h)*0.04);
+  var sc=Math.min(1,(vs.w-pad*2)/Math.max(1,r.width),(vs.h-pad*2)/Math.max(1,r.height));
+  if(sc<0.4)sc=0.4;
+  box.style.transform='scale('+sc+')';
 }
-window.addEventListener('resize',fitTitleScreen);
-window.addEventListener('orientationchange',function(){setTimeout(fitTitleScreen,120);});
+function scheduleFitTitle(){
+  fitTitleScreen();
+  clearTimeout(scheduleFitTitle._t1);
+  clearTimeout(scheduleFitTitle._t2);
+  clearTimeout(scheduleFitTitle._t3);
+  scheduleFitTitle._t1=setTimeout(fitTitleScreen,60);
+  scheduleFitTitle._t2=setTimeout(fitTitleScreen,200);
+  scheduleFitTitle._t3=setTimeout(fitTitleScreen,500);
+}
+window.addEventListener('resize',scheduleFitTitle);
+window.addEventListener('orientationchange',scheduleFitTitle);
+if(window.visualViewport){
+  visualViewport.addEventListener('resize',scheduleFitTitle);
+  visualViewport.addEventListener('scroll',scheduleFitTitle);
+}
 
 function refreshMenuButtons(){
   var hasSv=hasSave();
@@ -8804,7 +8829,7 @@ function refreshMenuButtons(){
   if(sb){sb.style.display=hasSv?'none':'block';sb.textContent='Nouvelle partie';}
   if(set)set.style.display='block';
   if(db)db.style.display=hasSv?'block':'none';
-  if(typeof fitTitleScreen==='function')setTimeout(fitTitleScreen,0);
+  if(typeof scheduleFitTitle==='function')scheduleFitTitle(); else if(typeof fitTitleScreen==='function')fitTitleScreen();
 }
 
 function initTitleArt(){
