@@ -1048,6 +1048,33 @@ background: radial-gradient(ellipse at center, transparent 50%, rgba(100,160,255
 }
 #cold-vignette.active { opacity: 1; }
 
+/* Overlay sommeil (fade nuit → aube) */
+#sleep-overlay {
+position: fixed;
+inset: 0;
+background: #000;
+z-index: 118;
+pointer-events: none;
+opacity: 0;
+transition: none;
+}
+#sleep-overlay.active { pointer-events: all; }
+#sleep-msg {
+position: fixed;
+left: 50%;
+top: 46%;
+transform: translate(-50%,-50%);
+z-index: 119;
+color: #f0e8d8;
+font-size: 22px;
+font-weight: bold;
+letter-spacing: 2px;
+text-shadow: 0 2px 12px #000;
+pointer-events: none;
+opacity: 0;
+text-align: center;
+}
+
 /* ═══════════════════════════════════════════════════════
 PARAMÈTRES
 ═══════════════════════════════════════════════════════ */
@@ -2056,6 +2083,8 @@ display: none !important;
   </div>
   <div id="fog-floor"></div>
   <div id="cold-vignette"></div>
+  <div id="sleep-overlay"></div>
+  <div id="sleep-msg">Zzz...</div>
 
   <!-- Barres de survie -->
 
@@ -2869,6 +2898,7 @@ function nearestWaterPos(radius){
 }
 var B_AIR=0,B_GRASS=1,B_DIRT=2,B_STONE=3,B_SAND=4,B_WOOD=5,B_LEAF=6,B_WATER=7,B_SNOW=8,B_GRAVEL=9,B_COAL=10,B_IRON=11;
 var B_TORCH=12,B_FENCE=13,B_DOOR=14,B_STAIRS=15,B_CAMPFIRE=16,B_CHEST=17,B_GRILL=18,B_TENT=19;
+var B_BED=127;
 var B_BERRY_BUSH=120,B_MUSHROOM_BLOCK=121,B_HERB_BLOCK=122,B_NETTLES=123;
 var B_STUMP=124;       // souche d'arbre après coupe
 var B_SAPLING=125;     // pousse d'arbre (plantable)
@@ -3301,6 +3331,29 @@ function makeTentSideTex(){
   return new THREE.CanvasTexture(cv);
 }
 TEX[19]={top:makeTentTopTex(),side:makeTentSideTex(),bot:makeTentTopTex()};
+
+function makeBedTopTex(){
+  var cv=document.createElement('canvas');cv.width=cv.height=16;var ctx=cv.getContext('2d');
+  ctx.fillStyle='#6B2008';ctx.fillRect(0,0,16,16);
+  ctx.fillStyle='#e8e0d4';ctx.fillRect(1,1,14,7);
+  ctx.fillStyle='#f4f0e8';ctx.fillRect(2,2,12,4);
+  ctx.fillStyle='#d8d0c4';ctx.fillRect(2,5,12,1);
+  ctx.fillStyle='#cc4444';ctx.fillRect(1,8,14,7);
+  ctx.fillStyle='#aa3030';ctx.fillRect(1,8,14,1);
+  ctx.fillStyle='#e06060';ctx.fillRect(3,10,10,1);
+  ctx.fillStyle='#4a1800';
+  ctx.fillRect(0,0,2,2);ctx.fillRect(14,0,2,2);ctx.fillRect(0,14,2,2);ctx.fillRect(14,14,2,2);
+  return new THREE.CanvasTexture(cv);
+}
+function makeBedSideTex(){
+  var cv=document.createElement('canvas');cv.width=cv.height=16;var ctx=cv.getContext('2d');
+  ctx.fillStyle='#6B2008';ctx.fillRect(0,0,16,16);
+  ctx.fillStyle='#e8e0d4';ctx.fillRect(0,2,16,5);
+  ctx.fillStyle='#cc4444';ctx.fillRect(0,7,16,4);
+  ctx.fillStyle='#4a1800';ctx.fillRect(1,12,3,4);ctx.fillRect(12,12,3,4);
+  return new THREE.CanvasTexture(cv);
+}
+TEX[B_BED]={top:makeBedTopTex(),side:makeBedSideTex(),bot:makeBedSideTex()};
 
 
 // ── Texture Buisson de Baies (B_BERRY_BUSH = 120) ───────────
@@ -3857,6 +3910,7 @@ function onBlockBreak(blockType,wx,wy,wz){
   BLOCK_TO_ITEM[B_CHEST]=ITEM_CHEST;
   BLOCK_TO_ITEM[B_GRILL]=ITEM_GRILL;
   BLOCK_TO_ITEM[B_TENT]=ITEM_TENT;
+  BLOCK_TO_ITEM[B_BED]=ITEM_BED;
   BLOCK_TO_ITEM[B_TORCH]=ITEM_TORCH;
   BLOCK_TO_ITEM[B_FENCE]=ITEM_FENCE;
   BLOCK_TO_ITEM[B_DOOR]=ITEM_DOOR;
@@ -4282,12 +4336,12 @@ var ITEM_FENCE=45,ITEM_DOOR=46,ITEM_STAIRS=47,ITEM_KNIFE_WOOD=48,ITEM_KNIFE_IRON
 var ITEM_WATER_FILTER=51,ITEM_CANTEEN=52,ITEM_CANTEEN_WATER=53,ITEM_CAMPFIRE=54,ITEM_BANDAGE=55;
 var ITEM_BOAT=56,ITEM_TENT=57,ITEM_CHEST=58,ITEM_COOKED_MEAT=59,ITEM_FABRIC=60;
 
-ITEM_TO_BLOCK[ITEM_TORCH]=B_TORCH;ITEM_TO_BLOCK[ITEM_FENCE]=B_FENCE;ITEM_TO_BLOCK[ITEM_DOOR]=B_DOOR;ITEM_TO_BLOCK[ITEM_STAIRS]=B_STAIRS;ITEM_TO_BLOCK[ITEM_CAMPFIRE]=B_CAMPFIRE;ITEM_TO_BLOCK[ITEM_CHEST]=B_CHEST;ITEM_TO_BLOCK[ITEM_GRILL]=B_GRILL;ITEM_TO_BLOCK[ITEM_TENT]=B_TENT;
+ITEM_TO_BLOCK[ITEM_TORCH]=B_TORCH;ITEM_TO_BLOCK[ITEM_FENCE]=B_FENCE;ITEM_TO_BLOCK[ITEM_DOOR]=B_DOOR;ITEM_TO_BLOCK[ITEM_STAIRS]=B_STAIRS;ITEM_TO_BLOCK[ITEM_CAMPFIRE]=B_CAMPFIRE;ITEM_TO_BLOCK[ITEM_CHEST]=B_CHEST;ITEM_TO_BLOCK[ITEM_GRILL]=B_GRILL;ITEM_TO_BLOCK[ITEM_TENT]=B_TENT;ITEM_TO_BLOCK[ITEM_BED]=B_BED;
 ITEM_TO_BLOCK[ITEM_BERRY_SEED]=B_BERRY_BUSH;
 ITEM_TO_BLOCK[ITEM_MUSHROOM_SPORE]=B_MUSHROOM_BLOCK;
 ITEM_TO_BLOCK[ITEM_TREE_SEED]=B_SAPLING;
 
-BNAMES[ITEM_TORCH]='Torche';BNAMES[ITEM_BONE]='Os';BNAMES[ITEM_AXE_WOOD]='Hache en bois';BNAMES[ITEM_AXE_STONE]='Hache en pierre';BNAMES[ITEM_AXE_IRON]='Hache en fer';BNAMES[ITEM_PICK_WOOD]='Pioche en bois';BNAMES[ITEM_PICK_STONE]='Pioche en pierre';BNAMES[ITEM_PICK_IRON]='Pioche en fer';BNAMES[ITEM_BOW]='Arc';BNAMES[ITEM_ARROW]='Flèche';BNAMES[ITEM_SPEAR]='Lance';BNAMES[ITEM_CLUB]='Massue';BNAMES[ITEM_SLING]='Lance-pierre';BNAMES[ITEM_ROPE]='Corde';BNAMES[ITEM_BED]='Lit';BNAMES[ITEM_BACKPACK]='Sac à dos';BNAMES[ITEM_FENCE]='Clôture';BNAMES[ITEM_DOOR]='Porte';BNAMES[ITEM_STAIRS]='Escalier';BNAMES[ITEM_KNIFE_WOOD]='Couteau en bois';BNAMES[ITEM_KNIFE_IRON]='Couteau en métal';BNAMES[ITEM_GRILL]='Grille de cuisson';BNAMES[ITEM_WATER_FILTER]='Filtre à eau';BNAMES[ITEM_CANTEEN]='Récipient vide';BNAMES[ITEM_CANTEEN_WATER]="Récipient d'eau";BNAMES[ITEM_CAMPFIRE]='Feu de camp';BNAMES[ITEM_BANDAGE]='Bandage';BNAMES[ITEM_BOAT]='Radeau';BNAMES[ITEM_TENT]='Tente';BNAMES[ITEM_CHEST]='Coffre';BNAMES[ITEM_COOKED_MEAT]='Viande cuite';BNAMES[ITEM_FABRIC]='Tissu';BNAMES[B_CAMPFIRE]='Feu de camp';BNAMES[B_CHEST]='Coffre';BNAMES[B_GRILL]='Grille';BNAMES[B_TENT]='Tente';BNAMES[ITEM_STEAK]='Steak';BNAMES[ITEM_WOOL]='Laine';BNAMES[ITEM_FIBER]='Fibre végétale';BNAMES[ITEM_RESIN]='Résine';BNAMES[ITEM_IRON]='Fer brut';BNAMES[ITEM_LEATHER]='Cuir';
+BNAMES[ITEM_TORCH]='Torche';BNAMES[ITEM_BONE]='Os';BNAMES[ITEM_AXE_WOOD]='Hache en bois';BNAMES[ITEM_AXE_STONE]='Hache en pierre';BNAMES[ITEM_AXE_IRON]='Hache en fer';BNAMES[ITEM_PICK_WOOD]='Pioche en bois';BNAMES[ITEM_PICK_STONE]='Pioche en pierre';BNAMES[ITEM_PICK_IRON]='Pioche en fer';BNAMES[ITEM_BOW]='Arc';BNAMES[ITEM_ARROW]='Flèche';BNAMES[ITEM_SPEAR]='Lance';BNAMES[ITEM_CLUB]='Massue';BNAMES[ITEM_SLING]='Lance-pierre';BNAMES[ITEM_ROPE]='Corde';BNAMES[ITEM_BED]='Lit';BNAMES[ITEM_BACKPACK]='Sac à dos';BNAMES[ITEM_FENCE]='Clôture';BNAMES[ITEM_DOOR]='Porte';BNAMES[ITEM_STAIRS]='Escalier';BNAMES[ITEM_KNIFE_WOOD]='Couteau en bois';BNAMES[ITEM_KNIFE_IRON]='Couteau en métal';BNAMES[ITEM_GRILL]='Grille de cuisson';BNAMES[ITEM_WATER_FILTER]='Filtre à eau';BNAMES[ITEM_CANTEEN]='Récipient vide';BNAMES[ITEM_CANTEEN_WATER]="Récipient d'eau";BNAMES[ITEM_CAMPFIRE]='Feu de camp';BNAMES[ITEM_BANDAGE]='Bandage';BNAMES[ITEM_BOAT]='Radeau';BNAMES[ITEM_TENT]='Tente';BNAMES[ITEM_CHEST]='Coffre';BNAMES[ITEM_COOKED_MEAT]='Viande cuite';BNAMES[ITEM_FABRIC]='Tissu';BNAMES[B_CAMPFIRE]='Feu de camp';BNAMES[B_CHEST]='Coffre';BNAMES[B_GRILL]='Grille';BNAMES[B_TENT]='Tente';BNAMES[B_BED]='Lit';BNAMES[ITEM_STEAK]='Steak';BNAMES[ITEM_WOOL]='Laine';BNAMES[ITEM_FIBER]='Fibre végétale';BNAMES[ITEM_RESIN]='Résine';BNAMES[ITEM_IRON]='Fer brut';BNAMES[ITEM_LEATHER]='Cuir';
 BNAMES[ITEM_WATER_LAKE]="Eau de lac (risque)";BNAMES[ITEM_WATER_SEA]="Eau de mer (danger)";
 BNAMES[ITEM_WATER_FILTERED]="Eau filtrée";BNAMES[ITEM_WATER_RAIN]="Eau de pluie";
 BNAMES[ITEM_BOWL]='Bol en bois';BNAMES[ITEM_BOWL_WATER]="Bol d'eau";BNAMES[ITEM_HERB]='Herbe médicinale';
@@ -4300,7 +4354,7 @@ BNAMES[ITEM_TREE_SEED]='Graine d\'arbre';BNAMES[ITEM_FISHING_ROD]='Canne à pêc
 BNAMES[ITEM_ANTIDOTE]='Antidote';
 
 var tC={t:'#d4a84b',s:'#b07830',b:'#8a5820'},sC={t:'#aaaaaa',s:'#888888',b:'#666666'},iC={t:'#dddddd',s:'#aaaaaa',b:'#888888'};
-FDEF[ITEM_TORCH]={t:'#ffdd00',s:'#cc8800',b:'#4a2000'};FDEF[ITEM_AXE_WOOD]=tC;FDEF[ITEM_AXE_STONE]=sC;FDEF[ITEM_AXE_IRON]=iC;FDEF[ITEM_PICK_WOOD]=tC;FDEF[ITEM_PICK_STONE]=sC;FDEF[ITEM_PICK_IRON]=iC;FDEF[ITEM_BOW]={t:'#c8a060',s:'#7a5020',b:'#5a3010'};FDEF[ITEM_ARROW]={t:'#e8d080',s:'#888888',b:'#5a3010'};FDEF[ITEM_SPEAR]={t:'#aaaaaa',s:'#8a5820',b:'#5a3010'};FDEF[ITEM_CLUB]={t:'#6B4a10',s:'#4a2a00',b:'#2a1000'};FDEF[ITEM_SLING]={t:'#c8a060',s:'#a07840',b:'#785020'};FDEF[ITEM_ROPE]={t:'#c8a060',s:'#a07840',b:'#785020'};FDEF[ITEM_BED]={t:'#e8e8e8',s:'#cc6666',b:'#8B3010'};FDEF[ITEM_BACKPACK]={t:'#8B6914',s:'#6B4a10',b:'#4a2a00'};FDEF[ITEM_FENCE]={t:'#d4a84b',s:'#b07830',b:'#8a5820'};FDEF[ITEM_DOOR]={t:'#d4a84b',s:'#b07830',b:'#8a5820'};FDEF[ITEM_STAIRS]={t:'#d4a84b',s:'#b07830',b:'#8a5820'};FDEF[ITEM_KNIFE_WOOD]={t:'#d4a84b',s:'#888',b:'#555'};FDEF[ITEM_KNIFE_IRON]={t:'#ddd',s:'#aaa',b:'#888'};FDEF[ITEM_GRILL]={t:'#666',s:'#888',b:'#444'};FDEF[ITEM_WATER_FILTER]={t:'#4a90d9',s:'#888',b:'#333'};FDEF[ITEM_CANTEEN]={t:'#8B6914',s:'#c8a060',b:'#5a3010'};FDEF[ITEM_CANTEEN_WATER]={t:'#4a90d9',s:'#8B6914',b:'#2a5090'};FDEF[ITEM_CAMPFIRE]={t:'#ff6600',s:'#cc4400',b:'#8B5E1A'};FDEF[ITEM_BANDAGE]={t:'#fff',s:'#eee',b:'#ddd'};FDEF[ITEM_BOAT]={t:'#A0804A',s:'#7A5C2A',b:'#5a3c1a'};FDEF[ITEM_TENT]={t:'#8B6914',s:'#6B4a10',b:'#4a2a00'};FDEF[ITEM_CHEST]={t:'#A0804A',s:'#7A5C2A',b:'#5a3c1a'};FDEF[ITEM_COOKED_MEAT]={t:'#8B3010',s:'#6B2000',b:'#4a1000'};FDEF[ITEM_FABRIC]={t:'#e8e8e8',s:'#ccc',b:'#aaa'};FDEF[B_CAMPFIRE]={t:'#ff6600',s:'#cc4400',b:'#8B5E1A'};FDEF[B_CHEST]={t:'#A0804A',s:'#7A5C2A',b:'#5a3c1a'};FDEF[B_GRILL]={t:'#666',s:'#888',b:'#444'};FDEF[B_TENT]={t:'#8B6914',s:'#6B4a10',b:'#4a2a00'};FDEF[ITEM_STEAK]={t:'#8B2500',s:'#6B1A00',b:'#4a1000'};FDEF[ITEM_WOOL]={t:'#e8e8e8',s:'#cccccc',b:'#aaaaaa'};FDEF[ITEM_FIBER]={t:'#5a9e28',s:'#3d7a10',b:'#2e5e08'};FDEF[ITEM_RESIN]={t:'#c8900a',s:'#a07008',b:'#785005'};FDEF[ITEM_IRON]={t:'#d4956a',s:'#b87040',b:'#9a5828'};FDEF[ITEM_LEATHER]={t:'#8B4513',s:'#6B3010',b:'#4a2008'};
+FDEF[ITEM_TORCH]={t:'#ffdd00',s:'#cc8800',b:'#4a2000'};FDEF[ITEM_AXE_WOOD]=tC;FDEF[ITEM_AXE_STONE]=sC;FDEF[ITEM_AXE_IRON]=iC;FDEF[ITEM_PICK_WOOD]=tC;FDEF[ITEM_PICK_STONE]=sC;FDEF[ITEM_PICK_IRON]=iC;FDEF[ITEM_BOW]={t:'#c8a060',s:'#7a5020',b:'#5a3010'};FDEF[ITEM_ARROW]={t:'#e8d080',s:'#888888',b:'#5a3010'};FDEF[ITEM_SPEAR]={t:'#aaaaaa',s:'#8a5820',b:'#5a3010'};FDEF[ITEM_CLUB]={t:'#6B4a10',s:'#4a2a00',b:'#2a1000'};FDEF[ITEM_SLING]={t:'#c8a060',s:'#a07840',b:'#785020'};FDEF[ITEM_ROPE]={t:'#c8a060',s:'#a07840',b:'#785020'};FDEF[ITEM_BED]={t:'#e8e8e8',s:'#cc6666',b:'#8B3010'};FDEF[B_BED]={t:'#e8e8e8',s:'#cc6666',b:'#8B3010'};FDEF[ITEM_BACKPACK]={t:'#8B6914',s:'#6B4a10',b:'#4a2a00'};FDEF[ITEM_FENCE]={t:'#d4a84b',s:'#b07830',b:'#8a5820'};FDEF[ITEM_DOOR]={t:'#d4a84b',s:'#b07830',b:'#8a5820'};FDEF[ITEM_STAIRS]={t:'#d4a84b',s:'#b07830',b:'#8a5820'};FDEF[ITEM_KNIFE_WOOD]={t:'#d4a84b',s:'#888',b:'#555'};FDEF[ITEM_KNIFE_IRON]={t:'#ddd',s:'#aaa',b:'#888'};FDEF[ITEM_GRILL]={t:'#666',s:'#888',b:'#444'};FDEF[ITEM_WATER_FILTER]={t:'#4a90d9',s:'#888',b:'#333'};FDEF[ITEM_CANTEEN]={t:'#8B6914',s:'#c8a060',b:'#5a3010'};FDEF[ITEM_CANTEEN_WATER]={t:'#4a90d9',s:'#8B6914',b:'#2a5090'};FDEF[ITEM_CAMPFIRE]={t:'#ff6600',s:'#cc4400',b:'#8B5E1A'};FDEF[ITEM_BANDAGE]={t:'#fff',s:'#eee',b:'#ddd'};FDEF[ITEM_BOAT]={t:'#A0804A',s:'#7A5C2A',b:'#5a3c1a'};FDEF[ITEM_TENT]={t:'#8B6914',s:'#6B4a10',b:'#4a2a00'};FDEF[ITEM_CHEST]={t:'#A0804A',s:'#7A5C2A',b:'#5a3c1a'};FDEF[ITEM_COOKED_MEAT]={t:'#8B3010',s:'#6B2000',b:'#4a1000'};FDEF[ITEM_FABRIC]={t:'#e8e8e8',s:'#ccc',b:'#aaa'};FDEF[B_CAMPFIRE]={t:'#ff6600',s:'#cc4400',b:'#8B5E1A'};FDEF[B_CHEST]={t:'#A0804A',s:'#7A5C2A',b:'#5a3c1a'};FDEF[B_GRILL]={t:'#666',s:'#888',b:'#444'};FDEF[B_TENT]={t:'#8B6914',s:'#6B4a10',b:'#4a2a00'};FDEF[ITEM_STEAK]={t:'#8B2500',s:'#6B1A00',b:'#4a1000'};FDEF[ITEM_WOOL]={t:'#e8e8e8',s:'#cccccc',b:'#aaaaaa'};FDEF[ITEM_FIBER]={t:'#5a9e28',s:'#3d7a10',b:'#2e5e08'};FDEF[ITEM_RESIN]={t:'#c8900a',s:'#a07008',b:'#785005'};FDEF[ITEM_IRON]={t:'#d4956a',s:'#b87040',b:'#9a5828'};FDEF[ITEM_LEATHER]={t:'#8B4513',s:'#6B3010',b:'#4a2008'};
 FDEF[ITEM_WATER_LAKE]={t:'#3a8ab0',s:'#1a6090',b:'#0a4070'};
 FDEF[ITEM_FUR_COAT]={t:'#c8a870',s:'#a07848',b:'#785028'};
 FDEF[ITEM_LEATHER_VEST]={t:'#8B4513',s:'#6B3010',b:'#4a2008'};
@@ -4385,6 +4439,14 @@ var heldItem={id:0,qty:0},invOpen=false;
 function drawBlockIconCanvas(cv,blockId){
   cv.width=cv.height=32;var ctx=cv.getContext('2d');ctx.clearRect(0,0,32,32);if(!blockId||blockId===B_AIR)return;
   if(blockId===B_TORCH||blockId===ITEM_TORCH){ctx.fillStyle='rgba(255,200,0,0.18)';ctx.beginPath();ctx.arc(16,10,10,0,Math.PI*2);ctx.fill();ctx.fillStyle='#ff8800';ctx.fillRect(12,2,8,6);ctx.fillStyle='#ffdd00';ctx.fillRect(13,3,6,5);ctx.fillStyle='#ffffa0';ctx.fillRect(14,3,4,3);ctx.fillStyle='#7a4a1a';ctx.fillRect(13,8,6,18);ctx.fillStyle='#5a3010';ctx.fillRect(16,8,3,18);return;}
+  if(blockId===ITEM_BED||blockId===B_BED){
+    ctx.fillStyle='#6B2008';ctx.fillRect(2,18,28,12);
+    ctx.fillStyle='#cc4444';ctx.fillRect(3,12,26,10);
+    ctx.fillStyle='#e8e0d4';ctx.fillRect(3,6,12,10);
+    ctx.fillStyle='#f4f0e8';ctx.fillRect(5,8,8,6);
+    ctx.fillStyle='#4a1800';ctx.fillRect(3,26,5,4);ctx.fillRect(24,26,5,4);
+    return;
+  }
   // Icônes spéciales pour vêtements
   if(blockId===ITEM_FUR_COAT){
     var fd2=FDEF[blockId];if(!fd2){return;}
@@ -4472,7 +4534,7 @@ ITEM_DESC[ITEM_WATER_FILTER]='🔬 Transforme eau brute en eau filtrée (craft) 
 ITEM_DESC[ITEM_CAMPFIRE]='🔥 Zone de chaleur +6°C · Point de spawn · Cuisine viande';
 ITEM_DESC[ITEM_GRILL]='🍳 Cuit toutes les viandes au feu de camp';
 ITEM_DESC[ITEM_TORCH]='🕯 Éclaire · Réchauffe légèrement · Se consomme en 60s';
-ITEM_DESC[ITEM_BED]='🛏 Passe la nuit au clic droit · Réinitialise point de spawn';
+ITEM_DESC[ITEM_BED]='🛏 Pose-le, puis clic droit la nuit : tu t\'allonges, la nuit passe jusqu\'à l\'aube · Point de réapparition';
 ITEM_DESC[ITEM_TENT]='⛺ Passe la nuit et réinitialise le point de spawn';
 ITEM_DESC[ITEM_BACKPACK]='🎒 Débloque 9 slots supplémentaires dans l\'inventaire · Slot Sac';
 ITEM_DESC[ITEM_FISHING_ROD]='🎣 Utiliser près de l\'eau pour pêcher · 70% chance au départ';
@@ -5096,6 +5158,125 @@ function openWorldChest(bx,by,bz){
   }
 }
 
+var _sleeping=false,_sleepFade=0,_sleepPhase='idle',_sleepKind='bed';
+var _sleepSaved={x:0,y:0,z:0,pitch:0};
+var _sleepBed={x:0,y:0,z:0};
+
+function _sleepOverlayEl(){return document.getElementById('sleep-overlay');}
+function _sleepMsgEl(){return document.getElementById('sleep-msg');}
+function setSleepFade(a){
+  var el=_sleepOverlayEl();if(el){el.style.opacity=String(a);if(a>0.02)el.classList.add('active');else el.classList.remove('active');}
+  var m=_sleepMsgEl();
+  if(m){
+    if(a>0.45&&_sleepPhase==='fadeout'){m.style.opacity=String(Math.min(1,(a-0.45)/0.4));m.textContent=_sleepKind==='tent'?'⛺ Repos...':'Zzz...';}
+    else if(a>0.25&&_sleepPhase==='fadein'){m.style.opacity=String(Math.min(1,(a-0.15)*1.2));m.textContent='🌄 Aube';}
+    else m.style.opacity='0';
+  }
+}
+
+function canSleepNow(){return phase==='dusk'||phase==='night';}
+
+function monstersNearbySleep(){
+  if(typeof animals==='undefined'||!animals)return false;
+  for(var i=0;i<animals.length;i++){
+    var a=animals[i];if(!a||a.dead||a.dying)continue;
+    var def=MOB_DEF[a.type];if(!def||!def.hostile)continue;
+    var dx=a.pos.x-player.pos.x,dy=a.pos.y-player.pos.y,dz=a.pos.z-player.pos.z;
+    if(dx*dx+dy*dy+dz*dz<64)return true;
+  }
+  return false;
+}
+
+function despawnDistantHostiles(){
+  if(typeof animals==='undefined'||!animals)return;
+  for(var i=animals.length-1;i>=0;i--){
+    var a=animals[i];if(!a)continue;
+    var def=MOB_DEF[a.type];if(!def||!def.hostile)continue;
+    var dx=a.pos.x-player.pos.x,dz=a.pos.z-player.pos.z;
+    if(dx*dx+dz*dz>36){
+      if(a.mesh&&typeof scene!=='undefined')scene.remove(a.mesh);
+      animals.splice(i,1);
+    }
+  }
+}
+
+function skipNightToDawn(){
+  // Début d'aube + un peu de lumière (comme Minecraft : on se réveille au matin)
+  dayTime=DAY_DURATION+DUSK_DURATION+NIGHT_DURATION+DAWN_DURATION*0.42;
+  if(dayTime>=DAY_CYCLE_TOTAL)dayTime=dayTime%DAY_CYCLE_TOTAL;
+}
+
+function finishSleepRest(){
+  player.stamina=player.maxStamina;
+  player.hp=Math.min(player.maxHp,player.hp+2);
+  if(player.temp<8)player.temp=8;
+  player.vel.set(0,0,0);
+  if(typeof updateBars==='function')updateBars();
+  despawnDistantHostiles();
+}
+
+function trySleepAt(bx,by,bz,kind){
+  var pos=new THREE.Vector3(bx+0.5,by+2,bz+0.5);
+  if(_sleeping)return;
+  if(!canSleepNow()){
+    showPopup('Vous ne pouvez dormir que la nuit',pos);
+    return;
+  }
+  if(monstersNearbySleep()){
+    showPopup('Des monstres sont trop proches !',pos);
+    return;
+  }
+  _sleepKind=kind||'bed';
+  _sleepBed={x:bx,y:by,z:bz};
+  _spawnPoint.x=bx+0.5;_spawnPoint.y=by+1;_spawnPoint.z=bz+0.5;
+  _sleepSaved={x:player.pos.x,y:player.pos.y,z:player.pos.z,pitch:player.pitch};
+  // S'allonger sur le lit / dans la tente
+  player.pos.set(bx+0.5,by+1.12,bz+0.5);
+  player.vel.set(0,0,0);
+  player.pitch=-0.35;
+  _sleeping=true;_sleepPhase='fadeout';_sleepFade=0;
+  setSleepFade(0);
+  showPopup(_sleepKind==='tent'?'⛺ Vous vous allongez...':'🛏 Vous vous allongez...',pos);
+}
+
+function updateSleep(dt){
+  if(!_sleeping)return;
+  if(_sleepPhase==='fadeout'){
+    _sleepFade=Math.min(1,_sleepFade+dt*0.72);
+    player.pitch=Math.max(-0.95,player.pitch-dt*0.55);
+    player.vel.set(0,0,0);
+    setSleepFade(_sleepFade);
+    if(_sleepFade>=1){
+      skipNightToDawn();
+      finishSleepRest();
+      _sleepPhase='fadein';
+    }
+  } else if(_sleepPhase==='fadein'){
+    _sleepFade=Math.max(0,_sleepFade-dt*0.58);
+    player.pitch=Math.min(-0.12,player.pitch+dt*0.5);
+    player.vel.set(0,0,0);
+    setSleepFade(_sleepFade);
+    if(_sleepFade<=0){
+      // Se relever à côté du lit
+      var sx=_sleepSaved.x,sz=_sleepSaved.z,sy=_sleepSaved.y;
+      var dist=Math.abs(sx-(_sleepBed.x+0.5))+Math.abs(sz-(_sleepBed.z+0.5));
+      if(dist<0.2){
+        var dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+        for(var d=0;d<dirs.length;d++){
+          var nx=_sleepBed.x+dirs[d][0],nz=_sleepBed.z+dirs[d][1];
+          if(!isSolid(nx+0.5,_sleepBed.y+1,nz+0.5)){sx=nx+0.5;sz=nz+0.5;sy=_sleepBed.y+2.7;break;}
+        }
+      }
+      player.pos.set(sx,sy,sz);
+      player.pitch=_sleepSaved.pitch;
+      player.vel.set(0,0,0);
+      _sleeping=false;_sleepPhase='idle';
+      setSleepFade(0);
+      showPopup('🌄 Aube. Point de réapparition défini.',player.pos.clone().add(new THREE.Vector3(0,1.6,0)));
+    }
+  }
+}
+
 function tryInteractBlock(bx,by,bz){
   var b=getBlock(bx,by,bz);
   if(b===B_GRILL||b===B_CAMPFIRE){
@@ -5106,7 +5287,8 @@ function tryInteractBlock(bx,by,bz){
     if(b===B_CAMPFIRE){_spawnPoint.x=bx+0.5;_spawnPoint.z=bz+0.5;}
     return true;}
   // campfire handled above with grill
-  if(b===B_TENT){dayTime=DAY_DURATION+DUSK_DURATION+NIGHT_DURATION;showPopup('⛺ Nuit passée!',new THREE.Vector3(bx+0.5,by+2,bz+0.5));return true;}
+  if(b===B_TENT){trySleepAt(bx,by,bz,'tent');return true;}
+  if(b===B_BED){trySleepAt(bx,by,bz,'bed');return true;}
   if(b===B_CHEST){
     // Coffre placé par le joueur → stockage personnel
     // Coffre de monde (dans _openedChests ou loot) → loot
@@ -5337,7 +5519,14 @@ document.getElementById('respawn-btn').addEventListener('pointerdown',function()
   // Le marqueur reste actif pour que le joueur puisse retrouver son loot
   if(_deathMarker)showPopup('⚰ Retrouve ton loot sur la carte!',player.pos.clone().add(new THREE.Vector3(0,2,0)));
 });
-function spawnPlayer(){_initPlayerShadow();var sx=0,sz=0;for(var a=0;a<100;a++){var angle=Math.random()*Math.PI*2,r=100+Math.random()*500;sx=Math.floor(Math.cos(angle)*r);sz=Math.floor(Math.sin(angle)*r);genChunk(Math.floor(sx/CHUNK_SIZE),Math.floor(sz/CHUNK_SIZE));var biome=getBiome(sx,sz),h=getH(sx,sz);if((biome==='plain'||biome==='forest')&&h>SEA_LEVEL&&!isLake(sx,sz))break;}player.pos.set(sx,getH(sx,sz)+3,sz);player.vel.set(0,0,0);}
+function spawnPlayer(){_initPlayerShadow();
+  if(_spawnPoint&&_spawnPoint.x!==null&&_spawnPoint.z!==null){
+    var sx=_spawnPoint.x,sz=_spawnPoint.z;
+    genChunk(Math.floor(sx/CHUNK_SIZE),Math.floor(sz/CHUNK_SIZE));
+    var sh=(_spawnPoint.y!==undefined&&_spawnPoint.y!==null)?_spawnPoint.y:(getH(Math.floor(sx),Math.floor(sz))+2);
+    player.pos.set(sx,sh+1.6,sz);player.vel.set(0,0,0);return;
+  }
+  var sx=0,sz=0;for(var a=0;a<100;a++){var angle=Math.random()*Math.PI*2,r=100+Math.random()*500;sx=Math.floor(Math.cos(angle)*r);sz=Math.floor(Math.sin(angle)*r);genChunk(Math.floor(sx/CHUNK_SIZE),Math.floor(sz/CHUNK_SIZE));var biome=getBiome(sx,sz),h=getH(sx,sz);if((biome==='plain'||biome==='forest')&&h>SEA_LEVEL&&!isLake(sx,sz))break;}player.pos.set(sx,getH(sx,sz)+3,sz);player.vel.set(0,0,0);}
 
 // ── Popups ─────────────────────────────────────────────────
 var popups=[];
@@ -6744,7 +6933,7 @@ document.getElementById('loot-float-btn').addEventListener('pointerdown',functio
 document.getElementById('loot-modal').addEventListener('pointerdown',function(e){if(e.target===this){closeLootModal();activeLoot=null;}});
 
 // ── Breaking ───────────────────────────────────────────────
-var BREAK_TIMES={};BREAK_TIMES[B_GRASS]=0.75;BREAK_TIMES[B_DIRT]=0.75;BREAK_TIMES[B_STONE]=7.5;BREAK_TIMES[B_SAND]=0.75;BREAK_TIMES[B_WOOD]=3.0;BREAK_TIMES[B_LEAF]=0.3;BREAK_TIMES[B_WATER]=Infinity;BREAK_TIMES[B_SNOW]=0.15;BREAK_TIMES[B_GRAVEL]=0.9;BREAK_TIMES[B_COAL]=7.5;BREAK_TIMES[B_IRON]=7.5;BREAK_TIMES[B_TORCH]=0.1;BREAK_TIMES[B_FENCE]=2.0;BREAK_TIMES[B_DOOR]=2.0;BREAK_TIMES[B_STAIRS]=2.0;BREAK_TIMES[B_CAMPFIRE]=1.0;BREAK_TIMES[B_CHEST]=2.0;BREAK_TIMES[B_GRILL]=1.5;BREAK_TIMES[B_TENT]=1.5;
+var BREAK_TIMES={};BREAK_TIMES[B_GRASS]=0.75;BREAK_TIMES[B_DIRT]=0.75;BREAK_TIMES[B_STONE]=7.5;BREAK_TIMES[B_SAND]=0.75;BREAK_TIMES[B_WOOD]=3.0;BREAK_TIMES[B_LEAF]=0.3;BREAK_TIMES[B_WATER]=Infinity;BREAK_TIMES[B_SNOW]=0.15;BREAK_TIMES[B_GRAVEL]=0.9;BREAK_TIMES[B_COAL]=7.5;BREAK_TIMES[B_IRON]=7.5;BREAK_TIMES[B_TORCH]=0.1;BREAK_TIMES[B_FENCE]=2.0;BREAK_TIMES[B_DOOR]=2.0;BREAK_TIMES[B_STAIRS]=2.0;BREAK_TIMES[B_CAMPFIRE]=1.0;BREAK_TIMES[B_CHEST]=2.0;BREAK_TIMES[B_GRILL]=1.5;BREAK_TIMES[B_TENT]=1.5;BREAK_TIMES[B_BED]=1.2;
 BREAK_TIMES[B_BERRY_BUSH]=0.4;BREAK_TIMES[B_MUSHROOM_BLOCK]=0.3;BREAK_TIMES[B_HERB_BLOCK]=0.2;BREAK_TIMES[B_NETTLES]=0.2;BREAK_TIMES[B_STUMP]=2.5;BREAK_TIMES[B_SAPLING]=0.3;
 var TOOL_HACHE=[B_WOOD,B_LEAF,B_FENCE,B_DOOR,B_STAIRS],TOOL_PIOCHE=[B_STONE,B_COAL,B_IRON,B_TORCH];
 function getToolMultiplier(itemId,blockType){if(!itemId)return 1.0;var isH=TOOL_HACHE.indexOf(blockType)>=0,isP=TOOL_PIOCHE.indexOf(blockType)>=0;if(itemId===ITEM_AXE_WOOD)return isH?2.0:1.2;if(itemId===ITEM_AXE_STONE)return isH?4.0:1.5;if(itemId===ITEM_AXE_IRON)return isH?8.0:2.0;if(itemId===ITEM_PICK_WOOD)return isP?2.0:1.2;if(itemId===ITEM_PICK_STONE)return isP?4.0:1.5;if(itemId===ITEM_PICK_IRON)return isP?8.0:2.0;if(itemId===ITEM_SPEAR||itemId===ITEM_CLUB||itemId===ITEM_BOW)return 1.3;return 1.0;}
@@ -6906,7 +7095,7 @@ var keys={},mouseLocked=false,gameStarted=false,jumpHeld=false,_flyActive=false,
 var _mouseRightDown=false,_lastMouseX=-1,_lastMouseY=-1,_trackingActive=false;
 var _wLastTap=0;
 function setTracking(on){_trackingActive=on;_lastMouseX=-1;_lastMouseY=-1;document.getElementById('canvas').style.cursor=on?'none':'default';document.getElementById('tracking-hint').style.display=on?'none':'block';}
-document.addEventListener('keydown',function(e){keys[e.code]=true;if(e.code==='KeyE'&&gameStarted)toggleInventory();if(e.code==='Escape'&&invOpen)closeInventory();if(e.code==='Escape'&&!invOpen&&_trackingActive){setTracking(false);document.getElementById('tracking-hint').style.display='block';}if(e.code==='Space'){jumpHeld=true;if(false){var now3=Date.now();if(now3-_lastSpaceTime<300){_flyActive=!_flyActive;if(!_flyActive)player.vel.y=0;}_lastSpaceTime=now3;}}if(!invOpen){for(var i=0;i<9;i++)if(e.code==='Digit'+(i+1))selectSlot(i);if(e.code==='KeyF'&&gameStarted&&!mouseLocked){var af=attackAnimalRaycast();if(af&&af.type==='wolf'&&!af.tamed){tryTameAnimal(af);return;}if(tryUseItem())return;tryFillCanteen();var hf=raycast();if(hf&&hf.px!==null)doPlace(hf.px,hf.py,hf.pz);}if(e.code==='KeyW'&&gameStarted){var now2=Date.now();if(now2-_wLastTap<300)setMobileSprint(!_mobileSprint);_wLastTap=now2;}}});
+document.addEventListener('keydown',function(e){keys[e.code]=true;if(_sleeping){e.preventDefault();return;}if(e.code==='KeyE'&&gameStarted)toggleInventory();if(e.code==='Escape'&&invOpen)closeInventory();if(e.code==='Escape'&&!invOpen&&_trackingActive){setTracking(false);document.getElementById('tracking-hint').style.display='block';}if(e.code==='Space'){jumpHeld=true;if(false){var now3=Date.now();if(now3-_lastSpaceTime<300){_flyActive=!_flyActive;if(!_flyActive)player.vel.y=0;}_lastSpaceTime=now3;}}if(!invOpen){for(var i=0;i<9;i++)if(e.code==='Digit'+(i+1))selectSlot(i);if(e.code==='KeyF'&&gameStarted&&!mouseLocked){var af=attackAnimalRaycast();if(af&&af.type==='wolf'&&!af.tamed){tryTameAnimal(af);return;}if(tryUseItem())return;tryFillCanteen();var hf=raycast();if(hf&&hf.px!==null)doPlace(hf.px,hf.py,hf.pz);}if(e.code==='KeyW'&&gameStarted){var now2=Date.now();if(now2-_wLastTap<300)setMobileSprint(!_mobileSprint);_wLastTap=now2;}}});
 document.addEventListener('keyup',function(e){keys[e.code]=false;if(e.code==='Space')jumpHeld=false;});
 document.addEventListener('mousemove',function(e){if(invOpen||lootModalOpen)return;if(mouseLocked){var _s=SETTINGS.sensitivity*0.002;player.yaw-=e.movementX*_s;var _py=(SETTINGS.invertY?-1:1)*e.movementY*_s;player.pitch=Math.max(-Math.PI/2+0.05,Math.min(Math.PI/2-0.05,player.pitch+_py));}else if(_mouseRightDown&&gameStarted&&!isMobile){var dx=e.clientX-_lastMouseX,dy=e.clientY-_lastMouseY;var _s2=SETTINGS.sensitivity*0.003;player.yaw-=dx*_s2;var _py2=(SETTINGS.invertY?1:-1)*dy*_s2;player.pitch=Math.max(-Math.PI/2+0.05,Math.min(Math.PI/2-0.05,player.pitch+_py2));_lastMouseX=e.clientX;_lastMouseY=e.clientY;}});
 document.addEventListener('contextmenu',function(e){if(!invOpen)e.preventDefault();});
@@ -7150,6 +7339,7 @@ function saveGame(manual){
       stamina:player.stamina,temp:player.temp,
       // Cycle jour/nuit
       dayTime:Math.round(dayTime),
+      spawn:_spawnPoint.x!==null?{x:_spawnPoint.x,y:_spawnPoint.y||null,z:_spawnPoint.z}:null,
       // Inventaire
       inv:INV.map(function(s){return{i:s.id,q:s.qty};}),
       equip:{
@@ -7231,6 +7421,7 @@ function loadGame(){
 
     // Restaurer cycle jour/nuit
     if(save.dayTime!==undefined)dayTime=save.dayTime;
+    if(save.spawn&&save.spawn.x!==undefined){_spawnPoint.x=save.spawn.x;_spawnPoint.y=save.spawn.y||null;_spawnPoint.z=save.spawn.z;}
 
     // Restaurer mode
     if(save.mode)gameMode=save.mode;
@@ -8470,12 +8661,18 @@ function showHudEditBtn(){
 }
 
 function animate(now){
-  requestAnimationFrame(animate);if(!gameStarted||invOpen||lootModalOpen)return;
+  requestAnimationFrame(animate);if(!gameStarted||((invOpen||lootModalOpen)&&!_sleeping))return;
   var dt=Math.min((now-lastTime)/1000,0.05);lastTime=now;
   fpsBuf.push(1/dt);if(fpsBuf.length>20)fpsBuf.shift();
   if(now-lastFPSt>500){document.getElementById('fps').textContent=Math.round(fpsBuf.reduce(function(a,b){return a+b;},0)/fpsBuf.length);lastFPSt=now;}
   document.getElementById('pos').textContent=Math.floor(player.pos.x)+','+Math.floor(player.pos.y)+','+Math.floor(player.pos.z);
-  updateGamepad(dt);updateSling(dt);updateCooking(dt);movePlayer(dt);updateAutoSave(dt);if(typeof updateAudio==='function')updateAudio(dt);updateChunks();updateChunkVisibility();updateAnimals(dt);updateSurvival(dt);updateBreaking(dt);spawnNightEnemies(dt);updateRegrowth(dt);updateWeather(dt);renderRain();updateVolFog(_fogIntensity);updateFallingTrees(dt);_fogUpdateTimer+=dt;if(_fogUpdateTimer>0.5){_fogUpdateTimer=0;updateFogReveal();}
+  if(_sleeping){
+    updateSleep(dt);
+    if(typeof updateAudio==='function')updateAudio(dt);
+    updateChunks();updateChunkVisibility();
+  } else {
+    updateGamepad(dt);updateSling(dt);updateCooking(dt);movePlayer(dt);updateAutoSave(dt);if(typeof updateAudio==='function')updateAudio(dt);updateChunks();updateChunkVisibility();updateAnimals(dt);updateSurvival(dt);updateBreaking(dt);spawnNightEnemies(dt);updateRegrowth(dt);updateWeather(dt);renderRain();updateVolFog(_fogIntensity);updateFallingTrees(dt);_fogUpdateTimer+=dt;if(_fogUpdateTimer>0.5){_fogUpdateTimer=0;updateFogReveal();}
+  }
   // ── Marqueur de mort : timer + faisceau + récupération ──────
   if(_deathMarker){
     _deathMarker.timer-=dt;
@@ -8500,7 +8697,7 @@ function animate(now){
   camera.position.set(player.pos.x,player.pos.y,player.pos.z);camera.setView(camera.position,player.yaw,player.pitch);
 
   // Cycle jour/nuit
-  dayTime=(dayTime+dt)%DAY_CYCLE_TOTAL;var t=dayTime,phaseT;
+  if(!_sleeping)dayTime=(dayTime+dt)%DAY_CYCLE_TOTAL;var t=dayTime,phaseT;
   if(t<DAY_DURATION){phase='day';phaseT=t/DAY_DURATION;}else if(t<DAY_DURATION+DUSK_DURATION){phase='dusk';phaseT=(t-DAY_DURATION)/DUSK_DURATION;}else if(t<DAY_DURATION+DUSK_DURATION+NIGHT_DURATION){phase='night';phaseT=(t-DAY_DURATION-DUSK_DURATION)/NIGHT_DURATION;}else{phase='dawn';phaseT=(t-DAY_DURATION-DUSK_DURATION-NIGHT_DURATION)/DAWN_DURATION;}
   var SD=[0.529,0.808,0.922],SDK=[0.92,0.45,0.18],SN=[0.02,0.02,0.08],SDW=[0.82,0.40,0.22];
   function lC(a,b,k){return[a[0]+(b[0]-a[0])*k,a[1]+(b[1]-a[1])*k,a[2]+(b[2]-a[2])*k];}
