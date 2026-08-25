@@ -30,7 +30,7 @@ user-select: none;
 -webkit-user-select: none;
 -webkit-touch-callout: none;
 -webkit-tap-highlight-color: transparent;
-touch-action: none;
+touch-action: manipulation;
 /* Couvrir toute la surface y compris encoche/barre de statut */
 padding-top: env(safe-area-inset-top);
 padding-bottom: env(safe-area-inset-bottom);
@@ -43,6 +43,7 @@ top: 0;
 left: 0;
 }
 
+body.playing { touch-action: none; }
 #canvas {
 display: block;
 width: 100%;
@@ -54,8 +55,9 @@ width: 100vw;
 height: 100vh;
 z-index: 0;
 pointer-events: none;
+visibility: hidden;
 }
-body.playing #canvas { pointer-events: auto; }
+body.playing #canvas { pointer-events: auto; visibility: visible; }
 
 /* ═══════════════════════════════════════════════════════
 VISEUR
@@ -162,7 +164,7 @@ font-weight: bold;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10000; overflow: hidden;
+  z-index: 2147483647; overflow: hidden;
   isolation: isolate;
   background: #02060a;
   font-family: 'IM Fell English', Georgia, serif;
@@ -271,7 +273,7 @@ font-weight: bold;
   display: block;
   width: 100%;
   padding: 12px 18px;
-  min-height: 44px;
+  min-height: 52px;
   font-family: Cinzel, Georgia, serif;
   font-size: 13px;
   font-weight: 700;
@@ -2283,37 +2285,6 @@ display: none !important;
     <button id="map-close">Fermer</button>
   </div>
 
-  <!-- Écran titre -->
-  <div id="overlay">
-    <div id="overlay-bg">
-      <canvas id="overlay-fx"></canvas>
-      <div class="ov-vignette"></div>
-      <div class="ov-mist"></div>
-      <div class="ov-fireglow"></div>
-    </div>
-    <div id="overlay-content">
-      <div class="ov-badge">Minecraft × The Forest</div>
-      <h1>MINECLONE</h1>
-      <p class="ov-tag">Survivre. Construire. Ou mourir.</p>
-      <div class="ov-menu">
-        <button type="button" id="continueBtn" class="ov-btn ov-btn-continue" onclick="window.__mcContinue&&window.__mcContinue(event)">Continuer l'aventure</button>
-        <button type="button" id="startBtn" class="ov-btn ov-btn-primary" onclick="window.__mcStart&&window.__mcStart(event)">Nouvelle partie</button>
-        <button type="button" id="btn-settings-open" class="ov-btn ov-btn-ghost" onclick="window.__mcSettings&&window.__mcSettings(event)">Paramètres</button>
-        <button type="button" id="deleteSaveMenuBtn" class="ov-btn ov-btn-danger" onclick="window.__mcDelete&&window.__mcDelete(event)">Effacer la sauvegarde</button>
-      </div>
-    </div>
-    <div id="delete-confirm-modal">
-      <div class="ov-modal">
-        <p class="ov-modal-title">SUPPRIMER LA PARTIE ?</p>
-        <p class="ov-modal-sub">Cette action est irréversible.</p>
-        <div class="ov-modal-row">
-          <button id="confirmDeleteYes" class="ov-btn ov-btn-primary" style="width:auto;padding:10px 22px;animation:none;display:block;">Confirmer</button>
-          <button id="confirmDeleteNo" class="ov-btn ov-btn-ghost" style="width:auto;padding:10px 22px;">Annuler</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <!-- Panel Paramètres -->
 
   <div id="settings-panel">
@@ -2530,6 +2501,68 @@ display: none !important;
   <!-- Hint contrôles desktop -->
 
   <div id="controls-hint">ZQSD/WASD &middot; Shift: Courir &middot; Clic droit maintenu: Cam&eacute;ra &middot; Clic G: D&eacute;truire &middot; F: Placer &middot; E: Inventaire</div>
+
+  <!-- Écran titre -->
+  <div id="overlay">
+    <div id="overlay-bg">
+      <canvas id="overlay-fx"></canvas>
+      <div class="ov-vignette"></div>
+      <div class="ov-mist"></div>
+      <div class="ov-fireglow"></div>
+    </div>
+    <div id="overlay-content">
+      <div class="ov-badge">Minecraft × The Forest</div>
+      <h1>MINECLONE</h1>
+      <p class="ov-tag">Survivre. Construire. Ou mourir.</p>
+      <div class="ov-menu">
+        <button type="button" id="continueBtn" class="ov-btn ov-btn-continue" data-mc="continue">Continuer l'aventure</button>
+        <button type="button" id="startBtn" class="ov-btn ov-btn-primary" data-mc="start">Nouvelle partie</button>
+        <button type="button" id="btn-settings-open" class="ov-btn ov-btn-ghost" data-mc="settings">Paramètres</button>
+        <button type="button" id="deleteSaveMenuBtn" class="ov-btn ov-btn-danger" data-mc="delete">Effacer la sauvegarde</button>
+      </div>
+    </div>
+    <div id="delete-confirm-modal">
+      <div class="ov-modal">
+        <p class="ov-modal-title">SUPPRIMER LA PARTIE ?</p>
+        <p class="ov-modal-sub">Cette action est irréversible.</p>
+        <div class="ov-modal-row">
+          <button id="confirmDeleteYes" class="ov-btn ov-btn-primary" style="width:auto;padding:10px 22px;animation:none;display:block;">Confirmer</button>
+          <button id="confirmDeleteNo" class="ov-btn ov-btn-ghost" style="width:auto;padding:10px 22px;">Annuler</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+<script>
+(function(){
+  window.__mcWant=null;
+  function setWant(k,e){
+    if(e){
+      try{e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();}catch(err){}
+    }
+    var map={start:'__mcStart',continue:'__mcContinue',settings:'__mcSettings',delete:'__mcDelete'};
+    var fn=window[map[k]];
+    if(typeof fn==='function'){window.__mcWant=null;fn(e);return;}
+    window.__mcWant=k;
+  }
+  window.__mcFire=setWant;
+  function fromEvent(e){
+    var t=e.target;
+    while(t&&t!==document){
+      var k=t.getAttribute&&t.getAttribute('data-mc');
+      if(k){setWant(k,e);return;}
+      t=t.parentNode;
+    }
+  }
+  var ov=document.getElementById('overlay');
+  if(ov){
+    ['touchstart','touchend','pointerdown','pointerup','click','mousedown'].forEach(function(ev){
+      ov.addEventListener(ev, fromEvent, true);
+    });
+  }
+})();
+</script>
 
 <script>
 // ═══════════════════════════════════════════════════════
@@ -8696,12 +8729,12 @@ function setJoyLock(on){_jLocked=on;var btn=document.getElementById('btn-lock');
 document.getElementById('btn-lock').addEventListener('pointerdown',function(e){e.stopPropagation();setJoyLock(!_jLocked);});
 function setMobileSprint(on){_mobileSprint=on;jBase.style.borderColor=on?'rgba(255,180,0,0.8)':'rgba(255,255,255,0.25)';jBase.style.background=on?'rgba(255,150,0,0.15)':'rgba(255,255,255,0.1)';}
 function endJoy(){joystick.active=false;if(!_jLocked){joystick.dx=0;joystick.dy=0;jKnob.style.transform='translate(-50%,-50%)';document.getElementById('btn-lock').style.display='none';}}
-jZone.addEventListener('touchstart',function(e){e.preventDefault();for(var ti=0;ti<e.changedTouches.length;ti++){var t=e.changedTouches[ti];if(!joystick.active){var now=Date.now();if(now-_jLastTap<300)setMobileSprint(!_mobileSprint);_jLastTap=now;if(_jLocked){setJoyLock(false);return;}joystick.active=true;joystick.id=t.identifier;jBR=jBase.getBoundingClientRect();joystick.bx=jBR.left+jBR.width/2;joystick.by=jBR.top+jBR.height/2;}}},{passive:false});
+jZone.addEventListener('touchstart',function(e){if(!gameStarted)return;e.preventDefault();for(var ti=0;ti<e.changedTouches.length;ti++){var t=e.changedTouches[ti];if(!joystick.active){var now=Date.now();if(now-_jLastTap<300)setMobileSprint(!_mobileSprint);_jLastTap=now;if(_jLocked){setJoyLock(false);return;}joystick.active=true;joystick.id=t.identifier;jBR=jBase.getBoundingClientRect();joystick.bx=jBR.left+jBR.width/2;joystick.by=jBR.top+jBR.height/2;}}},{passive:false});
 jZone.addEventListener('touchmove',function(e){e.preventDefault();for(var ti=0;ti<e.changedTouches.length;ti++){var t=e.changedTouches[ti];if(t.identifier===joystick.id){var dx=t.clientX-joystick.bx,dy=t.clientY-joystick.by,dist=Math.sqrt(dx*dx+dy*dy),max=40;if(dist>max){dx=dx/dist*max;dy=dy/dist*max;}joystick.dx=dx/max;joystick.dy=dy/max;jKnob.style.transform='translate(calc(-50% + '+dx+'px),calc(-50% + '+dy+'px))';var lb=document.getElementById('btn-lock');if(!_jLocked)lb.style.display='flex';}}},{passive:false});
 jZone.addEventListener('touchend',endJoy,{passive:false});jZone.addEventListener('touchcancel',endJoy,{passive:false});
 var camTouches={},camZone=document.getElementById('camera-zone');
 function endCam(e){for(var ti=0;ti<e.changedTouches.length;ti++)delete camTouches[e.changedTouches[ti].identifier];}
-camZone.addEventListener('touchstart',function(e){e.preventDefault();for(var ti=0;ti<e.changedTouches.length;ti++){var t=e.changedTouches[ti];camTouches[t.identifier]={x:t.clientX,y:t.clientY};}},{passive:false});
+camZone.addEventListener('touchstart',function(e){if(!gameStarted)return;e.preventDefault();for(var ti=0;ti<e.changedTouches.length;ti++){var t=e.changedTouches[ti];camTouches[t.identifier]={x:t.clientX,y:t.clientY};}},{passive:false});
 camZone.addEventListener('touchmove',function(e){e.preventDefault();for(var ti=0;ti<e.changedTouches.length;ti++){var t=e.changedTouches[ti],prev=camTouches[t.identifier];if(prev){player.yaw-=(t.clientX-prev.x)*0.004;player.pitch=Math.max(-Math.PI/2+0.05,Math.min(Math.PI/2-0.05,player.pitch-(t.clientY-prev.y)*0.004));camTouches[t.identifier]={x:t.clientX,y:t.clientY};}}},{passive:false});
 camZone.addEventListener('touchend',endCam,{passive:false});camZone.addEventListener('touchcancel',endCam,{passive:false});
 
@@ -8998,6 +9031,7 @@ function bindTap(el,fn){
   el.addEventListener('touchend',go,{passive:false});
 }
 window.__mcContinue=function(e){
+  if(window.gameStarted)return;
   if(e){try{e.preventDefault();e.stopPropagation();}catch(_e){}}
   document.getElementById('overlay').style.display='none';
   if(typeof setPlayHudPeek==='function')setPlayHudPeek(true);
@@ -9020,6 +9054,7 @@ window.__mcContinue=function(e){
   updateChunks();
 };
 window.__mcStart=function(e){
+  if(window.gameStarted)return;
   if(e){try{e.preventDefault();e.stopPropagation();}catch(_e){}}
   document.getElementById('overlay').style.display='none';
   if(typeof setPlayHudPeek==='function')setPlayHudPeek(true);
@@ -11077,6 +11112,12 @@ renderer.render(scene,camera);
   if(nearestDying&&!lootModalOpen){var _wp=new THREE.Vector3(nearestDying.mesh.position.x,nearestDying.mesh.position.y+1.8,nearestDying.mesh.position.z),_sv=_wp.clone().project(camera);if(_sv.z<1){floatBtn.style.display='block';floatBtn.style.left=(_sv.x*0.5+0.5)*window.innerWidth+'px';floatBtn.style.top=((-_sv.y*0.5+0.5)*window.innerHeight)+'px';floatBtn._animal=nearestDying;}else floatBtn.style.display='none';}else floatBtn.style.display='none';
 }
 requestAnimationFrame(animate);
+setInterval(function(){
+  var w=window.__mcWant;if(!w)return;
+  var fn=w==='start'?window.__mcStart:w==='continue'?window.__mcContinue:w==='settings'?window.__mcSettings:w==='delete'?window.__mcDelete:null;
+  if(typeof fn==='function'){window.__mcWant=null;fn();}
+},80);
+
 </script>
 
 </body>
