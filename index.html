@@ -2250,7 +2250,7 @@ display: none !important;
   <!-- Panneau carte -->
 
   <div id="map-panel">
-    <h3>🗺 CARTE</h3>
+    <h3 id="map-title">🗺 CARTE</h3>
     <canvas id="map-canvas" width="400" height="400"></canvas>
     <button id="map-close">Fermer</button>
   </div>
@@ -3689,6 +3689,283 @@ function isLake(wx,wz){var biome=getBiome(wx,wz);if(biome==='ocean'||biome==='be
 function getLakeSurfaceY(wx,wz){var cell=getLakeCell(wx,wz),minH=999;for(var dx=-6;dx<=6;dx+=3)for(var dz=-6;dz<=6;dz+=3){var hh=getH(cell.cx+dx,cell.cz+dz);if(hh>SEA_LEVEL+2&&hh<minH)minH=hh;}return minH>SEA_LEVEL+2?minH-1:SEA_LEVEL+3;}
 function lakeDepth(wx,wz){var cell=getLakeCell(wx,wz);return 1+Math.floor(hash(cell.cx,cell.cz,SEED+5678)*2);}
 
+
+// ════════════════════════════════════════════════════════
+//  GROTTE PRINCIPALE — labyrinthe sous l'île 1
+// ════════════════════════════════════════════════════════
+var CAVE_NET={ready:false,CELL:16,Y:8,H:4,open:{},conn:{},rooms:{},entrance:null,camps:[],safes:[],loots:[],campSpawns:[]};
+var _caveFogW=280,_caveFogH=280;
+var _caveFog=new Uint8Array(_caveFogW*_caveFogH);
+var _caveFogB={wx0:-300,wx1:300,wz0:-400,wz1:120};
+var _wasInCave=false;
+
+function caveInRegion(wx,wz){
+  if(getIsland(wx,wz)!==1)return false;
+  var d=isleDistA(wx,wz);
+  return d<0.50&&d>0.18&&wz<90&&wz>-380&&wx>-300&&wx<300;
+}
+function _ck(cx,cz){return cx+','+cz;}
+
+function initCaveNet(){
+  if(CAVE_NET.ready)return;
+  CAVE_NET.ready=true;
+  var CELL=CAVE_NET.CELL, nodes=[];
+  var cz0=Math.floor(-380/CELL),cz1=Math.floor(90/CELL);
+  var cx0=Math.floor(-300/CELL),cx1=Math.floor(300/CELL);
+  for(var cz=cz0;cz<=cz1;cz++)for(var cx=cx0;cx<=cx1;cx++){
+    if(!caveInRegion(cx*CELL+8,cz*CELL+8))continue;
+    nodes.push({cx:cx,cz:cz});
+    CAVE_NET.open[_ck(cx,cz)]=false;
+  }
+  if(!nodes.length)return;
+  var rng=Math.floor(SEED*9999+77777)&0x7fffffff;
+  function rnd(){rng=(rng*1103515245+12345)&0x7fffffff;return rng/0x7fffffff;}
+  // Entrée = cellule la plus au nord (proche du spawn)
+  nodes.sort(function(a,b){return b.cz-a.cz;});
+  var start=nodes[Math.floor(rnd()*Math.min(8,nodes.length))];
+  var stack=[start];
+  CAVE_NET.open[_ck(start.cx,start.cz)]=true;
+  var dirs=[[0,1,'n','s'],[0,-1,'s','n'],[1,0,'e','w'],[-1,0,'w','e']];
+  function shuffle(a){for(var i=a.length-1;i>0;i--){var j=Math.floor(rnd()*(i+1)),t=a[i];a[i]=a[j];a[j]=t;}return a;}
+  while(stack.length){
+    var cur=stack[stack.length-1],k=_ck(cur.cx,cur.cz);
+    if(!CAVE_NET.conn[k])CAVE_NET.conn[k]={n:0,s:0,e:0,w:0};
+    var order=shuffle(dirs.slice()),found=false;
+    for(var i=0;i<order.length;i++){
+      var nx=cur.cx+order[i][0],nz=cur.cz+order[i][1],nk=_ck(nx,nz);
+      if(CAVE_NET.open[nk]===undefined||CAVE_NET.open[nk])continue;
+      CAVE_NET.open[nk]=true;
+      if(!CAVE_NET.conn[nk])CAVE_NET.conn[nk]={n:0,s:0,e:0,w:0};
+      CAVE_NET.conn[k][order[i][2]]=1;
+      CAVE_NET.conn[nk][order[i][3]]=1;
+      stack.push({cx:nx,cz:nz});found=true;break;
+    }
+    if(!found)stack.pop();
+  }
+  // Boucles extra (se perdre)
+  for(var li=0;li<nodes.length;li++){
+    if(rnd()>0.14)continue;
+    var a=nodes[li],ak=_ck(a.cx,a.cz);
+    if(!CAVE_NET.open[ak])continue;
+    var d2=dirs[Math.floor(rnd()*4)],bk=_ck(a.cx+d2[0],a.cz+d2[1]);
+    if(!CAVE_NET.open[bk])continue;
+    CAVE_NET.conn[ak][d2[2]]=1;
+    if(!CAVE_NET.conn[bk])CAVE_NET.conn[bk]={n:0,s:0,e:0,w:0};
+    CAVE_NET.conn[bk][d2[3]]=1;
+  }
+  // Types de salles
+  CAVE_NET.rooms[_ck(start.cx,start.cz)]='entrance';
+  CAVE_NET.entrance={cx:start.cx,cz:start.cz,wx:start.cx*CELL+8,wz:start.cz*CELL+8};
+  var dead=[],junct=[],hall=[];
+  for(var ni=0;ni<nodes.length;ni++){
+    var nd=nodes[ni],kk=_ck(nd.cx,nd.cz);
+    if(!CAVE_NET.open[kk]||kk===_ck(start.cx,start.cz))continue;
+    var c=CAVE_NET.conn[kk]||{},deg=(c.n?1:0)+(c.s?1:0)+(c.e?1:0)+(c.w?1:0);
+    nd.deg=deg;
+    if(deg<=1)dead.push(nd);
+    else if(deg>=3)junct.push(nd);
+    else hall.push(nd);
+  }
+  function take(arr,n,type,bucket){
+    shuffle(arr);
+    for(var i=0;i<n&&i<arr.length;i++){
+      CAVE_NET.rooms[_ck(arr[i].cx,arr[i].cz)]=type;
+      var rec={cx:arr[i].cx,cz:arr[i].cz,x:arr[i].cx*CELL+8,z:arr[i].cz*CELL+8,spawned:false};
+      if(bucket)bucket.push(rec);
+    }
+    arr.splice(0,n);
+  }
+  take(dead,5,'loot',CAVE_NET.loots);
+  take(dead,3,'safe',CAVE_NET.safes);
+  take(junct,5,'camp',CAVE_NET.camps);
+  take(hall,3,'camp',CAVE_NET.camps);
+  CAVE_NET.campSpawns=CAVE_NET.camps.slice();
+}
+
+function caveCellInfo(wx,wz){
+  initCaveNet();
+  var CELL=CAVE_NET.CELL;
+  var cx=Math.floor(wx/CELL),cz=Math.floor(wz/CELL);
+  var k=_ck(cx,cz);
+  if(!CAVE_NET.open[k])return null;
+  return {cx:cx,cz:cz,k:k,room:CAVE_NET.rooms[k]||'corr',conn:CAVE_NET.conn[k]||{n:0,s:0,e:0,w:0},
+    lx:((wx%CELL)+CELL)%CELL, lz:((wz%CELL)+CELL)%CELL};
+}
+function isCaveFloor(wx,wz){
+  var info=caveCellInfo(wx,wz);if(!info)return false;
+  var lx=info.lx,lz=info.lz,c=info.conn,room=info.room;
+  var isRoom=room==='camp'||room==='safe'||room==='loot'||room==='entrance';
+  if(isRoom){
+    if(lx>=2&&lx<=13&&lz>=2&&lz<=13)return true;
+  }
+  var hw=2;
+  var throughX=(lz>=8-hw&&lz<=8+hw)&&((c.w&&lx<=8)||(c.e&&lx>=8)||(lx>=8-hw&&lx<=8+hw));
+  var throughZ=(lx>=8-hw&&lx<=8+hw)&&((c.s&&lz<=8)||(c.n&&lz>=8)||(lz>=8-hw&&lz<=8+hw));
+  return throughX||throughZ;
+}
+function isSafeCave(wx,wz){
+  var info=caveCellInfo(wx,wz);
+  return !!(info&&info.room==='safe');
+}
+function playerInCave(){
+  if(typeof player==='undefined')return false;
+  var wx=Math.floor(player.pos.x),wz=Math.floor(player.pos.z);
+  if(!isCaveFloor(wx,wz))return false;
+  return player.pos.y<getH(wx,wz)-3;
+}
+
+function carveMainCave(data,idx,cx,cz,ox,oz){
+  initCaveNet();
+  var k=_ck(cx,cz);
+  if(!CAVE_NET.open[k])return;
+  var CS=CHUNK_SIZE,Y=CAVE_NET.Y,H=CAVE_NET.H;
+  var info={room:CAVE_NET.rooms[k]||'corr',conn:CAVE_NET.conn[k]||{n:0,s:0,e:0,w:0}};
+  var isRoom=info.room==='camp'||info.room==='safe'||info.room==='loot'||info.room==='entrance';
+  function set(lx,y,lz,t){if(lx<0||lx>=CS||lz<0||lz>=CS||y<0||y>=CHUNK_HEIGHT)return;data[idx(lx,y,lz)]=t;}
+  for(var lz=0;lz<CS;lz++)for(var lx=0;lx<CS;lx++){
+    var wx=ox+lx,wz=oz+lz;
+    if(!isCaveFloor(wx,wz))continue;
+    var hSurf=getH(wx,wz);
+    set(lx,Y-1,lz,info.room==='safe'?B_WOOD:(info.room==='loot'?B_STONE:B_GRAVEL));
+    for(var y=Y;y<Y+H;y++){
+      if(y>=hSurf-2)continue;
+      set(lx,y,lz,B_AIR);
+    }
+    // minerai sur le plafond
+    if(hash(wx,wz,SEED+9100)>0.92)set(lx,Y+H,lz,B_COAL);
+    if(hash(wx,wz,SEED+9101)>0.97)set(lx,Y+H,lz,B_IRON);
+  }
+
+  // Décor selon la salle
+  var room=info.room,c=info.conn;
+  if(room==='safe'){
+    for(var i=3;i<=12;i++){
+      if(i===3||i===12){set(i,Y,3,B_FENCE);set(i,Y,12,B_FENCE);set(3,Y,i,B_FENCE);set(12,Y,i,B_FENCE);}
+    }
+    set(8,Y,8,B_CAMPFIRE);set(7,Y,8,B_GRILL);
+    set(5,Y,5,B_BED);set(10,Y,5,B_CHEST);
+    set(4,Y+1,4,B_TORCH);set(11,Y+1,4,B_TORCH);set(4,Y+1,11,B_TORCH);set(11,Y+1,11,B_TORCH);
+    set(8,Y,10,B_CHEST);
+  } else if(room==='camp'){
+    set(8,Y,8,B_CAMPFIRE);
+    set(5,Y,5,B_WOOD);set(5,Y+1,5,B_WOOD);set(5,Y+2,5,B_FENCE);
+    set(11,Y,5,B_WOOD);set(11,Y+1,5,B_FENCE);
+    set(5,Y,11,B_WOOD);set(5,Y+1,11,B_FENCE);
+    set(11,Y,11,B_TENT);set(10,Y,11,B_TENT);
+    set(9,Y,6,B_CHEST);
+    set(4,Y+1,8,B_TORCH);
+    set(6,Y,10,B_STUMP);set(12,Y,7,B_NETTLES);
+  } else if(room==='loot'){
+    set(8,Y,8,B_STONE);set(8,Y+1,8,B_CHEST);
+    set(7,Y,8,B_STONE);set(9,Y,8,B_STONE);
+    set(8,Y,7,B_IRON);set(8,Y,9,B_IRON);
+    set(5,Y+1,5,B_TORCH);set(11,Y+1,11,B_TORCH);
+    set(6,Y,6,B_MUSHROOM_BLOCK);
+  } else if(room==='entrance'){
+    set(8,Y,8,B_GRAVEL);set(7,Y,8,B_GRAVEL);set(8,Y,7,B_GRAVEL);set(9,Y,8,B_GRAVEL);
+    set(4,Y+1,4,B_TORCH);set(11,Y+1,4,B_TORCH);set(4,Y+1,11,B_TORCH);set(11,Y+1,11,B_TORCH);
+    set(6,Y,6,B_CHEST);
+    // Puits vers la surface + escalier en spirale
+    var h0=getH(ox+8,oz+8);
+    for(var sy=Y;sy<h0;sy++){
+      set(7,sy,7,B_AIR);set(8,sy,7,B_AIR);set(7,sy,8,B_AIR);set(8,sy,8,B_AIR);
+    }
+    var drop=h0-Y;
+    for(var i=0;i<drop;i++){
+      var yy=Y+i, side=Math.floor(i/3)%4, o=i%3;
+      var sx=8,sz=8;
+      if(side===0){sx=6;sz=6+o;}
+      else if(side===1){sx=6+o;sz=9;}
+      else if(side===2){sx=9;sz=9-o;}
+      else {sx=9-o;sz=6;}
+      set(sx,yy,sz,B_STONE);
+      if(i%3===0)set(sx,yy+1,sz,B_TORCH);
+    }
+    // Rebord en surface
+    var hy=h0;
+    set(6,hy,6,B_STONE);set(7,hy,6,B_STONE);set(8,hy,6,B_STONE);set(9,hy,6,B_STONE);
+    set(6,hy,9,B_STONE);set(7,hy,9,B_STONE);set(8,hy,9,B_STONE);set(9,hy,9,B_STONE);
+    set(6,hy,7,B_STONE);set(6,hy,8,B_STONE);set(9,hy,7,B_STONE);set(9,hy,8,B_STONE);
+    set(6,hy+1,6,B_TORCH);set(9,hy+1,6,B_TORCH);set(6,hy+1,9,B_TORCH);set(9,hy+1,9,B_TORCH);
+    set(7,hy,7,B_AIR);set(8,hy,7,B_AIR);set(7,hy,8,B_AIR);set(8,hy,8,B_AIR);
+    set(7,hy+1,7,B_AIR);set(8,hy+1,7,B_AIR);set(7,hy+1,8,B_AIR);set(8,hy+1,8,B_AIR);
+  } else {
+    // couloir : quelques champignons / gravats
+    if(hash(cx,cz,SEED+9200)>0.7)set(8,Y,8,B_GRAVEL);
+    if(hash(cx,cz,SEED+9201)>0.82)set(7,Y,9,B_MUSHROOM_BLOCK);
+    if(hash(cx,cz,SEED+9202)>0.9)set(9,Y+1,7,B_TORCH);
+  }
+}
+
+function worldToCaveFog(wx,wz){
+  var b=_caveFogB;
+  var fx=Math.floor((wx-b.wx0)/(b.wx1-b.wx0)*_caveFogW);
+  var fz=Math.floor((wz-b.wz0)/(b.wz1-b.wz0)*_caveFogH);
+  return{fx:Math.max(0,Math.min(_caveFogW-1,fx)),fz:Math.max(0,Math.min(_caveFogH-1,fz))};
+}
+function revealCaveFog(wx,wz,radius){
+  var b=_caveFogB,ww=b.wx1-b.wx0,wh=b.wz1-b.wz0;
+  var rPx=Math.ceil(radius/ww*_caveFogW), rPz=Math.ceil(radius/wh*_caveFogH);
+  var fp=worldToCaveFog(wx,wz);
+  for(var fz=fp.fz-rPz;fz<=fp.fz+rPz;fz++)for(var fx=fp.fx-rPx;fx<=fp.fx+rPx;fx++){
+    if(fx<0||fx>=_caveFogW||fz<0||fz>=_caveFogH)continue;
+    var nx=(fx-fp.fx)/Math.max(1,rPx),nz=(fz-fp.fz)/Math.max(1,rPz);
+    if(nx*nx+nz*nz<=1)_caveFog[fz*_caveFogW+fx]=1;
+  }
+}
+
+function renderCaveMap(){
+  var canvas=document.getElementById('map-canvas'),ctx=canvas.getContext('2d'),W=400,H=400;
+  canvas.width=W;canvas.height=H;
+  var b=_caveFogB,ww=b.wx1-b.wx0,wh=b.wz1-b.wz0;
+  function toS(wx,wz){return{sx:Math.floor((wx-b.wx0)/ww*W),sy:Math.floor((wz-b.wz0)/wh*H)};}
+  var img=ctx.createImageData(W,H);
+  for(var py=0;py<H;py++)for(var px=0;px<W;px++){
+    var wx=Math.floor(b.wx0+px/W*ww),wz=Math.floor(b.wz0+py/H*wh);
+    var ffx=Math.floor(px/W*_caveFogW),ffz=Math.floor(py/H*_caveFogH);
+    var explored=_caveFog[ffz*_caveFogW+ffx]===1;
+    var ii=(py*W+px)*4;
+    if(!explored){img.data[ii]=4;img.data[ii+1]=4;img.data[ii+2]=8;img.data[ii+3]=255;continue;}
+    var floor=isCaveFloor(wx,wz);
+    if(!floor){img.data[ii]=18;img.data[ii+1]=16;img.data[ii+2]=14;img.data[ii+3]=255;continue;}
+    var info=caveCellInfo(wx,wz);
+    var r=info?info.room:'corr';
+    var col=[70,68,62];
+    if(r==='safe')col=[40,90,70];
+    else if(r==='camp')col=[90,40,30];
+    else if(r==='loot')col=[120,100,40];
+    else if(r==='entrance')col=[60,80,110];
+    img.data[ii]=col[0];img.data[ii+1]=col[1];img.data[ii+2]=col[2];img.data[ii+3]=255;
+  }
+  ctx.putImageData(img,0,0);
+  // légende salles explorées
+  function mark(list,color,label){
+    for(var i=0;i<list.length;i++){
+      var fp=worldToCaveFog(list[i].x,list[i].z);
+      if(!_caveFog[fp.fz*_caveFogW+fp.fx])continue;
+      var p=toS(list[i].x,list[i].z);
+      ctx.fillStyle=color;ctx.fillRect(p.sx-3,p.sy-3,6,6);
+      ctx.fillStyle='#ddd';ctx.font='9px monospace';ctx.fillText(label,p.sx+6,p.sy+3);
+    }
+  }
+  mark(CAVE_NET.safes,'#4ecf8a','Refuge');
+  mark(CAVE_NET.camps,'#e06040','Camp');
+  mark(CAVE_NET.loots,'#e8c040','Trésor');
+  if(CAVE_NET.entrance){
+    var ef=worldToCaveFog(CAVE_NET.entrance.wx,CAVE_NET.entrance.wz);
+    if(_caveFog[ef.fz*_caveFogW+ef.fx]){
+      var ep=toS(CAVE_NET.entrance.wx,CAVE_NET.entrance.wz);
+      ctx.fillStyle='#88aaff';ctx.beginPath();ctx.arc(ep.sx,ep.sy,6,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#cce';ctx.font='9px monospace';ctx.fillText('Entrée',ep.sx+8,ep.sy);
+    }
+  }
+  var pp=toS(player.pos.x,player.pos.z);
+  ctx.save();ctx.translate(pp.sx,pp.sy);ctx.rotate(player.yaw);
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.moveTo(0,-7);ctx.lineTo(5,6);ctx.lineTo(0,3);ctx.lineTo(-5,6);ctx.closePath();ctx.fill();
+  ctx.restore();
+}
+
+
 function genChunk(cx,cz){
   var key=ckey(cx,cz);if(chunks.has(key))return chunks.get(key);
   var data=new Uint8Array(CHUNK_SIZE*CHUNK_HEIGHT*CHUNK_SIZE);chunks.set(key,data);
@@ -3748,8 +4025,10 @@ function genChunk(cx,cz){
     else{var ph=tr.lr;for(var pdy2=-1;pdy2<=ph;pdy2++){var pr2=Math.max(0,Math.floor((ph-pdy2)*0.6));for(var pdx2=-pr2;pdx2<=pr2;pdx2++)for(var pdz2=-pr2;pdz2<=pr2;pdz2++){if(Math.abs(pdx2)+Math.abs(pdz2)>pr2)continue;var py2=tr.top+pdy2;if(py2<0||py2>=CH)continue;if(getBlock(tr.wx+pdx2,py2,tr.wz+pdz2)===B_AIR)setBlockRaw(tr.wx+pdx2,py2,tr.wz+pdz2,B_LEAF);}}}
   }
   var chunkCX=cx*CS+8,chunkCZ=cz*CS+8;
-  if(getIsland(chunkCX,chunkCZ)>0){
-    // Grottes : réseau 3D (montagne + sous-sol)
+  initCaveNet();
+  carveMainCave(data,idx,cx,cz,ox,oz);
+  if(getIsland(chunkCX,chunkCZ)>0 && !CAVE_NET.open[_ck(cx,cz)]){
+    // Grottes secondaires (hors labyrinthe principal)
     for(var lx2=0;lx2<CS;lx2++)for(var lz2=0;lz2<CS;lz2++){
       var wx2=ox+lx2,wz2=oz+lz2;
       var hSurf=getH(wx2,wz2);
@@ -4411,6 +4690,21 @@ function buildMesh(cx,cz){
           var gx=Math.floor(vs.x+Math.cos(ga)*gr),gz=Math.floor(vs.z+Math.sin(ga)*gr);
           var gy=getH(gx,gz)+1;
           if(gy>SEA_LEVEL)spawnAnimal(Math.random()<0.4?'mutant':'guerrier',gx,gy,gz);
+        }
+      }
+    }
+  }
+  // Camps de la grotte
+  if(CAVE_NET.campSpawns){
+    for(var csi=0;csi<CAVE_NET.campSpawns.length;csi++){
+      var cs=CAVE_NET.campSpawns[csi];
+      if(cs.spawned)continue;
+      if(Math.abs(cx-cs.cx)<=1&&Math.abs(cz-cs.cz)<=1){
+        cs.spawned=true;
+        var nE=2+Math.floor(Math.random()*2);
+        for(var ei=0;ei<nE;ei++){
+          var ex2=cs.x-3+Math.floor(Math.random()*7), ez2=cs.z-3+Math.floor(Math.random()*7);
+          spawnAnimal(Math.random()<0.5?'rodeur':'guerrier',ex2,CAVE_NET.Y+0.1,ez2);
         }
       }
     }
@@ -5727,6 +6021,25 @@ var LOOT_TABLES = {
     {id:ITEM_CANTEEN_WATER,qty:1,chance:0.5}
   ],
 
+  cave_rare: [
+    {id:ITEM_IRON,        qty:6, chance:0.95},
+    {id:ITEM_AXE_IRON,    qty:1, chance:0.55},
+    {id:ITEM_PICK_IRON,   qty:1, chance:0.5},
+    {id:ITEM_KNIFE_IRON,  qty:1, chance:0.45},
+    {id:ITEM_FUR_COAT,    qty:1, chance:0.35},
+    {id:ITEM_BACKPACK,    qty:1, chance:0.22},
+    {id:ITEM_BOW,         qty:1, chance:0.4},
+    {id:ITEM_ARROW,       qty:12,chance:0.7},
+    {id:ITEM_ANTIDOTE,    qty:3, chance:0.55},
+    {id:ITEM_BANDAGE,     qty:5, chance:0.7},
+    {id:ITEM_WOOL_CLOAK,  qty:1, chance:0.28},
+    {id:ITEM_LEATHER_VEST,qty:1, chance:0.3},
+    {id:ITEM_SPEAR,       qty:1, chance:0.4},
+    {id:ITEM_TORCH,       qty:8, chance:0.8},
+    {id:ITEM_CANTEEN_WATER,qty:1,chance:0.6},
+    {id:B_COAL,           qty:10,chance:0.75}
+  ],
+
   // Coffre de temple/ruine (lore + artefacts)
   ruin: [
     {id:ITEM_IRON,        qty:3, chance:0.6},
@@ -5746,11 +6059,16 @@ var LOOT_TABLES = {
 // Détermine le type de coffre selon le contexte (position)
 function getChestType(bx,by,wz){
   var h=getH(bx,wz);
-  var relDepth=h-by; // profondeur sous la surface
-
-  // Grotte profonde : >60% sous la surface
+  var relDepth=h-by;
+  var ci=typeof caveCellInfo==='function'?caveCellInfo(bx,wz):null;
+  if(ci){
+    if(ci.room==='loot')return'cave_rare';
+    if(ci.room==='camp')return'village';
+    if(ci.room==='safe')return'survival';
+    if(ci.room==='entrance')return'cave_mid';
+    return'cave_mid';
+  }
   if(relDepth>h*0.65)return'cave_deep';
-  // Grotte moyenne : entre 35% et 65%
   if(relDepth>h*0.35)return'cave_mid';
 
   // Village : chercher si proche d'un village
@@ -5797,7 +6115,7 @@ function openWorldChest(bx,by,bz){
   var loot=rollLoot(chestType);
 
   // Labels de qualité
-  var quality={survival:'🟤',village:'🟠 Village',cave_mid:'🔵 Grotte',cave_deep:'🟣 Profondeur',ruin:'🟡 Ruine'};
+  var quality={survival:'🟤',village:'🟠 Village',cave_mid:'🔵 Grotte',cave_deep:'🟣 Profondeur',ruin:'🟡 Ruine',cave_rare:'💎 Rare'};
   showPopup((quality[chestType]||'📦')+' Coffre ouvert!',new THREE.Vector3(bx+0.5,by+2,bz+0.5));
 
   // Donner les items avec popup
@@ -7389,6 +7707,9 @@ function updateAnimals(dt){
       }
       var groupStrong=(nearbyAllies>=2); // attaque si 2+ alliés proches
       a.canAttack=playerWeak||groupStrong||def.unstoppable||(a.type==='chasseur');
+      if(typeof isSafeCave==='function'&&isSafeCave(Math.floor(player.pos.x),Math.floor(player.pos.z))){
+        a.canAttack=false;if(a.aiState==='attack'||a.aiState==='alert')a.aiState='wander';
+      }
 
       // ── WANDER / PATROL ──────────────────────────────────
       if(a.aiState==='wander'||a.aiState==='patrol'){
@@ -10185,6 +10506,11 @@ function animate(now){
     updateChunks();updateChunkVisibility();
   } else {
     updateGamepad(dt);updateSling(dt);updateCooking(dt);movePlayer(dt);updateAutoSave(dt);if(typeof updateAudio==='function')updateAudio(dt);updateChunks();updateChunkVisibility();updateAnimals(dt);updateSurvival(dt);updateBreaking(dt);spawnNightEnemies(dt);updateRegrowth(dt);updateWeather(dt);renderRain();updateVolFog(_fogIntensity);updateFallingTrees(dt);if(typeof fbUpdate==='function')fbUpdate(dt);_fogUpdateTimer+=dt;if(_fogUpdateTimer>0.5){_fogUpdateTimer=0;updateFogReveal();}
+    var nowCave=typeof playerInCave==='function'&&playerInCave();
+    if(nowCave&&!_wasInCave){if(typeof fbToast==='function')fbToast('Grotte');showPopup('Vous entrez dans la grotte...',player.pos.clone().add(new THREE.Vector3(0,1.4,0)));if(mapOpen)renderMap();}
+    if(!nowCave&&_wasInCave){if(typeof fbToast==='function')fbToast('Surface');if(mapOpen)renderMap();}
+    _wasInCave=nowCave;
+    if(mapOpen&&nowCave){_caveMapT=(_caveMapT||0)+dt;if(_caveMapT>0.45){_caveMapT=0;renderMap();}}
   }
   // ── Marqueur de mort : timer + faisceau + récupération ──────
   if(_deathMarker){
