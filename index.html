@@ -305,10 +305,17 @@ transform-origin: 50% 80%;
 #chest-modal.open #chest-panel {
 animation: chestPop .32s cubic-bezier(.16,1.2,.3,1) both;
 }
+#chest-modal.closing #chest-panel {
+animation: chestShut .22s ease-in both;
+}
 @keyframes chestPop {
   0% { transform: scale(.62) translateY(28px); opacity:0; }
   70% { transform: scale(1.04) translateY(-2px); opacity:1; }
   100% { transform: none; opacity:1; }
+}
+@keyframes chestShut {
+  0% { transform: none; opacity:1; }
+  100% { transform: scale(.68) translateY(26px); opacity:0; }
 }
 #chest-panel h3 {
 font-size: 12px;
@@ -6222,16 +6229,10 @@ function playChestOpenAnim(bx,by,bz,onDone){
 }
 function playChestCloseAnim(){
   if(!_chestAnim||!_chestAnim.lid){stopChestAnim(true);return;}
-  _chestAnim.phase='close';_chestAnim.t=0;_chestAnim.dur=0.32;_chestAnim.done=null;
+  _chestAnim.phase='close';_chestAnim.t=0;_chestAnim.dur=0.55;_chestAnim.done=null;_chestAnim.slammed=false;
   if(typeof playSoundUI==='function')playSoundUI('close');
 }
-function updateChestAnim(dt){
-  if(!_chestAnim)return;
-  var a=_chestAnim;
-  a.t+=dt;
-  var k=Math.min(1,a.t/a.dur);
-  var e=k*k*(3-2*k);
-  var openK=(a.phase==='open')?e:(1-e);
+function _chestLidPose(a,openK){
   a.lid.rotation.x=-openK*1.82;
   a.lid.position.y=0.22+0.26*openK;
   a.lid.position.z=-0.32*openK;
@@ -6240,13 +6241,38 @@ function updateChestAnim(dt){
     a.lock.position.y=0.14+0.26*openK;
     a.lock.position.z=0.42-0.32*openK;
   }
-  if(k>=1){
-    if(a.phase==='open'){
-      if(a.done){var d=a.done;a.done=null;d();}
-    } else {
-      stopChestAnim(true);
+}
+function updateChestAnim(dt){
+  if(!_chestAnim)return;
+  var a=_chestAnim;
+  a.t+=dt;
+  var k=Math.min(1,a.t/a.dur);
+  if(a.phase==='open'){
+    var e=k*k*(3-2*k);
+    _chestLidPose(a,e);
+    if(k>=1 && a.done){var d=a.done;a.done=null;d();}
+    return;
+  }
+  // Fermeture : le couvercle accélère puis claque + rebond
+  var closeK;
+  if(k<0.72){
+    var t=k/0.72;
+    closeK=t*t*t;
+  } else {
+    var t=(k-0.72)/0.28;
+    closeK=1-Math.sin(t*Math.PI)*0.16;
+  }
+  _chestLidPose(a,1-closeK);
+  if(!a.slammed && k>=0.72){
+    a.slammed=true;
+    if(typeof playSoundUI==='function')playSoundUI('drop');
+    if(typeof fbShake==='function')fbShake(1.4);
+    if(a.group&&typeof fbSpawnParticles==='function'){
+      var p=a.group.position;
+      fbSpawnParticles(p.x,p.y-0.1,p.z,'wood',10,{spread:1.6,up:0.25});
     }
   }
+  if(k>=1) stopChestAnim(true);
 }
 function openWorldChest(bx,by,bz){
   var key=bx+','+by+','+bz;
@@ -6272,7 +6298,7 @@ function openWorldChest(bx,by,bz){
       var vgEl=document.getElementById('cold-vignette');
       if(vgEl){vgEl.style.background='radial-gradient(ellipse at center, transparent 40%, rgba(200,150,0,0.3) 100%)';vgEl.classList.add('active');setTimeout(function(){vgEl.classList.remove('active');vgEl.style.background='';},1500);}
     }
-    setTimeout(function(){playChestCloseAnim();},700);
+    setTimeout(function(){playChestCloseAnim();},900);
   });
 }
 
@@ -9791,9 +9817,16 @@ function openPlayerChest(bx,by,bz){
 }
 
 function closePlayerChest(){
-  document.getElementById('chest-modal').classList.remove('open');
+  var modal=document.getElementById('chest-modal');
   _openChestKey=null;
-  playChestCloseAnim();
+  if(modal){
+    modal.classList.add('closing');
+    setTimeout(function(){
+      modal.classList.remove('open');
+      modal.classList.remove('closing');
+      playChestCloseAnim();
+    },200);
+  } else playChestCloseAnim();
   if(typeof saveGame==='function')saveGame(false);
 }
 
