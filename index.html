@@ -3624,11 +3624,8 @@ function makeSaplingTex(){
 TEX[125]={top:makeSaplingTex(),side:makeSaplingTex(),bot:makeSaplingTex()};
 
 function drawIcon(blockId,canvasId){
-  var cv=document.getElementById(canvasId);if(!cv)return;cv.width=cv.height=34;var ctx=cv.getContext('2d');ctx.clearRect(0,0,34,34);
-  var fd=FDEF[blockId];if(!fd)return;
-  ctx.fillStyle=fd.t;ctx.fillRect(5,0,24,12);ctx.fillStyle=fd.s;ctx.fillRect(0,12,17,22);
-  var rgb=hexToRgb(fd.b);ctx.fillStyle='rgb('+Math.max(0,rgb[0]-20)+','+Math.max(0,rgb[1]-20)+','+Math.max(0,rgb[2]-20)+')';ctx.fillRect(17,12,17,22);
-  ctx.strokeStyle='rgba(0,0,0,0.2)';ctx.lineWidth=0.6;ctx.strokeRect(5,0,24,12);ctx.strokeRect(0,12,17,22);ctx.strokeRect(17,12,17,22);
+  var cv=document.getElementById(canvasId);if(!cv)return;
+  paintItemToCanvas(cv,blockId,34);
 }
 for(var _i=0;_i<HOTBAR.length;_i++)drawIcon(HOTBAR[_i],'icon'+_i);
 
@@ -4546,36 +4543,414 @@ var INV=[];for(var _s=0;_s<14;_s++)INV.push({id:0,qty:0});
 var EQUIP={left:{id:0,qty:0},bag:{id:0,qty:0},chest:{id:0,qty:0,durability:0},right:{id:0,qty:0}};
 var heldItem={id:0,qty:0},invOpen=false;
 
-function drawBlockIconCanvas(cv,blockId){
-  cv.width=cv.height=32;var ctx=cv.getContext('2d');ctx.clearRect(0,0,32,32);if(!blockId||blockId===B_AIR)return;
-  if(blockId===B_TORCH||blockId===ITEM_TORCH){ctx.fillStyle='rgba(255,200,0,0.18)';ctx.beginPath();ctx.arc(16,10,10,0,Math.PI*2);ctx.fill();ctx.fillStyle='#ff8800';ctx.fillRect(12,2,8,6);ctx.fillStyle='#ffdd00';ctx.fillRect(13,3,6,5);ctx.fillStyle='#ffffa0';ctx.fillRect(14,3,4,3);ctx.fillStyle='#7a4a1a';ctx.fillRect(13,8,6,18);ctx.fillStyle='#5a3010';ctx.fillRect(16,8,3,18);return;}
-  if(blockId===ITEM_BED||blockId===B_BED){
-    ctx.fillStyle='#6B2008';ctx.fillRect(2,18,28,12);
-    ctx.fillStyle='#cc4444';ctx.fillRect(3,12,26,10);
-    ctx.fillStyle='#e8e0d4';ctx.fillRect(3,6,12,10);
-    ctx.fillStyle='#f4f0e8';ctx.fillRect(5,8,8,6);
-    ctx.fillStyle='#4a1800';ctx.fillRect(3,26,5,4);ctx.fillRect(24,26,5,4);
-    return;
+
+// ════════════════════════════════════════════════════════
+//  ICÔNES PIXEL-ART 16×16 — tous les items / blocs
+// ════════════════════════════════════════════════════════
+var _iconCache={};
+function paintItemToCanvas(cv,id,size){
+  size=size||32;
+  cv.width=cv.height=size;
+  var dctx=cv.getContext('2d');
+  dctx.imageSmoothingEnabled=false;
+  dctx.clearRect(0,0,size,size);
+  if(!id)return;
+  var src=_iconCache[id];
+  if(!src){
+    src=document.createElement('canvas');src.width=src.height=16;
+    var sctx=src.getContext('2d');
+    drawSprite16(sctx,id);
+    bakeOutline(sctx);
+    _iconCache[id]=src;
   }
-  // Icônes spéciales pour vêtements
-  if(blockId===ITEM_FUR_COAT){
-    var fd2=FDEF[blockId];if(!fd2){return;}
-    // Silhouette veste
-    ctx.fillStyle=fd2.s;ctx.fillRect(4,2,24,28);// corps
-    ctx.fillStyle=fd2.t;ctx.fillRect(6,2,20,12);// épaules+haut
-    ctx.fillStyle=fd2.b;ctx.fillRect(4,14,6,16);ctx.fillRect(22,14,6,16);// manches
-    ctx.fillStyle='rgba(0,0,0,0.3)';ctx.fillRect(14,2,4,28);// fermeture
-    if(blockId===ITEM_FUR_COAT){ctx.fillStyle='rgba(255,220,150,0.4)';for(var fi=0;fi<6;fi++)ctx.fillRect(2+fi*5,4+fi*3,4,2);}
-    return;
-  }
-  if(blockId===ITEM_FISHING_ROD){
-    ctx.fillStyle='#6B4a10';ctx.save();ctx.translate(28,4);ctx.rotate(0.7);ctx.fillRect(-2,-14,4,28);ctx.restore();
-    ctx.fillStyle='#4a9a48';ctx.beginPath();ctx.moveTo(6,28);ctx.lineTo(28,6);ctx.strokeStyle='#4a9a48';ctx.lineWidth=1;ctx.stroke();
-    ctx.fillStyle='#c8e888';ctx.beginPath();ctx.arc(6,28,3,0,Math.PI*2);ctx.fill();
-    return;
-  }
-  var fd=FDEF[blockId];if(!fd)return;ctx.fillStyle=fd.t;ctx.fillRect(4,0,20,10);ctx.fillStyle=fd.s;ctx.fillRect(0,10,14,18);var rgb=hexToRgb(fd.b);ctx.fillStyle='rgb('+Math.max(0,rgb[0]-20)+','+Math.max(0,rgb[1]-20)+','+Math.max(0,rgb[2]-20)+')';ctx.fillRect(14,10,14,18);
+  var pad=size===34?1:0;
+  dctx.drawImage(src,pad,pad,size-pad*2,size-pad*2);
 }
+function bakeOutline(ctx){
+  var img=ctx.getImageData(0,0,16,16),d=img.data,out=new Uint8ClampedArray(d);
+  for(var y=0;y<16;y++)for(var x=0;x<16;x++){
+    var i=(y*16+x)*4;
+    if(d[i+3]<12){
+      var hit=false;
+      for(var oy=-1;oy<=1&&!hit;oy++)for(var ox=-1;ox<=1;ox++){
+        var nx=x+ox,ny=y+oy;if(nx<0||ny<0||nx>15||ny>15)continue;
+        if(d[(ny*16+nx)*4+3]>12)hit=true;
+      }
+      if(hit){out[i]=22;out[i+1]=16;out[i+2]=12;out[i+3]=230;}
+    }
+  }
+  for(var k=0;k<out.length;k++)d[k]=out[k];
+  ctx.putImageData(img,0,0);
+}
+function _px(ctx,x,y,w,h,c){ctx.fillStyle=c;ctx.fillRect(x,y,w,h);}
+function _dot(ctx,x,y,c){ctx.fillStyle=c;ctx.fillRect(x,y,1,1);}
+function _line(ctx,x0,y0,x1,y1,c){
+  x0|=0;y0|=0;x1|=0;y1|=0;
+  var dx=Math.abs(x1-x0),sx=x0<x1?1:-1,dy=-Math.abs(y1-y0),sy=y0<y1?1:-1,e=dx+dy;
+  while(true){_dot(ctx,x0,y0,c);if(x0===x1&&y0===y1)break;var e2=2*e;if(e2>=dy){e+=dy;x0+=sx;}if(e2<=dx){e+=dx;y0+=sy;}}
+}
+function _handle(ctx,h1,h2){
+  var H=[[3,14],[4,13],[5,12],[6,11],[7,10],[8,9],[9,8],[10,7]];
+  for(var i=0;i<H.length;i++)_px(ctx,H[i][0],H[i][1],2,2,i%2?h2:h1);
+}
+
+function drawIso16(ctx,id){
+  var t=(typeof TEX!=='undefined')?TEX[id]:null;
+  var topCv=t&&t.top&&t.top._cv, sideCv=t&&(t.side&&t.side._cv||topCv);
+  var fd=FDEF[id]||{t:'#888',s:'#666',b:'#444'};
+  var tdata=null,sdata=null;
+  try{if(topCv)tdata=topCv.getContext('2d').getImageData(0,0,16,16).data;}catch(e){}
+  try{if(sideCv)sdata=sideCv.getContext('2d').getImageData(0,0,16,16).data;}catch(e){}
+  function samp(data,u,v,mul,fallback){
+    if(data){
+      var x=Math.max(0,Math.min(15,(u*15)|0)),y=Math.max(0,Math.min(15,(v*15)|0)),i=(y*16+x)*4;
+      var r=(data[i]*mul)|0,g=(data[i+1]*mul)|0,b=(data[i+2]*mul)|0;
+      return 'rgb('+r+','+g+','+b+')';
+    }
+    return fallback;
+  }
+  var y,x;
+  for(y=0;y<6;y++)for(x=0;x<10;x++)_dot(ctx,3+x,1+y,samp(tdata,x/9,y/5,1,fd.t));
+  for(y=0;y<8;y++)for(x=0;x<7;x++)_dot(ctx,2+x,7+y,samp(sdata,x/6,y/7,0.72,fd.s));
+  for(y=0;y<8;y++)for(x=0;x<7;x++)_dot(ctx,9+x,6+y,samp(sdata,x/6,y/7,0.88,fd.b||fd.s));
+}
+
+function drawSprite16(ctx,id){
+  var P=function(x,y,w,h,c){_px(ctx,x,y,w,h,c);};
+  var hw='#c09050',hd='#8a6030',hk='#5a3810';
+  var st='#9a9a9a',sd='#6a6a6a',sk='#3a3a3a';
+  var ir='#d0d8e0',idk='#8a96a4',ik='#4a5560';
+
+  // Blocs monde : cube isométrique texturé
+  var isoIds={};isoIds[B_GRASS]=1;isoIds[B_DIRT]=1;isoIds[B_STONE]=1;isoIds[B_SAND]=1;isoIds[B_WOOD]=1;
+  isoIds[B_LEAF]=1;isoIds[B_WATER]=1;isoIds[B_SNOW]=1;isoIds[B_GRAVEL]=1;isoIds[B_COAL]=1;isoIds[B_IRON]=1;isoIds[B_STUMP]=1;
+  if(isoIds[id]){drawIso16(ctx,id);return;}
+
+  // ── OUTILS ──────────────────────────────────────────
+  if(id===ITEM_AXE_WOOD||id===ITEM_AXE_STONE||id===ITEM_AXE_IRON){
+    var hdC=id===ITEM_AXE_IRON?ir:(id===ITEM_AXE_STONE?st:hw);
+    var hiC=id===ITEM_AXE_IRON?'#f0f4f8':(id===ITEM_AXE_STONE?'#c8c8c8':'#e0c080');
+    var shC=id===ITEM_AXE_IRON?ik:(id===ITEM_AXE_STONE?sk:hk);
+    _handle(ctx,hw,hk);
+    P(7,2,8,5,hdC);P(8,1,6,2,hiC);P(13,3,2,3,shC);P(6,3,2,3,shC);
+    return;
+  }
+  if(id===ITEM_PICK_WOOD||id===ITEM_PICK_STONE||id===ITEM_PICK_IRON){
+    var pc=id===ITEM_PICK_IRON?ir:(id===ITEM_PICK_STONE?st:hw);
+    var ph=id===ITEM_PICK_IRON?'#f0f4f8':(id===ITEM_PICK_STONE?'#c8c8c8':'#e0c080');
+    _handle(ctx,hw,hk);
+    P(6,2,9,3,pc);P(5,1,3,5,pc);P(12,1,3,5,pc);P(7,2,7,1,ph);
+    return;
+  }
+  if(id===ITEM_KNIFE_WOOD||id===ITEM_KNIFE_IRON){
+    var bl=id===ITEM_KNIFE_IRON?ir:'#e8d8a0';
+    var be=id===ITEM_KNIFE_IRON?'#ffffff':'#fff6d0';
+    _handle(ctx,hw,hk);
+    P(8,2,2,6,bl);P(9,1,2,5,be);P(10,2,3,3,bl);P(12,3,2,2,be);
+    P(7,8,3,2,hk);
+    return;
+  }
+  if(id===ITEM_SPEAR){
+    _line(ctx,4,14,11,3,hw);_line(ctx,5,14,12,3,hd);
+    P(10,1,4,4,ir);P(11,0,2,2,'#f0f4f8');P(12,2,3,2,idk);
+    return;
+  }
+  if(id===ITEM_CLUB){
+    P(4,12,3,3,hk);P(5,10,3,3,hd);P(6,7,4,4,hw);P(7,4,5,5,hw);P(8,2,6,5,hd);P(9,1,5,3,'#d4a060');
+    return;
+  }
+  if(id===ITEM_BOW){
+    _line(ctx,3,2,4,8,hw);_line(ctx,4,8,5,13,hw);_line(ctx,3,2,12,3,hd);_line(ctx,5,13,12,12,hd);
+    _line(ctx,12,3,12,12,'#e8e0d0');
+    P(2,1,3,3,hk);P(4,12,3,3,hk);
+    return;
+  }
+  if(id===ITEM_ARROW){
+    P(3,12,2,2,'#e8e0d0');P(4,11,2,2,'#c07040'); // plume
+    _line(ctx,5,11,12,4,hw);_line(ctx,6,11,13,4,hd);
+    P(11,2,4,4,st);P(13,1,2,2,'#e8e8e8');
+    return;
+  }
+  if(id===ITEM_SLING){
+    P(6,8,5,5,hd);P(7,9,3,3,'#6a4020');
+    _line(ctx,4,4,7,9,hw);_line(ctx,12,4,10,9,hw);
+    P(3,3,3,3,hk);P(11,3,3,3,hk);
+    return;
+  }
+  if(id===ITEM_FISHING_ROD){
+    _line(ctx,3,14,12,2,hw);_line(ctx,4,14,13,2,hd);
+    _line(ctx,12,2,12,10,'#88ccff');
+    P(11,10,3,3,'#e05030');P(12,11,1,1,'#fff');
+    P(2,13,3,3,hk);
+    return;
+  }
+
+  // ── LUMIÈRE / CAMP ──────────────────────────────────
+  if(id===ITEM_TORCH||id===B_TORCH){
+    P(7,6,3,9,hw);P(8,6,1,9,hk);
+    P(6,2,5,5,'#ff8800');P(7,1,3,5,'#ffdd00');P(8,2,2,3,'#ffffcc');
+    P(5,4,1,2,'#ff4400');P(11,3,1,2,'#ff4400');
+    return;
+  }
+  if(id===ITEM_CAMPFIRE||id===B_CAMPFIRE){
+    P(2,11,4,3,hk);P(10,11,4,3,hk);P(5,12,6,3,hd);
+    P(6,5,5,7,'#ff6600');P(7,3,3,8,'#ffcc33');P(8,2,2,5,'#fff0a0');
+    P(4,7,2,2,'#ff4400');P(11,6,2,3,'#ff4400');
+    return;
+  }
+  if(id===ITEM_GRILL||id===B_GRILL){
+    P(2,10,12,4,sk);P(3,4,10,7,st);
+    for(var g=0;g<5;g++)P(4+g*2,4,1,7,sk);
+    P(3,3,10,1,sd);
+    return;
+  }
+
+  // ── CONSTRUCTION ────────────────────────────────────
+  if(id===ITEM_CHEST||id===B_CHEST){
+    P(2,5,12,10,hw);P(3,6,10,8,hd);P(2,9,12,2,hk);
+    P(7,9,3,3,'#e0c040');P(8,10,1,1,'#fff6a0');
+    P(3,5,10,1,'#e0c080');
+    return;
+  }
+  if(id===ITEM_BED||id===B_BED){
+    P(1,9,14,6,hk);P(2,6,12,5,'#cc4444');P(2,4,6,5,'#f0e8d8');P(3,5,4,3,'#fff');
+    P(1,13,3,2,hk);P(12,13,3,2,hk);
+    return;
+  }
+  if(id===ITEM_TENT||id===B_TENT){
+    P(8,2,1,10,hk);
+    P(3,12,10,3,hd);
+    _line(ctx,8,2,2,12,'#8B6914');_line(ctx,8,2,13,12,'#6B4a10');
+    P(4,8,3,4,'#c09050');P(9,8,3,4,'#5a3810');
+    return;
+  }
+  if(id===ITEM_DOOR||id===B_DOOR){
+    P(4,1,8,14,hw);P(5,2,6,12,hd);P(9,7,2,2,'#e0c040');
+    P(5,3,2,3,hk);P(9,3,2,3,hk);P(5,9,2,3,hk);P(9,9,2,3,hk);
+    return;
+  }
+  if(id===ITEM_FENCE||id===B_FENCE){
+    P(3,2,2,13,hw);P(11,2,2,13,hw);P(2,5,12,2,hd);P(2,10,12,2,hd);
+    P(3,2,2,1,'#e0c080');P(11,2,2,1,'#e0c080');
+    return;
+  }
+  if(id===ITEM_STAIRS||id===B_STAIRS){
+    P(2,12,12,3,hw);P(5,9,9,3,hd);P(8,6,6,3,hw);P(11,3,3,3,hd);
+    return;
+  }
+  if(id===ITEM_BOAT){
+    P(2,8,12,5,hw);P(3,7,10,2,hd);P(4,6,8,2,'#e0c080');
+    P(1,10,2,3,hk);P(13,10,2,3,hk);P(5,9,6,2,'#5a90c8');
+    return;
+  }
+
+  // ── MATÉRIAUX ───────────────────────────────────────
+  if(id===ITEM_IRON){
+    P(3,6,10,6,ir);P(4,5,8,1,'#f0f4f8');P(3,11,10,2,idk);P(2,7,1,4,ik);P(13,7,1,4,ik);
+    return;
+  }
+  if(id===ITEM_BONE){
+    P(3,3,3,3,'#f0ead8');P(10,10,3,3,'#f0ead8');
+    P(5,5,6,6,'#e8e0c8');P(6,6,4,4,'#fff8e8');
+    P(2,2,2,2,'#d8d0b8');P(12,12,2,2,'#d8d0b8');
+    return;
+  }
+  if(id===ITEM_LEATHER){
+    P(3,4,10,9,'#8B4513');P(4,3,8,11,'#a05018');P(5,5,6,6,'#6B3010');
+    P(2,6,2,4,'#8B4513');P(12,8,2,3,'#8B4513');
+    return;
+  }
+  if(id===ITEM_WOOL){
+    P(4,4,8,8,'#f0f0f0');P(3,5,10,6,'#e0e0e0');P(5,3,6,10,'#fff');
+    P(4,4,2,2,'#d0d0d0');P(10,10,2,2,'#ccc');
+    return;
+  }
+  if(id===ITEM_FIBER){
+    _line(ctx,4,3,6,13,'#5a9e28');_line(ctx,7,2,8,14,'#3d7a10');_line(ctx,10,4,11,12,'#7ab838');
+    _line(ctx,5,5,9,8,'#4a8a18');
+    return;
+  }
+  if(id===ITEM_RESIN){
+    P(5,5,6,7,'#c8900a');P(6,4,4,9,'#e0a820');P(7,6,3,4,'#fff0a0');P(4,8,2,3,'#a07008');
+    return;
+  }
+  if(id===ITEM_ROPE){
+    P(4,4,8,8,hw);P(5,5,6,6,hd);
+    P(6,3,4,2,hw);P(6,11,4,2,hw);P(3,6,2,4,hw);P(11,6,2,4,hw);
+    return;
+  }
+  if(id===ITEM_FABRIC){
+    P(3,5,11,8,'#e8e8e8');P(4,4,9,2,'#fff');P(3,9,11,2,'#ccc');P(10,5,3,8,'#ddd');
+    return;
+  }
+  if(id===ITEM_FUR){
+    P(3,5,10,8,'#c8a078');P(4,4,8,10,'#e0c090');P(5,6,6,5,'#a08058');
+    P(2,6,2,2,'#e0c090');P(12,8,2,2,'#e0c090');P(7,3,3,2,'#fff0d0');
+    return;
+  }
+  if(id===ITEM_FAT){
+    P(4,5,8,7,'#f0e8c8');P(5,4,6,9,'#fff8e0');P(6,7,4,3,'#e0d0a0');
+    return;
+  }
+  if(id===ITEM_FEATHER){
+    P(8,2,2,11,'#f0f0e8');P(7,3,4,3,'#fff');P(6,6,6,3,'#e8e8d0');P(7,10,4,2,'#d0d0c0');
+    P(9,1,2,2,'#c07040');
+    return;
+  }
+  if(id===ITEM_TREE_SEED){
+    P(6,8,4,5,hk);P(7,7,2,2,hd);
+    P(5,4,6,5,'#4caf20');P(6,3,4,3,'#70d040');
+    return;
+  }
+  if(id===ITEM_BERRY_SEED){
+    P(4,7,3,3,hk);P(8,6,3,3,hd);P(6,10,3,3,'#5a3810');
+    P(5,4,2,2,'#4caf20');
+    return;
+  }
+  if(id===ITEM_MUSHROOM_SPORE){
+    P(5,6,2,2,'#c040c0');P(8,8,3,3,'#a030a0');P(10,5,2,2,'#e070e0');P(6,10,2,2,'#802080');
+    return;
+  }
+
+  // ── NOURRITURE ──────────────────────────────────────
+  if(id===ITEM_STEAK||id===ITEM_RABBIT_MEAT||id===ITEM_VENISON||id===ITEM_CHICKEN_RAW){
+    var raw=true;
+    var a='#c04030',b='#8a2018',c='#e07060';
+    if(id===ITEM_VENISON){a='#a03028';b='#701018';}
+    if(id===ITEM_CHICKEN_RAW){a='#f0d0b8';b='#d0a080';c='#fff0e0';}
+    if(id===ITEM_RABBIT_MEAT){a='#d06050';b='#a03830';}
+    P(4,5,9,8,a);P(3,6,11,6,a);P(5,4,7,2,c);P(6,7,4,4,b);
+    P(8,8,2,2,'#f0c0b0');
+    return;
+  }
+  if(id===ITEM_COOKED_MEAT||id===ITEM_COOKED_RABBIT||id===ITEM_COOKED_VENISON||id===ITEM_COOKED_CHICKEN){
+    var a2='#8a4a20',b2='#6a3010',c2='#c07838';
+    if(id===ITEM_COOKED_CHICKEN){a2='#e09040';b2='#c07020';c2='#f0c070';}
+    P(4,5,9,8,a2);P(3,6,11,6,a2);P(5,4,7,2,c2);P(6,7,5,3,b2);
+    P(7,8,6,1,hk);P(7,10,5,1,hk); // grill marks
+    return;
+  }
+  if(id===ITEM_FISH_RAW){
+    P(3,7,10,4,'#88b0c8');P(4,6,8,6,'#a8d0e0');P(12,7,3,3,'#c0e0f0');
+    P(2,8,2,2,'#f0c070');P(5,8,2,2,'#1a1a1a');P(13,6,2,2,'#88b0c8');
+    return;
+  }
+  if(id===ITEM_COOKED_FISH){
+    P(3,7,10,4,'#e09040');P(4,6,8,6,'#f0b060');P(12,7,3,3,'#f8d080');
+    P(2,8,2,2,'#d07020');P(5,8,2,2,'#5a3010');
+    P(6,8,6,1,hk);
+    return;
+  }
+  if(id===ITEM_BERRY){
+    P(4,7,4,4,'#d03070');P(8,6,4,4,'#e04080');P(6,9,4,4,'#b02050');
+    P(5,8,1,1,'#fff');P(9,7,1,1,'#fff');
+    P(7,4,2,4,'#4caf20');
+    return;
+  }
+  if(id===ITEM_BERRY_TOXIC){
+    P(4,7,4,4,'#401080');P(8,6,4,4,'#6020b0');P(6,9,4,4,'#301060');
+    P(5,8,1,1,'#c0ff40');P(9,7,1,1,'#c0ff40');
+    P(7,4,2,4,'#306010');
+    return;
+  }
+  if(id===ITEM_MUSHROOM||id===B_MUSHROOM_BLOCK){
+    P(5,8,6,6,'#e8dcc0');P(6,7,4,8,'#d8ccb0');
+    P(3,4,10,5,'#c04040');P(4,3,8,3,'#e06060');P(5,2,6,2,'#ff8080');
+    P(5,5,2,2,'#fff0f0');P(9,4,2,2,'#fff0f0');
+    return;
+  }
+  if(id===ITEM_MUSHROOM_TOXIC){
+    P(5,8,6,6,'#d0c8a0');
+    P(3,4,10,5,'#7030a0');P(4,3,8,3,'#9050c0');P(5,2,6,2,'#c080ff');
+    P(5,5,2,2,'#e0ff60');P(9,4,2,2,'#e0ff60');
+    return;
+  }
+
+  // ── EAU / CONTENANTS ────────────────────────────────
+  if(id===ITEM_CANTEEN||id===ITEM_CANTEEN_WATER||id===ITEM_WATER_LAKE||id===ITEM_WATER_SEA||id===ITEM_WATER_FILTERED||id===ITEM_WATER_RAIN){
+    var liq='#4a90d9';
+    if(id===ITEM_WATER_LAKE)liq='#2e7a60';
+    if(id===ITEM_WATER_SEA)liq='#1a6a9a';
+    if(id===ITEM_WATER_RAIN)liq='#80c8f0';
+    if(id===ITEM_WATER_FILTERED)liq='#68b8e8';
+    if(id===ITEM_CANTEEN)liq=null;
+    P(5,4,6,10,hw);P(6,3,4,2,hk);P(7,2,2,2,st);
+    if(liq){P(6,6,4,6,liq);P(7,7,2,2,'#a0d8ff');}
+    else P(6,7,4,5,'#3a2810');
+    return;
+  }
+  if(id===ITEM_BOWL||id===ITEM_BOWL_WATER){
+    P(3,8,10,5,hw);P(4,7,8,2,hd);P(4,10,8,2,hk);
+    if(id===ITEM_BOWL_WATER){P(5,8,6,2,'#4a90d9');P(6,8,2,1,'#a0d8ff');}
+    return;
+  }
+  if(id===ITEM_WATER_FILTER){
+    P(6,2,4,3,st);P(5,5,6,3,sd);P(4,8,8,3,st);P(5,11,6,3,ir);
+    P(7,5,2,6,'#4a90d9');
+    return;
+  }
+
+  // ── MÉDECINE / SURVIE ───────────────────────────────
+  if(id===ITEM_BANDAGE){
+    P(3,6,10,5,'#f4f0e8');P(4,5,8,7,'#fff');P(5,7,6,2,'#e8e0d0');
+    P(8,4,2,9,'#d0c8b8');
+    return;
+  }
+  if(id===ITEM_ANTIDOTE){
+    P(6,4,4,9,'#40c040');P(7,3,2,2,st);P(7,2,2,2,'#c0c0c0');
+    P(7,6,2,4,'#80ff80');P(6,11,4,2,'#208020');
+    return;
+  }
+  if(id===ITEM_HERB||id===B_HERB_BLOCK){
+    P(7,8,2,6,hd);P(4,4,4,5,'#4caf20');P(8,3,4,5,'#70d040');P(6,2,4,4,'#88e050');
+    P(5,6,2,2,'#c05080');
+    return;
+  }
+  if(id===B_NETTLES){
+    P(7,7,2,7,hd);P(4,3,3,6,'#3a7a18');P(9,4,3,6,'#4a9020');P(6,2,4,4,'#58a828');
+    P(3,5,1,1,'#d0e080');P(12,6,1,1,'#d0e080');
+    return;
+  }
+  if(id===B_SAPLING){
+    P(7,8,2,7,hk);P(4,3,8,7,'#4caf20');P(5,2,6,4,'#70d040');P(6,1,4,3,'#88e050');
+    return;
+  }
+  if(id===B_BERRY_BUSH){
+    P(3,5,10,9,'#3a7a18');P(4,4,8,3,'#4caf20');P(5,8,3,3,'#d03070');P(9,6,3,3,'#e04080');P(7,10,3,2,'#b02050');
+    return;
+  }
+
+  // ── VÊTEMENTS / SAC ─────────────────────────────────
+  if(id===ITEM_BACKPACK){
+    P(4,4,8,11,hw);P(5,5,6,9,hd);P(6,3,4,3,hk);
+    P(5,8,6,2,hk);P(7,6,2,2,'#e0c040');
+    return;
+  }
+  if(id===ITEM_FUR_COAT){
+    P(4,3,8,12,'#c8a078');P(3,6,2,8,'#a08058');P(11,6,2,8,'#a08058');
+    P(5,2,6,4,'#e0c090');P(7,3,2,12,'#6a5030');
+    P(2,5,2,2,'#e0c090');P(12,5,2,2,'#e0c090');
+    return;
+  }
+  if(id===ITEM_LEATHER_VEST){
+    P(4,3,8,12,'#8B4513');P(5,4,6,10,'#a05018');
+    P(4,3,3,6,'#6B3010');P(9,3,3,6,'#6B3010');
+    P(7,5,2,8,'#5a2008');
+    return;
+  }
+  if(id===ITEM_WOOL_CLOAK){
+    P(3,4,10,11,'#e0e0e8');P(4,3,8,12,'#f0f0f4');P(6,2,4,3,'#d0d0d8');
+    P(2,7,2,6,'#c8c8d0');P(12,7,2,6,'#c8c8d0');
+    return;
+  }
+
+  // fallback cube FDEF
+  drawIso16(ctx,id);
+}
+
+
+function drawBlockIconCanvas(cv,blockId){paintItemToCanvas(cv,blockId,32);}
+
 function refreshSlot(el,slot){var cv=el.querySelector('canvas');if(!cv){cv=document.createElement('canvas');el.appendChild(cv);}var qEl=el.querySelector('.qty');drawBlockIconCanvas(cv,slot.id);if(slot.qty>1){if(!qEl){qEl=document.createElement('span');qEl.className='qty';el.appendChild(qEl);}qEl.textContent=slot.qty;}else if(qEl)qEl.textContent='';}
 var invTipEl=document.getElementById('inv-tip');
 function showTip(txt,x,y){invTipEl.textContent=txt;invTipEl.style.display='block';invTipEl.style.left=x+'px';invTipEl.style.top=(y-28)+'px';}
@@ -9323,12 +9698,11 @@ function spawnWorldDrop(id,qty,x,y,z){
     if(old&&old.mesh&&_fbGroup)_fbGroup.remove(old.mesh);
     giveItem(old.id,old.qty,true);FB.drops.shift();
   }
-  var tex=null;
-  if(typeof TEX!=='undefined'&&TEX[id])tex=TEX[id].top||TEX[id].side||null;
-  var col=0xc8a060;
-  if(FDEF[id]&&FDEF[id].t){try{col=parseInt(FDEF[id].t.replace('#',''),16);}catch(e){}}
-  var mat=tex?new THREE.MeshBasicMaterial({map:tex}):new THREE.MeshBasicMaterial({color:col});
-  var mesh=new THREE.Mesh(new THREE.BoxGeometry(0.28,0.28,0.28),mat);
+  var ic=document.createElement('canvas');
+  if(typeof paintItemToCanvas==='function')paintItemToCanvas(ic,id,16);
+  var tex=new THREE.CanvasTexture(ic);
+  var mat=new THREE.MeshBasicMaterial({map:tex});
+  var mesh=new THREE.Mesh(new THREE.BoxGeometry(0.32,0.32,0.32),mat);
   mesh.position.set(x,y,z);
   _fbGroup.add(mesh);
   var k=fbMat(id);
