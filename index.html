@@ -631,17 +631,19 @@ border-color: rgba(255, 200, 80, 0.9);
 }
 
 .action-btn {
-width: 56px;
-height: 56px;
+width: 64px;
+height: 64px;
 border-radius: 50%;
-background: rgba(80, 80, 80, 0.75);
-border: 2px solid rgba(200, 200, 200, 0.5);
+background: rgba(80, 80, 80, 0.82);
+border: 2px solid rgba(200, 200, 200, 0.55);
 display: flex;
 align-items: center;
 justify-content: center;
-font-size: 22px;
+font-size: 24px;
 cursor: pointer;
 touch-action: manipulation;
+-webkit-user-select: none;
+user-select: none;
 }
 
 #btn-jump {
@@ -5462,7 +5464,7 @@ function buildInvUI(){
   // Hotbar (slots 0-6) : toujours visible dans l'inventaire
   for(var j=0;j<7;j++){var el2=makeSlotEl(j);refreshSlot(el2,INV[j]);hb.appendChild(el2);}
   var slots={left:'eq-left',bag:'eq-bag',chest:'eq-chest',right:'eq-right'};
-  for(var k in slots){(function(key,elId){var eEl=document.getElementById(elId),clone=eEl.cloneNode(true);eEl.parentNode.replaceChild(clone,eEl);document.getElementById(elId).addEventListener('click',function(e){e.stopPropagation();clickEquipSlot(key);});})(k,slots[k]);}
+  for(var k in slots){(function(key,elId){var eEl=document.getElementById(elId),clone=eEl.cloneNode(true);eEl.parentNode.replaceChild(clone,eEl);document.getElementById(elId).addEventListener('pointerdown',function(e){e.preventDefault();e.stopPropagation();clickEquipSlot(key);});})(k,slots[k]);}
 }
 function clickEquipSlot(key){var slot=EQUIP[key];if(heldItem.id){
   if(key==='bag'&&heldItem.id!==ITEM_BACKPACK){showPopup('Seulement un sac ici!',player.pos.clone().add(new THREE.Vector3(0,1,0)));return;}
@@ -5723,7 +5725,7 @@ function giveItem(id,qty,silent){if(!silent&&typeof _audioInitialized!=='undefin
 }
 
 // Synchronise les icônes de la hotbar (INV 0-6)
-function syncHotbar(){
+function syncHotbar(){if(typeof refreshPlaceBtn==='function')refreshPlaceBtn();
   if(typeof fbUpdateToolVM==='function')fbUpdateToolVM();
   for(var h=0;h<7;h++){
     var itemId=INV[h].id;
@@ -5747,7 +5749,7 @@ function selectSlot(n){
   n=((n%7)+7)%7;
   document.querySelectorAll('.slot').forEach(function(s){s.classList.remove('active');});
   var el=document.querySelector('.slot[data-slot="'+n+'"]');if(el){el.classList.add('active');if(typeof fbPopEl==='function')fbPopEl(el);}
-  selectedSlot=n;if(typeof fbUpdateToolVM==='function')fbUpdateToolVM();
+  selectedSlot=n;if(typeof fbUpdateToolVM==='function')fbUpdateToolVM();if(typeof refreshPlaceBtn==='function')refreshPlaceBtn();
   var bn=document.getElementById('block-name');
   var itemId=INV[selectedSlot]?INV[selectedSlot].id:0;
   if(itemId&&bn){bn.textContent=BNAMES[itemId]||'';bn.style.opacity=1;setTimeout(function(){bn.style.opacity=0;},1500);}
@@ -8485,7 +8487,8 @@ function tryPlaceRaft(){
   mesh.position.set(wx,wy,wz);mesh.rotation.y=player.yaw;scene.add(mesh);
   var r={mesh:mesh,pos:new THREE.Vector3(wx,wy,wz)};
   _rafts.push(r);_mountedRaft=r;
-  showPopup('Radeau ! WASD pour ramer, F pour descendre',player.pos.clone().add(new THREE.Vector3(0,1.4,0)));
+  if(typeof refreshPlaceBtn==='function')refreshPlaceBtn();
+  showPopup('Radeau ! Joystick pour ramer, bouton ⛵ pour descendre',player.pos.clone().add(new THREE.Vector3(0,1.4,0)));
   if(typeof fbToast==='function')fbToast('Radeau');
   return true;
 }
@@ -8506,12 +8509,14 @@ function dismountRaft(){
   player.pos.x=r.pos.x+ox;player.pos.z=r.pos.z+oz;player.pos.y=r.pos.y+1.35;
   player.vel.set(0,0,0);
   showPopup('Tu descends du radeau',player.pos.clone().add(new THREE.Vector3(0,1,0)));
+  if(typeof refreshPlaceBtn==='function')refreshPlaceBtn();
 }
 function tryRaftInteract(){
   if(_mountedRaft){dismountRaft();return true;}
   var r=nearestRaft(2.8);
   if(!r)return false;
   _mountedRaft=r;
+  if(typeof refreshPlaceBtn==='function')refreshPlaceBtn();
   showPopup('A bord du radeau',player.pos.clone().add(new THREE.Vector3(0,1.2,0)));
   return true;
 }
@@ -8526,6 +8531,43 @@ function punchRaft(){
   giveItem(ITEM_BOAT,1);syncHotbar();
   showPopup('Radeau recupere',player.pos.clone().add(new THREE.Vector3(0,1.2,0)));
   return true;
+}
+function performUseAction(){
+  if(_mountedRaft){dismountRaft();return true;}
+  var slot=INV[selectedSlot],id=slot&&slot.id;
+  if(id===ITEM_SLING||id===ITEM_BOW)return false;
+  if(id&&tryUseItem())return true;
+  if(typeof tryRaftInteract==='function'&&tryRaftInteract())return true;
+  var a=attackAnimalRaycast();
+  if(a&&a.type==='wolf'&&!a.tamed){tryTameAnimal(a);return true;}
+  tryFillCanteen();
+  var h=raycast();
+  if(h){
+    if(h.bx!==null&&tryInteractBlock(h.bx,h.by,h.bz))return true;
+    if(h.px!==null){doPlace(h.px,h.py,h.pz);return true;}
+  }
+  return false;
+}
+function performBreakAction(){
+  if(typeof punchRaft==='function'&&punchRaft())return true;
+  var a=attackAnimalRaycast();
+  if(a){hitAnimal(a);return true;}
+  startBreaking();
+  return false;
+}
+function refreshPlaceBtn(){
+  var btn=document.getElementById('btn-place');if(!btn)return;
+  if(_mountedRaft){btn.textContent='⛵';btn.title='Descendre du radeau';return;}
+  var id=INV[selectedSlot]&&INV[selectedSlot].id;
+  if(!id){btn.textContent='✋';btn.title='Utiliser';return;}
+  if(id===ITEM_BOAT){btn.textContent='🪵';btn.title='Poser le radeau';}
+  else if(id===ITEM_WATER_FILTER||id===ITEM_CANTEEN||id===ITEM_CANTEEN_WATER||id===ITEM_BOWL||id===ITEM_BOWL_WATER||id===ITEM_WATER_LAKE||id===ITEM_WATER_SEA||id===ITEM_WATER_FILTERED||id===ITEM_WATER_RAIN){btn.textContent='💧';btn.title='Utiliser';}
+  else if(id===ITEM_BONE){btn.textContent='🦴';btn.title='Engrais';}
+  else if(id===ITEM_FAT||id===ITEM_STEAK||id===ITEM_COOKED_MEAT||id===ITEM_COOKED_RABBIT||id===ITEM_COOKED_VENISON||id===ITEM_COOKED_CHICKEN||id===ITEM_COOKED_FISH||id===ITEM_BERRY||id===ITEM_MUSHROOM||id===ITEM_HERB||id===ITEM_BANDAGE||id===ITEM_ANTIDOTE){btn.textContent='🍖';btn.title='Utiliser';}
+  else if(id===ITEM_BOW||id===ITEM_SLING){btn.textContent='🏹';btn.title='Tirer';}
+  else if(id===ITEM_FISHING_ROD){btn.textContent='🎣';btn.title='Pêcher';}
+  else if(ITEM_TO_BLOCK[id]||id<20){btn.textContent='🧱';btn.title='Placer';}
+  else {btn.textContent='✋';btn.title='Utiliser';}
 }
 function updateRafts(dt){
   for(var i=0;i<_rafts.length;i++){
@@ -8606,7 +8648,7 @@ var keys={},mouseLocked=false,gameStarted=false,jumpHeld=false,_flyActive=false,
 var _mouseRightDown=false,_lastMouseX=-1,_lastMouseY=-1,_trackingActive=false;
 var _wLastTap=0;
 function setTracking(on){_trackingActive=on;_lastMouseX=-1;_lastMouseY=-1;document.getElementById('canvas').style.cursor=on?'none':'default';document.getElementById('tracking-hint').style.display=on?'none':'block';}
-document.addEventListener('keydown',function(e){keys[e.code]=true;if(_sleeping){e.preventDefault();return;}if(e.code==='KeyE'&&gameStarted)toggleInventory();if(e.code==='Escape'&&invOpen)closeInventory();if(e.code==='Escape'&&!invOpen&&_trackingActive){setTracking(false);document.getElementById('tracking-hint').style.display='block';}if(e.code==='Space'){jumpHeld=true;if(false){var now3=Date.now();if(now3-_lastSpaceTime<300){_flyActive=!_flyActive;if(!_flyActive)player.vel.y=0;}_lastSpaceTime=now3;}}if(!invOpen){for(var i=0;i<9;i++)if(e.code==='Digit'+(i+1))selectSlot(i);if(e.code==='KeyF'&&gameStarted){if(typeof tryRaftInteract==='function'&&tryRaftInteract())return;if(mouseLocked){return;}var af=attackAnimalRaycast();if(af&&af.type==='wolf'&&!af.tamed){tryTameAnimal(af);return;}if(tryUseItem())return;tryFillCanteen();var hf=raycast();if(hf&&hf.px!==null)doPlace(hf.px,hf.py,hf.pz);}if(e.code==='KeyW'&&gameStarted){var now2=Date.now();if(now2-_wLastTap<300)setMobileSprint(!_mobileSprint);_wLastTap=now2;}}});
+document.addEventListener('keydown',function(e){keys[e.code]=true;if(_sleeping){e.preventDefault();return;}if(e.code==='KeyE'&&gameStarted)toggleInventory();if(e.code==='Escape'&&invOpen)closeInventory();if(e.code==='Escape'&&!invOpen&&_trackingActive){setTracking(false);document.getElementById('tracking-hint').style.display='block';}if(e.code==='Space'){if(_mountedRaft){dismountRaft();return;}jumpHeld=true;if(false){var now3=Date.now();if(now3-_lastSpaceTime<300){_flyActive=!_flyActive;if(!_flyActive)player.vel.y=0;}_lastSpaceTime=now3;}}if(!invOpen){for(var i=0;i<9;i++)if(e.code==='Digit'+(i+1))selectSlot(i);if(e.code==='KeyF'&&gameStarted){performUseAction();}if(e.code==='KeyW'&&gameStarted){var now2=Date.now();if(now2-_wLastTap<300)setMobileSprint(!_mobileSprint);_wLastTap=now2;}}});
 document.addEventListener('keyup',function(e){keys[e.code]=false;if(e.code==='Space')jumpHeld=false;});
 document.addEventListener('mousemove',function(e){if(invOpen||lootModalOpen)return;if(mouseLocked){var _s=SETTINGS.sensitivity*0.002;player.yaw-=e.movementX*_s;var _py=(SETTINGS.invertY?-1:1)*e.movementY*_s;player.pitch=Math.max(-Math.PI/2+0.05,Math.min(Math.PI/2-0.05,player.pitch+_py));}else if(_mouseRightDown&&gameStarted&&!isMobile){var dx=e.clientX-_lastMouseX,dy=e.clientY-_lastMouseY;var _s2=SETTINGS.sensitivity*0.003;player.yaw-=dx*_s2;var _py2=(SETTINGS.invertY?1:-1)*dy*_s2;player.pitch=Math.max(-Math.PI/2+0.05,Math.min(Math.PI/2-0.05,player.pitch+_py2));_lastMouseX=e.clientX;_lastMouseY=e.clientY;}});
 document.addEventListener('contextmenu',function(e){if(!invOpen)e.preventDefault();});
@@ -8642,7 +8684,7 @@ camZone.addEventListener('touchend',endCam,{passive:false});camZone.addEventList
 
 // Mouse events
 var _mobileActionUsed=false,placeTimer=null;
-document.addEventListener('mousedown',function(e){if(invOpen||lootModalOpen)return;if(_mobileActionUsed){_mobileActionUsed=false;return;}if(e.button===0){if(typeof punchRaft==='function'&&punchRaft())return;var a=attackAnimalRaycast();if(a){hitAnimal(a);return;}startBreaking();}if(e.button===2){if(!mouseLocked){_mouseRightDown=true;_lastMouseX=e.clientX;_lastMouseY=e.clientY;
+document.addEventListener('mousedown',function(e){if(invOpen||lootModalOpen)return;if(_mobileActionUsed){_mobileActionUsed=false;return;}if(e.button===0){performBreakAction();}if(e.button===2){if(!mouseLocked){_mouseRightDown=true;_lastMouseX=e.clientX;_lastMouseY=e.clientY;
     var _curSlotNL=INV[selectedSlot];
     if(_curSlotNL&&_curSlotNL.id===ITEM_SLING){slingStartCharge();return;}
     if(_curSlotNL&&_curSlotNL.id===ITEM_BOW){bowStartCharge();return;}
@@ -8650,13 +8692,13 @@ document.addEventListener('mousedown',function(e){if(invOpen||lootModalOpen)retu
     var _curSlot=INV[selectedSlot];
     if(_curSlot&&_curSlot.id===ITEM_SLING){slingStartCharge();return;}
     if(_curSlot&&_curSlot.id===ITEM_BOW){bowStartCharge();return;}
-    if(typeof tryRaftInteract==='function'&&tryRaftInteract())return;var a2=attackAnimalRaycast();if(a2&&a2.type==='wolf'&&!a2.tamed){tryTameAnimal(a2);return;}if(tryUseItem())return;tryFillCanteen();var h2=raycast();if(h2){if(h2.bx!==null&&tryInteractBlock(h2.bx,h2.by,h2.bz))return;if(h2.px!==null)doPlace(h2.px,h2.py,h2.pz);}}}});
+    performUseAction();}}});
 document.addEventListener('mouseup',function(e){if(e.button===0)stopBreaking();if(e.button===2){_mouseRightDown=false;if(_slingActive)slingRelease();else if(_bowActive)bowRelease();}});
 var _lastJumpTap=0;
-document.getElementById('btn-jump').addEventListener('pointerdown',function(e){e.stopPropagation();_mobileActionUsed=true;jumpHeld=true;player.jumpBuffer=0.2;if(false){var now4=Date.now();if(now4-_lastJumpTap<300){_flyActive=!_flyActive;if(!_flyActive)player.vel.y=0;}_lastJumpTap=now4;}});
+document.getElementById('btn-jump').addEventListener('pointerdown',function(e){e.stopPropagation();_mobileActionUsed=true;if(_mountedRaft){dismountRaft();return;}jumpHeld=true;player.jumpBuffer=0.2;if(false){var now4=Date.now();if(now4-_lastJumpTap<300){_flyActive=!_flyActive;if(!_flyActive)player.vel.y=0;}_lastJumpTap=now4;}});
 document.getElementById('btn-jump').addEventListener('pointerup',function(){jumpHeld=false;});
 document.getElementById('btn-jump').addEventListener('pointercancel',function(){jumpHeld=false;});
-document.getElementById('btn-break').addEventListener('pointerdown',function(e){e.stopPropagation();_mobileActionUsed=true;if(e.pointerType==='touch')camTouches[e.pointerId]={x:e.clientX,y:e.clientY};var a=attackAnimalRaycast();if(a){hitAnimal(a);return;}startBreaking();});
+document.getElementById('btn-break').addEventListener('pointerdown',function(e){e.stopPropagation();_mobileActionUsed=true;if(e.pointerType==='touch')camTouches[e.pointerId]={x:e.clientX,y:e.clientY};performBreakAction();});
 document.getElementById('btn-break').addEventListener('pointermove',function(e){if(e.pointerType!=='touch')return;var id=e.pointerId;if(camTouches[id]){player.yaw-=(e.clientX-camTouches[id].x)*0.004;player.pitch=Math.max(-Math.PI/2+0.05,Math.min(Math.PI/2-0.05,player.pitch-(e.clientY-camTouches[id].y)*0.004));}camTouches[id]={x:e.clientX,y:e.clientY};});
 document.getElementById('btn-break').addEventListener('pointerup',function(e){delete camTouches[e.pointerId];stopBreaking();});
 document.getElementById('btn-break').addEventListener('pointercancel',function(e){delete camTouches[e.pointerId];stopBreaking();});
@@ -8665,10 +8707,12 @@ document.getElementById('btn-place').addEventListener('pointerdown',function(e){
   var _cs=INV[selectedSlot];
   if(_cs&&_cs.id===ITEM_SLING){slingStartCharge();return;}
   if(_cs&&_cs.id===ITEM_BOW){bowStartCharge();return;}
-  var a=attackAnimalRaycast();if(a&&a.type==='wolf'&&!a.tamed){tryTameAnimal(a);return;}
-  if(tryUseItem())return;tryFillCanteen();
-  var h=raycast();if(h){if(h.bx!==null&&tryInteractBlock(h.bx,h.by,h.bz))return;if(h.px!==null)doPlace(h.px,h.py,h.pz);}
-  placeTimer=setInterval(function(){var h=raycast();if(h&&h.px!==null)doPlace(h.px,h.py,h.pz);},400);
+  performUseAction();
+  placeTimer=setInterval(function(){
+    var it=INV[selectedSlot];
+    if(!it||!it.id)return;
+    if(ITEM_TO_BLOCK[it.id]||it.id<20){var h=raycast();if(h&&h.px!==null)doPlace(h.px,h.py,h.pz);}
+  },400);
 });
 document.getElementById('btn-place').addEventListener('pointerup',function(){clearInterval(placeTimer);if(_slingActive)slingRelease();if(_bowActive)bowRelease();});
 document.getElementById('btn-place').addEventListener('pointercancel',function(){clearInterval(placeTimer);});
@@ -10071,7 +10115,7 @@ var HUD_BTNS={
   'joystick-zone':'🕹 Joystick',
   'btn-break':'⛏ Casser',
   'btn-jump':'⬆ Sauter',
-  'btn-place':'🧱 Placer',
+  'btn-place':'✋ Utiliser / Placer',
   'block-arrows':'◄► Blocs',
   'btn-lock':'🔒 Lock',
   'btn-inv-mobile':'🎒 Inventaire',
