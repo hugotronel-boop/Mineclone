@@ -154,13 +154,26 @@ font-weight: bold;
   50%     { opacity:.9;  transform:scale(1.08); }
 }
 
+body.menu {
+  touch-action: manipulation !important;
+}
+body.menu #canvas,
+body.menu #camera-zone,
+body.menu #joystick-zone,
+body.menu #action-btns,
+body.menu #hotbar,
+body.menu #survival-bars {
+  pointer-events: none !important;
+}
 #overlay {
   position: fixed; inset: 0;
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
-  z-index: 100; overflow: hidden;
+  z-index: 10000; overflow: hidden;
   background: #02060a;
   font-family: Georgia, serif;
+  touch-action: manipulation !important;
+  pointer-events: auto !important;
 }
 #overlay-fx {
   position: absolute; inset: 0;
@@ -250,20 +263,27 @@ font-weight: bold;
   gap: 10px; width: min(340px, 88vw);
 }
 .ov-btn {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
   width: 100%;
   padding: 14px 22px;
-  min-height: 48px;
+  min-height: 52px;
   font-family: Georgia, serif;
   font-size: 14px;
   font-weight: 700;
   letter-spacing: 3px;
   text-transform: uppercase;
+  text-decoration: none;
+  color: inherit;
   cursor: pointer;
-  touch-action: manipulation;
-  pointer-events: auto;
+  touch-action: manipulation !important;
+  pointer-events: auto !important;
   -webkit-tap-highlight-color: rgba(255,200,80,.35);
   border-radius: 2px;
+  -webkit-user-select: none;
+  user-select: none;
 }
 .ov-btn-primary {
   background: linear-gradient(#c45a22, #8a2e0c);
@@ -1094,7 +1114,7 @@ display: none;
 position: fixed;
 inset: 0;
 background: rgba(0,0,0,0.75);
-z-index: 200;
+z-index: 10001;
 align-items: center;
 justify-content: center;
 }
@@ -2154,7 +2174,7 @@ display: none !important;
 </style>
 
 </head>
-<body>
+<body class="menu">
 
   <!-- Canvas principal -->
 
@@ -2493,10 +2513,10 @@ display: none !important;
       <p class="ov-tag">Survivre. Construire. Ou mourir.</p>
       <div class="ov-rule"></div>
       <div class="ov-menu">
-        <button type="button" id="continueBtn" class="ov-btn ov-btn-continue">Continuer l'aventure</button>
-        <button type="button" id="startBtn" class="ov-btn ov-btn-primary">Nouvelle partie</button>
-        <button type="button" id="btn-settings-open" class="ov-btn ov-btn-ghost">Paramètres</button>
-        <button type="button" id="deleteSaveMenuBtn" class="ov-btn ov-btn-danger">Effacer la sauvegarde</button>
+        <a href="#play-continue" id="continueBtn" class="ov-btn ov-btn-continue">Continuer l'aventure</a>
+        <a href="#play-new" id="startBtn" class="ov-btn ov-btn-primary">Nouvelle partie</a>
+        <a href="#play-settings" id="btn-settings-open" class="ov-btn ov-btn-ghost">Paramètres</a>
+        <a href="#play-delete" id="deleteSaveMenuBtn" class="ov-btn ov-btn-danger">Effacer la sauvegarde</a>
       </div>
       <div class="ov-hint">iPhone · joystick + boutons&nbsp;&nbsp;·&nbsp;&nbsp;PC · souris + clavier</div>
     </div>
@@ -8747,7 +8767,7 @@ document.getElementById('btn-next').addEventListener('pointerdown',function(e){e
     // Réinitialiser l'état du jeu
     gameStarted=false;
     closeSettings();
-    document.getElementById('overlay').style.display='flex';if(window._titleArtStart)_titleArtStart();
+    document.body.classList.add('menu');document.getElementById('overlay').style.display='flex';if(window._titleArtStart)_titleArtStart();
     document.getElementById('survival-bars').style.display='none';
     document.getElementById('paused').style.display='none';
     if(mouseLocked)document.exitPointerLock();
@@ -8918,6 +8938,7 @@ window.addEventListener("load",function(){refreshMenuButtons();});
 
 function bootFromTitle(loadSave){
   if(gameStarted)return;
+  document.body.classList.remove('menu');
   document.getElementById('overlay').style.display='none';
   gameStarted=true;applySettings();
   var saveLoaded=false;
@@ -8938,13 +8959,49 @@ function bootFromTitle(loadSave){
   if(!isMobile)document.getElementById('tracking-hint').style.display='block';
   if(loadSave)updateChunks();
 }
-function bindTitleBtn(id,fn){
-  var el=document.getElementById(id);if(!el)return;
-  el.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();fn();});
-  el.addEventListener('pointerup',function(e){e.preventDefault();e.stopPropagation();fn();});
+function runTitleAction(kind){
+  if(kind==='new')bootFromTitle(false);
+  else if(kind==='continue')bootFromTitle(true);
+  else if(kind==='settings'){if(typeof openSettings==='function')openSettings();}
+  else if(kind==='delete'){var m=document.getElementById('delete-confirm-modal');if(m)m.style.display='flex';}
 }
-bindTitleBtn('continueBtn',function(){bootFromTitle(true);});
-bindTitleBtn('startBtn',function(){bootFromTitle(false);});
+function titleKindFromEl(el){
+  if(!el)return '';
+  if(el.id==='startBtn'||el.getAttribute('href')==='#play-new')return 'new';
+  if(el.id==='continueBtn'||el.getAttribute('href')==='#play-continue')return 'continue';
+  if(el.id==='btn-settings-open'||el.getAttribute('href')==='#play-settings')return 'settings';
+  if(el.id==='deleteSaveMenuBtn'||el.getAttribute('href')==='#play-delete')return 'delete';
+  return '';
+}
+(function(){
+  var ov=document.getElementById('overlay'); if(!ov)return;
+  var lock=0;
+  function go(e){
+    var t=e.target;
+    while(t&&t!==ov){
+      var k=titleKindFromEl(t);
+      if(k){
+        if(e.cancelable)e.preventDefault();
+        e.stopPropagation();
+        var now=Date.now(); if(now-lock<500)return;
+        lock=now;
+        runTitleAction(k);
+        return;
+      }
+      t=t.parentNode;
+    }
+  }
+  ov.addEventListener('touchend',go,true);
+  ov.addEventListener('click',go,true);
+  ov.addEventListener('pointerup',go,true);
+})();
+window.addEventListener('hashchange',function(){
+  var h=location.hash;
+  if(h==='#play-new'){history.replaceState(null,'',location.pathname+location.search);runTitleAction('new');}
+  if(h==='#play-continue'){history.replaceState(null,'',location.pathname+location.search);runTitleAction('continue');}
+  if(h==='#play-settings'){history.replaceState(null,'',location.pathname+location.search);runTitleAction('settings');}
+  if(h==='#play-delete'){history.replaceState(null,'',location.pathname+location.search);runTitleAction('delete');}
+});
 document.getElementById('canvas').addEventListener('click',function(){if(!gameStarted||invOpen||isMobile)return;if(mouseLocked)return;document.getElementById('canvas').requestPointerLock();});
 document.addEventListener('pointerlockerror',function(){setTracking(true);});
 var _sb=document.getElementById('saveBtn');
