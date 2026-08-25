@@ -300,6 +300,15 @@ padding: 10px;
 width: min(360px,94vw);
 font-family: ‘Courier New’,monospace;
 image-rendering: pixelated;
+transform-origin: 50% 80%;
+}
+#chest-modal.open #chest-panel {
+animation: chestPop .32s cubic-bezier(.16,1.2,.3,1) both;
+}
+@keyframes chestPop {
+  0% { transform: scale(.62) translateY(28px); opacity:0; }
+  70% { transform: scale(1.04) translateY(-2px); opacity:1; }
+  100% { transform: none; opacity:1; }
 }
 #chest-panel h3 {
 font-size: 12px;
@@ -6181,37 +6190,90 @@ function rollLoot(tableKey){
   return results;
 }
 
+
+var _chestAnim=null;
+function stopChestAnim(remove){
+  if(!_chestAnim)return;
+  if(remove&&_chestAnim.group){try{scene.remove(_chestAnim.group);}catch(e){}}
+  _chestAnim=null;
+}
+function playChestOpenAnim(bx,by,bz,onDone){
+  stopChestAnim(true);
+  var group=new THREE.Group();
+  group.position.set(bx+0.5,by+0.5,bz+0.5);
+  var sideTex=typeof makeChestSideTex==='function'?makeChestSideTex():null;
+  var topTex=typeof makeChestTopTex==='function'?makeChestTopTex():null;
+  var bodyMat=new THREE.MeshBasicMaterial(sideTex?{map:sideTex}:{color:0xa07030});
+  var lidMat=new THREE.MeshBasicMaterial(topTex?{map:topTex}:{color:0xb87c30});
+  var body=new THREE.Mesh(new THREE.BoxGeometry(1.02,0.58,0.82), bodyMat);
+  body.position.set(0,-0.18,0);
+  var lid=new THREE.Mesh(new THREE.BoxGeometry(1.02,0.22,0.82), lidMat);
+  lid.position.set(0,0.22,0);
+  var lock=new THREE.Mesh(new THREE.BoxGeometry(0.14,0.14,0.08), new THREE.MeshBasicMaterial({color:0xffe060}));
+  lock.position.set(0,0.14,0.42);
+  var band=new THREE.Mesh(new THREE.BoxGeometry(1.04,0.06,0.84), new THREE.MeshBasicMaterial({color:0xd4b44a}));
+  band.position.set(0,-0.02,0);
+  group.add(body);group.add(lid);group.add(lock);group.add(band);
+  scene.add(group);
+  _chestAnim={group:group,lid:lid,lock:lock,t:0,dur:0.5,phase:'open',done:onDone};
+  if(typeof playSoundUI==='function')playSoundUI('open');
+  if(typeof fbShake==='function')fbShake(0.6);
+  if(typeof fbSpawnParticles==='function')fbSpawnParticles(bx+0.5,by+0.9,bz+0.5,'ore',8,{spread:1.2,up:0.5});
+}
+function playChestCloseAnim(){
+  if(!_chestAnim||!_chestAnim.lid){stopChestAnim(true);return;}
+  _chestAnim.phase='close';_chestAnim.t=0;_chestAnim.dur=0.32;_chestAnim.done=null;
+  if(typeof playSoundUI==='function')playSoundUI('close');
+}
+function updateChestAnim(dt){
+  if(!_chestAnim)return;
+  var a=_chestAnim;
+  a.t+=dt;
+  var k=Math.min(1,a.t/a.dur);
+  var e=k*k*(3-2*k);
+  var openK=(a.phase==='open')?e:(1-e);
+  a.lid.rotation.x=-openK*1.82;
+  a.lid.position.y=0.22+0.26*openK;
+  a.lid.position.z=-0.32*openK;
+  if(a.lock){
+    a.lock.rotation.x=-openK*1.82;
+    a.lock.position.y=0.14+0.26*openK;
+    a.lock.position.z=0.42-0.32*openK;
+  }
+  if(k>=1){
+    if(a.phase==='open'){
+      if(a.done){var d=a.done;a.done=null;d();}
+    } else {
+      stopChestAnim(true);
+    }
+  }
+}
 function openWorldChest(bx,by,bz){
   var key=bx+','+by+','+bz;
   if(_openedChests.has(key)){
     showPopup('📦 Coffre vide.',new THREE.Vector3(bx+0.5,by+2,bz+0.5));
     return;
   }
-  _openedChests.add(key);
-
-  var chestType=getChestType(bx,by,bz);
-  var loot=rollLoot(chestType);
-
-  // Labels de qualité
-  var quality={survival:'🟤',village:'🟠 Village',cave_mid:'🔵 Grotte',cave_deep:'🟣 Profondeur',ruin:'🟡 Ruine',cave_rare:'💎 Rare'};
-  showPopup((quality[chestType]||'📦')+' Coffre ouvert!',new THREE.Vector3(bx+0.5,by+2,bz+0.5));
-
-  // Donner les items avec popup
-  var pos=new THREE.Vector3(bx+0.5,by+1.5,bz+0.5);
-  for(var i=0;i<loot.length;i++){
-    giveItem(loot[i].id,loot[i].qty);
-    setTimeout((function(item){return function(){
-      showPopup('+'+item.qty+' '+(BNAMES[item.id]||'?'),pos.clone().add(new THREE.Vector3((Math.random()-0.5)*2,(Math.random()+0.5),0)));
-    };})(loot[i]),i*180);
-  }
-
-  syncHotbar();
-
-  // Effets visuels selon qualité
-  if(chestType==='cave_deep'||chestType==='ruin'){
-    var vgEl=document.getElementById('cold-vignette');
-    if(vgEl){vgEl.style.background='radial-gradient(ellipse at center, transparent 40%, rgba(200,150,0,0.3) 100%)';vgEl.classList.add('active');setTimeout(function(){vgEl.classList.remove('active');vgEl.style.background='';},1500);}
-  }
+  playChestOpenAnim(bx,by,bz,function(){
+    _openedChests.add(key);
+    var chestType=getChestType(bx,by,bz);
+    var loot=rollLoot(chestType);
+    var quality={survival:'🟤',village:'🟠 Village',cave_mid:'🔵 Grotte',cave_deep:'🟣 Profondeur',ruin:'🟡 Ruine',cave_rare:'💎 Rare'};
+    showPopup((quality[chestType]||'📦')+' Coffre ouvert!',new THREE.Vector3(bx+0.5,by+2,bz+0.5));
+    var pos=new THREE.Vector3(bx+0.5,by+1.5,bz+0.5);
+    for(var i=0;i<loot.length;i++){
+      giveItem(loot[i].id,loot[i].qty);
+      setTimeout((function(item){return function(){
+        showPopup('+'+item.qty+' '+(BNAMES[item.id]||'?'),pos.clone().add(new THREE.Vector3((Math.random()-0.5)*2,(Math.random()+0.5),0)));
+      };})(loot[i]),i*180);
+    }
+    syncHotbar();
+    if(chestType==='cave_deep'||chestType==='ruin'){
+      var vgEl=document.getElementById('cold-vignette');
+      if(vgEl){vgEl.style.background='radial-gradient(ellipse at center, transparent 40%, rgba(200,150,0,0.3) 100%)';vgEl.classList.add('active');setTimeout(function(){vgEl.classList.remove('active');vgEl.style.background='';},1500);}
+    }
+    setTimeout(function(){playChestCloseAnim();},700);
+  });
 }
 
 var _sleeping=false,_sleepFade=0,_sleepPhase='idle',_sleepKind='bed';
@@ -9721,15 +9783,17 @@ function getPlayerChest(bx,by,bz){
 function openPlayerChest(bx,by,bz){
   _openChestKey=_chestKey(bx,by,bz);
   var inv=getPlayerChest(bx,by,bz);
-  buildChestUI(inv);
-  document.getElementById('chest-modal').classList.add('open');
-  if(mouseLocked)document.exitPointerLock();
+  playChestOpenAnim(bx,by,bz,function(){
+    buildChestUI(inv);
+    document.getElementById('chest-modal').classList.add('open');
+    if(mouseLocked)document.exitPointerLock();
+  });
 }
 
 function closePlayerChest(){
   document.getElementById('chest-modal').classList.remove('open');
   _openChestKey=null;
-  // Sauvegarder l'état des coffres
+  playChestCloseAnim();
   if(typeof saveGame==='function')saveGame(false);
 }
 
@@ -10947,7 +11011,7 @@ function animate(now){
     if(typeof updateAudio==='function')updateAudio(dt);
     updateChunks();updateChunkVisibility();
   } else {
-    updateGamepad(dt);updateSling(dt);updateCooking(dt);movePlayer(dt);updateAutoSave(dt);if(typeof updateAudio==='function')updateAudio(dt);updateChunks();updateChunkVisibility();updateAnimals(dt);updateSurvival(dt);updateBreaking(dt);spawnNightEnemies(dt);updateRegrowth(dt);updateWeather(dt);if(typeof updateCollectors==='function')updateCollectors(dt);renderRain();updateVolFog(_fogIntensity);updateFallingTrees(dt);if(typeof updateRafts==='function'&&!_mountedRaft)updateRafts(dt);if(typeof fbUpdate==='function')fbUpdate(dt);_fogUpdateTimer+=dt;if(_fogUpdateTimer>0.5){_fogUpdateTimer=0;updateFogReveal();}
+    updateGamepad(dt);updateSling(dt);updateCooking(dt);movePlayer(dt);updateAutoSave(dt);if(typeof updateAudio==='function')updateAudio(dt);updateChunks();updateChunkVisibility();updateAnimals(dt);updateSurvival(dt);updateBreaking(dt);spawnNightEnemies(dt);updateRegrowth(dt);updateWeather(dt);if(typeof updateCollectors==='function')updateCollectors(dt);renderRain();updateVolFog(_fogIntensity);updateFallingTrees(dt);if(typeof updateRafts==='function'&&!_mountedRaft)updateRafts(dt);if(typeof fbUpdate==='function')fbUpdate(dt);if(typeof updateChestAnim==='function')updateChestAnim(dt);_fogUpdateTimer+=dt;if(_fogUpdateTimer>0.5){_fogUpdateTimer=0;updateFogReveal();}
     var nowCave=typeof playerInCave==='function'&&playerInCave();
     if(nowCave&&!_wasInCave){if(typeof fbToast==='function')fbToast('Grotte');showPopup('Vous entrez dans la grotte...',player.pos.clone().add(new THREE.Vector3(0,1.4,0)));if(mapOpen)renderMap();}
     if(!nowCave&&_wasInCave){if(typeof fbToast==='function')fbToast('Surface');if(mapOpen)renderMap();}
