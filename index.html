@@ -9832,13 +9832,13 @@ function buildViewmodel(){
   var skin=_vmTex('#c4a07a','#8a6048','#e0c4a0');
   var cloth=_vmTex('#3d4a28','#2a3418','#5a6a38');
   var g=new THREE.Group();
-  VM.parts.lUpper=_vmBox(0.16,0.34,0.16,cloth);
-  VM.parts.lLower=_vmBox(0.14,0.28,0.14,skin);
-  VM.parts.lHand =_vmBox(0.14,0.14,0.16,skin);
-  VM.parts.rUpper=_vmBox(0.18,0.38,0.18,cloth);
-  VM.parts.rLower=_vmBox(0.16,0.32,0.16,skin);
-  VM.parts.rHand =_vmBox(0.16,0.16,0.20,skin);
-  VM.parts.tool  =_vmBox(0.26,0.26,0.08,skin);
+  VM.parts.lUpper=_vmBox(0.10,0.22,0.10,cloth);
+  VM.parts.lLower=_vmBox(0.09,0.18,0.09,skin);
+  VM.parts.lHand =_vmBox(0.09,0.09,0.10,skin);
+  VM.parts.rUpper=_vmBox(0.12,0.24,0.12,cloth);
+  VM.parts.rLower=_vmBox(0.10,0.20,0.10,skin);
+  VM.parts.rHand =_vmBox(0.10,0.10,0.12,skin);
+  VM.parts.tool  =_vmBox(0.16,0.16,0.05,skin);
   var keys=['lUpper','lLower','lHand','rUpper','rLower','rHand','tool'];
   for(var i=0;i<keys.length;i++)g.add(VM.parts[keys[i]]);
   scene.add(g);
@@ -9921,15 +9921,15 @@ function updateViewmodel(dt){
   var st=VM.style, punch=k;
 
   // Bras plus petits, coins bas de l'écran. local -Z = devant la caméra
-  _vmApply(VM.parts.lUpper, -0.24+bobx, -0.32+bob, -0.30, 0.55, -0.12, -0.22);
-  _vmApply(VM.parts.lLower, -0.28+bobx, -0.50+bob*0.7, -0.34, 0.35, -0.08, -0.12);
-  _vmApply(VM.parts.lHand,  -0.30+bobx, -0.62+bob*0.45, -0.36, 0.2, 0, 0);
+  _vmApply(VM.parts.lUpper, -0.28+bobx, -0.38+bob, -0.38, 0.55, -0.12, -0.22);
+  _vmApply(VM.parts.lLower, -0.32+bobx, -0.52+bob*0.7, -0.42, 0.35, -0.08, -0.12);
+  _vmApply(VM.parts.lHand,  -0.34+bobx, -0.62+bob*0.45, -0.44, 0.2, 0, 0);
 
   var rxu=0.50, ryu=0.16, rzu=0.22;
-  var xU=0.24+bobx, yU=-0.26+bob, zU=-0.28;
-  var xL=0.30+bobx, yL=-0.44+bob*0.55, zL=-0.36;
-  var xH=0.34+bobx, yH=-0.56+bob*0.35, zH=-0.44;
-  var xT=0.36+bobx, yT=-0.46+bob*0.35, zT=-0.52;
+  var xU=0.28+bobx, yU=-0.32+bob, zU=-0.36;
+  var xL=0.34+bobx, yL=-0.46+bob*0.55, zL=-0.42;
+  var xH=0.38+bobx, yH=-0.56+bob*0.35, zH=-0.48;
+  var xT=0.40+bobx, yT=-0.48+bob*0.35, zT=-0.54;
   var rxt=0.95, ryt=0.22, rzt=0.16;
 
   if(st==='axe'||st==='pick'){
