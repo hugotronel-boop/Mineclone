@@ -4901,24 +4901,30 @@ function revealFog(wx,wz,radius){
 function updateFogReveal(){revealFog(player.pos.x,player.pos.z,_fogRevealRadius);}
 var _fogUpdateTimer=0;
 
-function killPlayer(cause){if(typeof playSoundDeath==='function')playSoundDeath();
-  // Sauvegarder position de mort + inventaire
-  var deathLoot=[];
-  for(var _di=0;_di<27;_di++){if(INV[_di].id&&INV[_di].qty>0){deathLoot.push({id:INV[_di].id,qty:INV[_di].qty});INV[_di]={id:0,qty:0};}}
-  // Vider aussi l'équipement
-  ['left','bag','chest','right'].forEach(function(k){if(EQUIP[k].id){deathLoot.push({id:EQUIP[k].id,qty:EQUIP[k].qty});EQUIP[k]={id:0,qty:0,durability:0};}});
-  _deathMarker={x:player.pos.x,y:player.pos.y,z:player.pos.z,loot:deathLoot,timer:DEATH_LOOT_DURATION};
-  syncHotbar();
-  // Révéler la zone sur la carte (pour retrouver facilement)
-  revealFog(player.pos.x,player.pos.z,60);
-  // Afficher l'écran de mort
+function doRespawn(){
+  if(document.getElementById('death-screen').style.display==='none')return;
+  player.hp=player.maxHp;player.food=player.maxFood;player.thirst=player.maxThirst;
+  player.stamina=player.maxStamina;player.temp=10;
+  player.vel.set(0,0,0);player.fallVelPeak=0;
+  _foodTimer=0;_thirstTimer=0;_tempTimer=0;_staminaRegenTimer=0;player_poisoned=0;
+  player_sick=0;player_sick_intensity=0;player_bleeding=0;
+  _deathMarker=null;
+  spawnPlayer();updateBars();syncHotbar();
+  document.getElementById('death-screen').style.display='none';
+  gameStarted=true;if(!isMobile)document.getElementById('canvas').requestPointerLock();
+  showPopup('Tu réapparais au camp de départ',player.pos.clone().add(new THREE.Vector3(0,2,0)));
+}
+function killPlayer(cause){
+  if(typeof playSoundDeath==='function')playSoundDeath();
+  _deathMarker=null;
   document.getElementById('death-cause').textContent=cause||'Vous avez succombé.';
   var dp=document.getElementById('death-pos');
-  if(dp)dp.textContent='📍 Mort en ('+Math.round(player.pos.x)+', '+Math.round(player.pos.z)+')';
+  if(dp)dp.textContent='Tu réapparais là où tu es arrivé — inventaire conservé';
   var dlm=document.getElementById('death-loot-msg');
-  if(dlm)dlm.textContent=deathLoot.length>0?'🎒 '+deathLoot.length+' item(s) à récupérer — marqué sur la carte':'Inventaire vide.';
+  if(dlm)dlm.textContent='';
   document.getElementById('death-screen').style.display='flex';
   gameStarted=false;if(mouseLocked)document.exitPointerLock();
+  setTimeout(doRespawn,1600);
 }
 
 // Items IDs
@@ -6060,6 +6066,7 @@ function tryFillCanteen(){
   }
 }
 var _spawnPoint={x:null,z:null};
+var _worldSpawn={x:null,y:null,z:null};
 // ════════════════════════════════════════════════════════
 //  SYSTÈME DE LOOT — Tables par contexte
 // ════════════════════════════════════════════════════════
@@ -6755,26 +6762,23 @@ function updateSurvival(dt){
   var canRegen=!isRunning&&player.food>3&&player.thirst>3&&!isCold&&player_poisoned<=0&&player_sick<=0;
   if(canRegen)regenStamina(dt);
 }
-document.getElementById('respawn-btn').addEventListener('pointerdown',function(){
-  player.hp=player.maxHp;player.food=player.maxFood;player.thirst=player.maxThirst;
-  player.stamina=player.maxStamina;player.temp=10;
-  player.vel.set(0,0,0);player.fallVelPeak=0;
-  _foodTimer=0;_thirstTimer=0;_tempTimer=0;_staminaRegenTimer=0;player_poisoned=0;
-  player_sick=0;player_sick_intensity=0;player_bleeding=0;
-  spawnPlayer();updateBars();syncHotbar();
-  document.getElementById('death-screen').style.display='none';
-  gameStarted=true;if(!isMobile)document.getElementById('canvas').requestPointerLock();
-  // Le marqueur reste actif pour que le joueur puisse retrouver son loot
-  if(_deathMarker)showPopup('⚰ Retrouve ton loot sur la carte!',player.pos.clone().add(new THREE.Vector3(0,2,0)));
-});
+document.getElementById('respawn-btn').addEventListener('pointerdown',function(){doRespawn();});
 function spawnPlayer(){_initPlayerShadow();
+  if(_worldSpawn&&_worldSpawn.x!==null){
+    genChunk(Math.floor(_worldSpawn.x/CHUNK_SIZE),Math.floor(_worldSpawn.z/CHUNK_SIZE));
+    player.pos.set(_worldSpawn.x,_worldSpawn.y,_worldSpawn.z);player.vel.set(0,0,0);return;
+  }
   if(_spawnPoint&&_spawnPoint.x!==null&&_spawnPoint.z!==null){
     var sx=_spawnPoint.x,sz=_spawnPoint.z;
     genChunk(Math.floor(sx/CHUNK_SIZE),Math.floor(sz/CHUNK_SIZE));
     var sh=(_spawnPoint.y!==undefined&&_spawnPoint.y!==null)?_spawnPoint.y:(getH(Math.floor(sx),Math.floor(sz))+2);
-    player.pos.set(sx,sh+1.6,sz);player.vel.set(0,0,0);return;
+    player.pos.set(sx,sh+1.6,sz);player.vel.set(0,0,0);
+    _worldSpawn={x:player.pos.x,y:player.pos.y,z:player.pos.z};
+    return;
   }
-  var sx=0,sz=0;for(var a=0;a<100;a++){var angle=Math.random()*Math.PI*2,r=100+Math.random()*500;sx=Math.floor(Math.cos(angle)*r);sz=Math.floor(Math.sin(angle)*r);genChunk(Math.floor(sx/CHUNK_SIZE),Math.floor(sz/CHUNK_SIZE));var biome=getBiome(sx,sz),h=getH(sx,sz);if((biome==='plain'||biome==='forest')&&h>SEA_LEVEL&&!isLake(sx,sz))break;}player.pos.set(sx,getH(sx,sz)+3,sz);player.vel.set(0,0,0);}
+  var sx=0,sz=0;for(var a=0;a<100;a++){var angle=Math.random()*Math.PI*2,r=100+Math.random()*500;sx=Math.floor(Math.cos(angle)*r);sz=Math.floor(Math.sin(angle)*r);genChunk(Math.floor(sx/CHUNK_SIZE),Math.floor(sz/CHUNK_SIZE));var biome=getBiome(sx,sz),h=getH(sx,sz);if((biome==='plain'||biome==='forest')&&h>SEA_LEVEL&&!isLake(sx,sz))break;}player.pos.set(sx,getH(sx,sz)+3,sz);player.vel.set(0,0,0);
+  _worldSpawn={x:player.pos.x,y:player.pos.y,z:player.pos.z};
+}
 
 // ── Popups ─────────────────────────────────────────────────
 var popups=[];
@@ -9123,6 +9127,7 @@ function saveGame(manual){
       // Cycle jour/nuit
       dayTime:Math.round(dayTime),
       spawn:_spawnPoint.x!==null?{x:_spawnPoint.x,y:_spawnPoint.y||null,z:_spawnPoint.z}:null,
+      worldSpawn:_worldSpawn.x!==null?{x:_worldSpawn.x,y:_worldSpawn.y,z:_worldSpawn.z}:null,
       // Inventaire
       inv:INV.map(function(s){return{i:s.id,q:s.qty};}),
       equip:{
@@ -9205,6 +9210,8 @@ function loadGame(){
     // Restaurer cycle jour/nuit
     if(save.dayTime!==undefined)dayTime=save.dayTime;
     if(save.spawn&&save.spawn.x!==undefined){_spawnPoint.x=save.spawn.x;_spawnPoint.y=save.spawn.y||null;_spawnPoint.z=save.spawn.z;}
+    if(save.worldSpawn&&save.worldSpawn.x!==undefined){_worldSpawn={x:save.worldSpawn.x,y:save.worldSpawn.y,z:save.worldSpawn.z};}
+    else if(_worldSpawn.x===null){_worldSpawn={x:player.pos.x,y:player.pos.y,z:player.pos.z};}
 
     // Restaurer mode
     if(save.mode)gameMode=save.mode;
