@@ -2928,6 +2928,8 @@ function nearestWaterPos(radius){
 var B_AIR=0,B_GRASS=1,B_DIRT=2,B_STONE=3,B_SAND=4,B_WOOD=5,B_LEAF=6,B_WATER=7,B_SNOW=8,B_GRAVEL=9,B_COAL=10,B_IRON=11;
 var B_TORCH=12,B_FENCE=13,B_DOOR=14,B_STAIRS=15,B_CAMPFIRE=16,B_CHEST=17,B_GRILL=18,B_TENT=19;
 var B_BED=127;
+var B_WATER_COLLECTOR=128,B_WATER_COLLECTOR_FULL=129;
+var ITEM_WATER_COLLECTOR=91;
 var B_BERRY_BUSH=120,B_MUSHROOM_BLOCK=121,B_HERB_BLOCK=122,B_NETTLES=123;
 var B_STUMP=124;       // souche d'arbre après coupe
 var B_SAPLING=125;     // pousse d'arbre (plantable)
@@ -3383,6 +3385,29 @@ function makeBedSideTex(){
   return new THREE.CanvasTexture(cv);
 }
 TEX[B_BED]={top:makeBedTopTex(),side:makeBedSideTex(),bot:makeBedSideTex()};
+function makeCollectorTex(full){
+  var cv=document.createElement('canvas');cv.width=cv.height=16;var ctx=cv.getContext('2d');
+  ctx.fillStyle='#3a2410';ctx.fillRect(0,0,16,16);
+  ctx.fillStyle='#6a4420';ctx.fillRect(1,1,14,14);
+  ctx.fillStyle='#8a5a28';ctx.fillRect(2,2,12,10);
+  ctx.fillStyle='#c09050';ctx.fillRect(2,2,12,2);
+  ctx.fillStyle='#4a3018';ctx.fillRect(3,5,10,7);
+  if(full){
+    ctx.fillStyle='#1e6aaa';ctx.fillRect(4,6,8,5);
+    ctx.fillStyle='#5ec4f0';ctx.fillRect(5,7,6,2);
+    ctx.fillStyle='#a8e8ff';ctx.fillRect(6,7,3,1);
+  } else {
+    ctx.fillStyle='#1a1008';ctx.fillRect(5,7,6,4);
+  }
+  ctx.fillStyle='#5a3818';ctx.fillRect(2,13,4,3);ctx.fillRect(10,13,4,3);
+  ctx.fillStyle='#2a1808';ctx.fillRect(3,15,2,1);ctx.fillRect(11,15,2,1);
+  return new THREE.CanvasTexture(cv);
+}
+TEX[B_WATER_COLLECTOR]={top:makeCollectorTex(false),side:makeCollectorTex(false),bot:makeCollectorTex(false)};
+TEX[B_WATER_COLLECTOR_FULL]={top:makeCollectorTex(true),side:makeCollectorTex(true),bot:makeCollectorTex(true)};
+FDEF[B_WATER_COLLECTOR]={t:'#8a5a28',s:'#6a4420',b:'#3a2410'};
+FDEF[B_WATER_COLLECTOR_FULL]={t:'#3a9ae0',s:'#6a4420',b:'#3a2410'};
+FDEF[ITEM_WATER_COLLECTOR]={t:'#8a5a28',s:'#6a4420',b:'#3a2410'};
 
 
 // ── Texture Buisson de Baies (B_BERRY_BUSH = 120) ───────────
@@ -4399,6 +4424,8 @@ function onBlockBreak(blockType,wx,wy,wz){
   BLOCK_TO_ITEM[B_FENCE]=ITEM_FENCE;
   BLOCK_TO_ITEM[B_DOOR]=ITEM_DOOR;
   BLOCK_TO_ITEM[B_STAIRS]=ITEM_STAIRS;
+  BLOCK_TO_ITEM[B_WATER_COLLECTOR]=ITEM_WATER_COLLECTOR;
+  BLOCK_TO_ITEM[B_WATER_COLLECTOR_FULL]=ITEM_WATER_COLLECTOR;
 
   var dropId=BLOCK_TO_ITEM[blockType]||blockType;
 
@@ -4474,6 +4501,13 @@ function setBlock(wx,wy,wz,type){
   data[lx+CHUNK_SIZE*(wy+CHUNK_HEIGHT*lz)]=type;
   rebuildC(cx,cz);if(lx===0)rebuildC(cx-1,cz);if(lx===CHUNK_SIZE-1)rebuildC(cx+1,cz);if(lz===0)rebuildC(cx,cz-1);if(lz===CHUNK_SIZE-1)rebuildC(cx,cz+1);
   if(type===B_AIR&&gameStarted)scheduleWaterFlow(wx,wy,wz);
+  if(!_collectors)_collectors={};
+  var ck=wx+','+wy+','+wz;
+  if(type===B_WATER_COLLECTOR||type===B_WATER_COLLECTOR_FULL){
+    if(!_collectors[ck])_collectors[ck]={acc:0};
+  } else {
+    delete _collectors[ck];
+  }
 }
 
 var waterQueue=[],waterVisited=new Set(),waterFlowInterval=null;
@@ -4859,11 +4893,12 @@ var ITEM_WATER_FILTER=51,ITEM_CANTEEN=52,ITEM_CANTEEN_WATER=53,ITEM_CAMPFIRE=54,
 var ITEM_BOAT=56,ITEM_TENT=57,ITEM_CHEST=58,ITEM_COOKED_MEAT=59,ITEM_FABRIC=60;
 
 ITEM_TO_BLOCK[ITEM_TORCH]=B_TORCH;ITEM_TO_BLOCK[ITEM_FENCE]=B_FENCE;ITEM_TO_BLOCK[ITEM_DOOR]=B_DOOR;ITEM_TO_BLOCK[ITEM_STAIRS]=B_STAIRS;ITEM_TO_BLOCK[ITEM_CAMPFIRE]=B_CAMPFIRE;ITEM_TO_BLOCK[ITEM_CHEST]=B_CHEST;ITEM_TO_BLOCK[ITEM_GRILL]=B_GRILL;ITEM_TO_BLOCK[ITEM_TENT]=B_TENT;ITEM_TO_BLOCK[ITEM_BED]=B_BED;
+ITEM_TO_BLOCK[ITEM_WATER_COLLECTOR]=B_WATER_COLLECTOR;
 ITEM_TO_BLOCK[ITEM_BERRY_SEED]=B_BERRY_BUSH;
 ITEM_TO_BLOCK[ITEM_MUSHROOM_SPORE]=B_MUSHROOM_BLOCK;
 ITEM_TO_BLOCK[ITEM_TREE_SEED]=B_SAPLING;
 
-BNAMES[ITEM_TORCH]='Torche';BNAMES[ITEM_BONE]='Os';BNAMES[ITEM_AXE_WOOD]='Hache en bois';BNAMES[ITEM_AXE_STONE]='Hache en pierre';BNAMES[ITEM_AXE_IRON]='Hache en fer';BNAMES[ITEM_PICK_WOOD]='Pioche en bois';BNAMES[ITEM_PICK_STONE]='Pioche en pierre';BNAMES[ITEM_PICK_IRON]='Pioche en fer';BNAMES[ITEM_BOW]='Arc';BNAMES[ITEM_ARROW]='Flèche';BNAMES[ITEM_SPEAR]='Lance';BNAMES[ITEM_CLUB]='Massue';BNAMES[ITEM_SLING]='Lance-pierre';BNAMES[ITEM_ROPE]='Corde';BNAMES[ITEM_BED]='Lit';BNAMES[ITEM_BACKPACK]='Sac à dos';BNAMES[ITEM_FENCE]='Clôture';BNAMES[ITEM_DOOR]='Porte';BNAMES[ITEM_STAIRS]='Escalier';BNAMES[ITEM_KNIFE_WOOD]='Couteau en bois';BNAMES[ITEM_KNIFE_IRON]='Couteau en métal';BNAMES[ITEM_GRILL]='Grille de cuisson';BNAMES[ITEM_WATER_FILTER]='Filtre à eau';BNAMES[ITEM_CANTEEN]='Récipient vide';BNAMES[ITEM_CANTEEN_WATER]="Récipient d'eau";BNAMES[ITEM_CAMPFIRE]='Feu de camp';BNAMES[ITEM_BANDAGE]='Bandage';BNAMES[ITEM_BOAT]='Radeau';BNAMES[ITEM_TENT]='Tente';BNAMES[ITEM_CHEST]='Coffre';BNAMES[ITEM_COOKED_MEAT]='Viande cuite';BNAMES[ITEM_FABRIC]='Tissu';BNAMES[B_CAMPFIRE]='Feu de camp';BNAMES[B_CHEST]='Coffre';BNAMES[B_GRILL]='Grille';BNAMES[B_TENT]='Tente';BNAMES[B_BED]='Lit';BNAMES[ITEM_STEAK]='Steak';BNAMES[ITEM_WOOL]='Laine';BNAMES[ITEM_FIBER]='Fibre végétale';BNAMES[ITEM_RESIN]='Résine';BNAMES[ITEM_IRON]='Fer brut';BNAMES[ITEM_LEATHER]='Cuir';
+BNAMES[ITEM_TORCH]='Torche';BNAMES[ITEM_BONE]='Os';BNAMES[ITEM_AXE_WOOD]='Hache en bois';BNAMES[ITEM_AXE_STONE]='Hache en pierre';BNAMES[ITEM_AXE_IRON]='Hache en fer';BNAMES[ITEM_PICK_WOOD]='Pioche en bois';BNAMES[ITEM_PICK_STONE]='Pioche en pierre';BNAMES[ITEM_PICK_IRON]='Pioche en fer';BNAMES[ITEM_BOW]='Arc';BNAMES[ITEM_ARROW]='Flèche';BNAMES[ITEM_SPEAR]='Lance';BNAMES[ITEM_CLUB]='Massue';BNAMES[ITEM_SLING]='Lance-pierre';BNAMES[ITEM_ROPE]='Corde';BNAMES[ITEM_BED]='Lit';BNAMES[ITEM_BACKPACK]='Sac à dos';BNAMES[ITEM_FENCE]='Clôture';BNAMES[ITEM_DOOR]='Porte';BNAMES[ITEM_STAIRS]='Escalier';BNAMES[ITEM_KNIFE_WOOD]='Couteau en bois';BNAMES[ITEM_KNIFE_IRON]='Couteau en métal';BNAMES[ITEM_GRILL]='Grille de cuisson';BNAMES[ITEM_WATER_FILTER]='Filtre à eau';BNAMES[ITEM_CANTEEN]='Récipient vide';BNAMES[ITEM_CANTEEN_WATER]="Récipient d'eau";BNAMES[ITEM_CAMPFIRE]='Feu de camp';BNAMES[ITEM_BANDAGE]='Bandage';BNAMES[ITEM_BOAT]='Radeau';BNAMES[ITEM_TENT]='Tente';BNAMES[ITEM_CHEST]='Coffre';BNAMES[ITEM_COOKED_MEAT]='Viande cuite';BNAMES[ITEM_FABRIC]='Tissu';BNAMES[B_CAMPFIRE]='Feu de camp';BNAMES[B_CHEST]='Coffre';BNAMES[B_GRILL]='Grille';BNAMES[B_TENT]='Tente';BNAMES[B_BED]='Lit';BNAMES[B_WATER_COLLECTOR]="Collecteur d'eau";BNAMES[B_WATER_COLLECTOR_FULL]="Collecteur d'eau (plein)";BNAMES[ITEM_WATER_COLLECTOR]="Collecteur d'eau";BNAMES[ITEM_STEAK]='Steak';BNAMES[ITEM_WOOL]='Laine';BNAMES[ITEM_FIBER]='Fibre végétale';BNAMES[ITEM_RESIN]='Résine';BNAMES[ITEM_IRON]='Fer brut';BNAMES[ITEM_LEATHER]='Cuir';
 BNAMES[ITEM_WATER_LAKE]="Eau de lac (risque)";BNAMES[ITEM_WATER_SEA]="Eau de mer (danger)";
 BNAMES[ITEM_WATER_FILTERED]="Eau filtrée";BNAMES[ITEM_WATER_RAIN]="Eau de pluie";
 BNAMES[ITEM_BOWL]='Bol en bois';BNAMES[ITEM_BOWL_WATER]="Bol d'eau";BNAMES[ITEM_HERB]='Herbe médicinale';
@@ -4960,7 +4995,8 @@ var RECIPES=[
   // Cape en laine
   {grid:[L,L,L,L,Fa,L,0,L,0],result:{id:ITEM_WOOL_CLOAK,qty:1}},
   // Os → 3 flèches (pointes)
-  {grid:[0,ITEM_BONE,0,0,W,0,0,Fi,0],result:{id:ITEM_ARROW,qty:6}}
+  {grid:[0,ITEM_BONE,0,0,W,0,0,Fi,0],result:{id:ITEM_ARROW,qty:6}},
+  {grid:[0,W,0,W,ITEM_BOWL,W,W,W,W],result:{id:ITEM_WATER_COLLECTOR,qty:1}}
 ];
 
 // ── Inventaire ─────────────────────────────────────────────
@@ -5291,6 +5327,15 @@ function drawSprite16(ctx,id){
     return;
   }
 
+  // ── COLLECTEUR D'EAU ────────────────────────────────
+  if(id===ITEM_WATER_COLLECTOR||id===B_WATER_COLLECTOR||id===B_WATER_COLLECTOR_FULL){
+    P(3,3,10,11,hw);P(4,2,8,2,hk);P(5,4,6,8,'#4a3018');
+    P(4,12,3,3,hd);P(9,12,3,3,hd);
+    if(id===B_WATER_COLLECTOR_FULL){P(6,6,4,4,'#3a9ae0');P(7,6,2,1,'#80d0ff');}
+    else {P(6,6,4,3,'#1a1008');P(10,3,2,2,'#4aa0d8');P(11,2,1,1,'#a0e0ff');}
+    return;
+  }
+
   // ── EAU / CONTENANTS ────────────────────────────────
   if(id===ITEM_CANTEEN||id===ITEM_CANTEEN_WATER||id===ITEM_WATER_LAKE||id===ITEM_WATER_SEA||id===ITEM_WATER_FILTERED||id===ITEM_WATER_RAIN){
     var liq='#4a90d9';
@@ -5442,6 +5487,7 @@ ITEM_DESC[ITEM_WOOL_CLOAK]='🧥 +2°C · Durabilité 150 · Léger et chaud · 
 ITEM_DESC[ITEM_BANDAGE]='🩹 +½ ❤️ ou arrête le saignement · À utiliser en main';
 ITEM_DESC[ITEM_CANTEEN]='💧 Récipient vide · Se remplit dans l\'eau (clic droit)';
 ITEM_DESC[ITEM_WATER_FILTER]='🔬 Clic droit : filtre une gourde d\'eau brute (5 usages) → eau filtrée';
+ITEM_DESC[ITEM_WATER_COLLECTOR]="🌧️ Place-le à ciel ouvert. La pluie le remplit (1 unité). Utilise-le pour boire ou remplir un récipient / bol vide.";
 ITEM_DESC[ITEM_BOAT]='🪵 Clic droit près de l\'eau : pose un radeau · F pour monter/descendre · Tape-le pour le récupérer';
 ITEM_DESC[ITEM_BONE]='🦴 Engrais : clic droit sur une pousse (arbre instantané) ou un buisson (récolte extra)';
 ITEM_DESC[ITEM_FAT]='🧈 Manger (+2🍖 +chaleur) ou crafter en torches avec un bâton';
@@ -6267,6 +6313,78 @@ function updateSleep(dt){
   }
 }
 
+
+var _collectors={};
+function collectorOpenSky(x,y,z){
+  for(var yy=y+1;yy<y+16&&yy<CHUNK_HEIGHT;yy++){
+    var b=getBlock(x,yy,z);
+    if(b&&b!==B_AIR&&b!==B_LEAF)return false;
+  }
+  return true;
+}
+function tryUseCollector(bx,by,bz,b){
+  var pos=new THREE.Vector3(bx+0.5,by+1.4,bz+0.5);
+  var full=(b===B_WATER_COLLECTOR_FULL);
+  var slot=INV[selectedSlot];
+  if(!full){
+    showPopup('Collecteur vide — attends la pluie',pos);
+    if(typeof fbToast==='function')fbToast('Vide');
+    return true;
+  }
+  if(slot&&slot.id===ITEM_CANTEEN&&slot.qty>0){
+    slot.qty--;if(slot.qty<=0)slot.id=0;
+    giveItem(ITEM_WATER_RAIN,1);
+    setBlock(bx,by,bz,B_WATER_COLLECTOR);
+    syncHotbar();
+    showPopup('Gourde remplie (eau de pluie)',pos);
+    if(typeof fbToast==='function')fbToast('Eau de pluie');
+    return true;
+  }
+  if(slot&&slot.id===ITEM_BOWL&&slot.qty>0){
+    slot.id=ITEM_BOWL_WATER;slot.qty=1;slot._charges=5;slot._waterType='rain';
+    setBlock(bx,by,bz,B_WATER_COLLECTOR);
+    syncHotbar();
+    showPopup('Bol rempli (eau de pluie)',pos);
+    if(typeof fbToast==='function')fbToast('Bol plein');
+    return true;
+  }
+  if(player.thirst>=player.maxThirst){
+    showPopup('Pas soif ! Prends un récipient vide',pos);
+    return true;
+  }
+  player.thirst=Math.min(player.maxThirst,player.thirst+6);
+  player.stamina=Math.min(player.maxStamina,player.stamina+2);
+  setBlock(bx,by,bz,B_WATER_COLLECTOR);
+  updateBars();
+  showPopup('Tu bois au collecteur  +6',pos);
+  if(typeof playSoundDrink==='function')playSoundDrink();
+  if(typeof fbPulse==='function')fbPulse('thirst-row');
+  if(typeof fbToast==='function')fbToast('+6 soif');
+  return true;
+}
+function updateCollectors(dt){
+  if(!_collectors)return;
+  var rain=false;
+  try{var m=getWeatherMods();rain=m.rain&&_rainIntensity>0.2;}catch(e){}
+  if(!rain)return;
+  for(var k in _collectors){
+    var p=k.split(','),x=+p[0],y=+p[1],z=+p[2];
+    var b=getBlock(x,y,z);
+    if(b!==B_WATER_COLLECTOR&&b!==B_WATER_COLLECTOR_FULL){delete _collectors[k];continue;}
+    if(b===B_WATER_COLLECTOR_FULL)continue;
+    if(!collectorOpenSky(x,y,z))continue;
+    _collectors[k].acc=(_collectors[k].acc||0)+dt;
+    if(_collectors[k].acc>=16){
+      _collectors[k].acc=0;
+      setBlock(x,y,z,B_WATER_COLLECTOR_FULL);
+      var dx=player.pos.x-x,dz=player.pos.z-z;
+      if(dx*dx+dz*dz<400){
+        showPopup('Le collecteur est plein',new THREE.Vector3(x+0.5,y+1.5,z+0.5));
+        if(typeof fbToast==='function')fbToast('Collecteur plein');
+      }
+    }
+  }
+}
 function tryInteractBlock(bx,by,bz){
   var b=getBlock(bx,by,bz);
   if(b===B_GRILL||b===B_CAMPFIRE){
@@ -6277,6 +6395,9 @@ function tryInteractBlock(bx,by,bz){
     if(b===B_CAMPFIRE){_spawnPoint.x=bx+0.5;_spawnPoint.z=bz+0.5;}
     return true;}
   // campfire handled above with grill
+  if(b===B_WATER_COLLECTOR||b===B_WATER_COLLECTOR_FULL){
+    tryUseCollector(bx,by,bz,b);return true;
+  }
   if(b===B_TENT){trySleepAt(bx,by,bz,'tent');return true;}
   if(b===B_BED){trySleepAt(bx,by,bz,'bed');return true;}
   if(b===B_CHEST){
@@ -10794,7 +10915,7 @@ function animate(now){
     if(typeof updateAudio==='function')updateAudio(dt);
     updateChunks();updateChunkVisibility();
   } else {
-    updateGamepad(dt);updateSling(dt);updateCooking(dt);movePlayer(dt);updateAutoSave(dt);if(typeof updateAudio==='function')updateAudio(dt);updateChunks();updateChunkVisibility();updateAnimals(dt);updateSurvival(dt);updateBreaking(dt);spawnNightEnemies(dt);updateRegrowth(dt);updateWeather(dt);renderRain();updateVolFog(_fogIntensity);updateFallingTrees(dt);if(typeof updateRafts==='function'&&!_mountedRaft)updateRafts(dt);if(typeof fbUpdate==='function')fbUpdate(dt);_fogUpdateTimer+=dt;if(_fogUpdateTimer>0.5){_fogUpdateTimer=0;updateFogReveal();}
+    updateGamepad(dt);updateSling(dt);updateCooking(dt);movePlayer(dt);updateAutoSave(dt);if(typeof updateAudio==='function')updateAudio(dt);updateChunks();updateChunkVisibility();updateAnimals(dt);updateSurvival(dt);updateBreaking(dt);spawnNightEnemies(dt);updateRegrowth(dt);updateWeather(dt);if(typeof updateCollectors==='function')updateCollectors(dt);renderRain();updateVolFog(_fogIntensity);updateFallingTrees(dt);if(typeof updateRafts==='function'&&!_mountedRaft)updateRafts(dt);if(typeof fbUpdate==='function')fbUpdate(dt);_fogUpdateTimer+=dt;if(_fogUpdateTimer>0.5){_fogUpdateTimer=0;updateFogReveal();}
     var nowCave=typeof playerInCave==='function'&&playerInCave();
     if(nowCave&&!_wasInCave){if(typeof fbToast==='function')fbToast('Grotte');showPopup('Vous entrez dans la grotte...',player.pos.clone().add(new THREE.Vector3(0,1.4,0)));if(mapOpen)renderMap();}
     if(!nowCave&&_wasInCave){if(typeof fbToast==='function')fbToast('Surface');if(mapOpen)renderMap();}
