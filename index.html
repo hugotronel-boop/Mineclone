@@ -9829,13 +9829,13 @@ function buildViewmodel(){
   var skin=_vmTex('#c4a07a','#8a6048','#e0c4a0');
   var cloth=_vmTex('#3d4a28','#2a3418','#5a6a38');
   var g=new THREE.Group();
-  VM.parts.lUpper=_vmBox(0.13,0.30,0.13,cloth);
-  VM.parts.lLower=_vmBox(0.11,0.26,0.11,skin);
-  VM.parts.lHand =_vmBox(0.12,0.12,0.14,skin);
-  VM.parts.rUpper=_vmBox(0.14,0.32,0.14,cloth);
-  VM.parts.rLower=_vmBox(0.12,0.28,0.12,skin);
-  VM.parts.rHand =_vmBox(0.13,0.13,0.16,skin);
-  VM.parts.tool  =_vmBox(0.20,0.20,0.06,skin);
+  VM.parts.lUpper=_vmBox(0.30,0.55,0.30,cloth);
+  VM.parts.lLower=_vmBox(0.26,0.48,0.26,skin);
+  VM.parts.lHand =_vmBox(0.26,0.26,0.30,skin);
+  VM.parts.rUpper=_vmBox(0.34,0.62,0.34,cloth);
+  VM.parts.rLower=_vmBox(0.30,0.54,0.30,skin);
+  VM.parts.rHand =_vmBox(0.32,0.32,0.36,skin);
+  VM.parts.tool  =_vmBox(0.46,0.46,0.14,skin);
   var keys=['lUpper','lLower','lHand','rUpper','rLower','rHand','tool'];
   for(var i=0;i<keys.length;i++)g.add(VM.parts[keys[i]]);
   scene.add(g);
@@ -9889,11 +9889,11 @@ function updateViewmodel(dt){
   var id=INV[selectedSlot]?INV[selectedSlot].id:0;
   vmSetTool(id);
 
-  // bob marche
+  // bob marche — le corps entier suit le pas
   var moving=Math.abs(player.vel.x)>0.4||Math.abs(player.vel.z)>0.4;
-  VM.bobT+=(moving?dt*8:dt*1.5);
-  var bob=Math.sin(VM.bobT)*(moving?0.035:0.01);
-  var bobx=Math.cos(VM.bobT*0.5)*(moving?0.02:0.006);
+  VM.bobT+=(moving?dt*9:dt*1.6);
+  var bob=Math.sin(VM.bobT)*(moving?0.05:0.014);
+  var bobx=Math.cos(VM.bobT*0.5)*(moving?0.03:0.008);
 
   // animation de frappe
   var k=0;
@@ -9902,7 +9902,6 @@ function updateViewmodel(dt){
     var u=Math.min(1,VM.t/VM.dur);
     if(u>=1){VM.anim='idle';k=0;}
     else{
-      // windup 0-0.28, impact 0.28-0.55, recover 0.55-1
       if(u<0.28)k=_vmEase(u/0.28)*-0.45;
       else if(u<0.55)k=_vmLerp(-0.45,1.0,_vmEase((u-0.28)/0.27));
       else k=_vmLerp(1.0,0,_vmEase((u-0.55)/0.45));
@@ -9910,44 +9909,42 @@ function updateViewmodel(dt){
   }
   var st=VM.style, punch=k;
 
-  // bras gauche (plus en retrait, suit le bob)
-  _vmApply(VM.parts.lUpper, -0.28+bobx, -0.42+bob, -0.38, 0.55, -0.12, -0.18);
-  _vmApply(VM.parts.lLower, -0.32+bobx, -0.58+bob*0.7, -0.40, 0.35, -0.08, -0.1);
-  _vmApply(VM.parts.lHand,  -0.34+bobx, -0.70+bob*0.5, -0.42, 0.2, 0, 0);
+  // Bras collés au corps : partent du bas / des bords de l'écran (épaules)
+  // z proche de 0 = collé à la caméra. y négatif = sous les yeux.
+  _vmApply(VM.parts.lUpper, -0.42+bobx, -0.55+bob, -0.16, 0.85, -0.18, -0.35);
+  _vmApply(VM.parts.lLower, -0.52+bobx, -0.82+bob*0.7, -0.22, 0.55, -0.10, -0.18);
+  _vmApply(VM.parts.lHand,  -0.56+bobx, -1.02+bob*0.45, -0.26, 0.25, 0, 0);
 
-  // bras droit : pose repos + offset d'anim
-  var rxu=0.45, ryu=0.18, rzu=0.22;
-  var xU=0.26+bobx, yU=-0.30+bob, zU=-0.36;
-  var xL=0.34+bobx, yL=-0.48+bob*0.6, zL=-0.42;
-  var xH=0.38+bobx, yH=-0.62+bob*0.4, zH=-0.50;
-  var xT=0.40+bobx, yT=-0.54+bob*0.4, zT=-0.62;
-  var rxt=0.9, ryt=0.25, rzt=0.15;
+  var rxu=0.70, ryu=0.22, rzu=0.38;
+  var xU=0.38+bobx, yU=-0.38+bob, zU=-0.14;
+  var xL=0.52+bobx, yL=-0.68+bob*0.55, zL=-0.28;
+  var xH=0.62+bobx, yH=-0.88+bob*0.35, zH=-0.38;
+  var xT=0.66+bobx, yT=-0.72+bob*0.35, zT=-0.48;
+  var rxt=1.05, ryt=0.28, rzt=0.22;
 
   if(st==='axe'||st==='pick'){
-    // chop vertical
-    yU+=punch*0.22; zU+=punch*-0.12; rxu+=punch*1.1; rzu+=punch*-0.5;
-    yL+=punch*-0.05; zL+=punch*-0.28; 
-    yH+=punch*-0.18; zH+=punch*-0.42;
-    yT+=punch*-0.22; zT+=punch*-0.48; rxt+=punch*1.3;
+    yU+=punch*0.28; zU+=punch*-0.10; rxu+=punch*1.15; rzu+=punch*-0.55;
+    yL+=punch*-0.08; zL+=punch*-0.30;
+    yH+=punch*-0.22; zH+=punch*-0.42;
+    yT+=punch*-0.26; zT+=punch*-0.48; rxt+=punch*1.35;
   } else if(st==='sword'){
-    xU+=punch*-0.12; zU+=punch*-0.18; rzu+=punch*-1.2;
-    xL+=punch*-0.16; zL+=punch*-0.32;
-    xH+=punch*-0.18; zH+=punch*-0.46; yH+=punch*0.06;
-    xT+=punch*-0.20; zT+=punch*-0.52; rzt+=punch*-1.4;
+    xU+=punch*-0.16; zU+=punch*-0.16; rzu+=punch*-1.15;
+    xL+=punch*-0.22; zL+=punch*-0.32;
+    xH+=punch*-0.26; zH+=punch*-0.44; yH+=punch*0.08;
+    xT+=punch*-0.28; zT+=punch*-0.50; rzt+=punch*-1.35;
   } else if(st==='place'){
-    zU+=punch*-0.14; zL+=punch*-0.22; zH+=punch*-0.28; zT+=punch*-0.30;
-    yH+=punch*0.08;
+    zU+=punch*-0.16; zL+=punch*-0.24; zH+=punch*-0.30; zT+=punch*-0.32;
+    yH+=punch*0.10;
   } else if(st==='eat'){
-    xU+=punch*-0.18; yU+=punch*0.22; zU+=punch*0.12;
-    xL+=punch*-0.22; yL+=punch*0.34; zL+=punch*0.18;
-    xH+=punch*-0.24; yH+=punch*0.42; zH+=punch*0.22;
+    xU+=punch*-0.22; yU+=punch*0.28; zU+=punch*0.10;
+    xL+=punch*-0.28; yL+=punch*0.42; zL+=punch*0.16;
+    xH+=punch*-0.32; yH+=punch*0.52; zH+=punch*0.20;
     VM.parts.tool.visible=id?true:false;
   } else {
-    // punch / default
-    zU+=punch*-0.16; rxu+=punch*0.7;
-    zL+=punch*-0.32; yL+=punch*0.06;
-    zH+=punch*-0.48; yH+=punch*0.10; xH+=punch*-0.04;
-    zT+=punch*-0.52; yT+=punch*0.08; rxt+=punch*0.6;
+    zU+=punch*-0.18; rxu+=punch*0.75;
+    zL+=punch*-0.34; yL+=punch*0.08;
+    zH+=punch*-0.48; yH+=punch*0.12; xH+=punch*-0.06;
+    zT+=punch*-0.52; yT+=punch*0.10; rxt+=punch*0.65;
   }
 
   _vmApply(VM.parts.rUpper, xU,yU,zU, rxu,ryu,rzu);
