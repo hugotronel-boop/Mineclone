@@ -8824,7 +8824,7 @@ function refreshMenuButtons(){
   var db=document.getElementById('deleteSaveMenuBtn');
   var set=document.getElementById('btn-settings-open');
   if(cb)cb.style.display=hasSv?'block':'none';
-  if(sb){sb.style.display='block';sb.textContent='Nouvelle partie';}
+  if(sb){sb.style.display=hasSv?'none':'block';sb.textContent='Nouvelle partie';}
   if(set)set.style.display='block';
   if(db)db.style.display=hasSv?'block':'none';
 }
