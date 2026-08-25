@@ -52,7 +52,10 @@ top: 0;
 left: 0;
 width: 100vw;
 height: 100vh;
+z-index: 0;
+pointer-events: none;
 }
+body.playing #canvas { pointer-events: auto; }
 
 /* ═══════════════════════════════════════════════════════
 VISEUR
@@ -160,6 +163,7 @@ font-weight: bold;
   align-items: center;
   justify-content: center;
   z-index: 10000; overflow: hidden;
+  isolation: isolate;
   background: #02060a;
   font-family: 'IM Fell English', Georgia, serif;
   width: 100%;
@@ -581,7 +585,9 @@ width: 45vw;
 height: 45vh;
 z-index: 15;
 touch-action: none;
+pointer-events: none;
 }
+body.playing #joystick-zone { pointer-events: auto; }
 
 #joystick-base {
 position: absolute;
@@ -613,7 +619,9 @@ width: 55vw;
 height: 60vh;
 z-index: 15;
 touch-action: none;
+pointer-events: none;
 }
+body.playing #camera-zone { pointer-events: auto; }
 
 #action-btns {
 position: fixed;
@@ -623,7 +631,9 @@ display: flex;
 flex-direction: column;
 gap: 10px;
 z-index: 20;
+pointer-events: none;
 }
+body.playing #action-btns { pointer-events: auto; }
 
 #btn-lock {
 position: fixed;
@@ -2286,10 +2296,10 @@ display: none !important;
       <h1>MINECLONE</h1>
       <p class="ov-tag">Survivre. Construire. Ou mourir.</p>
       <div class="ov-menu">
-        <button id="continueBtn" class="ov-btn ov-btn-continue">Continuer l'aventure</button>
-        <button id="startBtn" class="ov-btn ov-btn-primary">Nouvelle partie</button>
-        <button id="btn-settings-open" class="ov-btn ov-btn-ghost">Paramètres</button>
-        <button id="deleteSaveMenuBtn" class="ov-btn ov-btn-danger">Effacer la sauvegarde</button>
+        <button type="button" id="continueBtn" class="ov-btn ov-btn-continue" onclick="window.__mcContinue&&window.__mcContinue(event)">Continuer l'aventure</button>
+        <button type="button" id="startBtn" class="ov-btn ov-btn-primary" onclick="window.__mcStart&&window.__mcStart(event)">Nouvelle partie</button>
+        <button type="button" id="btn-settings-open" class="ov-btn ov-btn-ghost" onclick="window.__mcSettings&&window.__mcSettings(event)">Paramètres</button>
+        <button type="button" id="deleteSaveMenuBtn" class="ov-btn ov-btn-danger" onclick="window.__mcDelete&&window.__mcDelete(event)">Effacer la sauvegarde</button>
       </div>
     </div>
     <div id="delete-confirm-modal">
@@ -8697,7 +8707,7 @@ camZone.addEventListener('touchend',endCam,{passive:false});camZone.addEventList
 
 // Mouse events
 var _mobileActionUsed=false,placeTimer=null;
-document.addEventListener('mousedown',function(e){if(invOpen||lootModalOpen)return;if(_mobileActionUsed){_mobileActionUsed=false;return;}if(e.button===0){performBreakAction();}if(e.button===2){if(!mouseLocked){_mouseRightDown=true;_lastMouseX=e.clientX;_lastMouseY=e.clientY;
+document.addEventListener('mousedown',function(e){if(!gameStarted)return;if(invOpen||lootModalOpen)return;if(_mobileActionUsed){_mobileActionUsed=false;return;}if(e.button===0){performBreakAction();}if(e.button===2){if(!mouseLocked){_mouseRightDown=true;_lastMouseX=e.clientX;_lastMouseY=e.clientY;
     var _curSlotNL=INV[selectedSlot];
     if(_curSlotNL&&_curSlotNL.id===ITEM_SLING){slingStartCharge();return;}
     if(_curSlotNL&&_curSlotNL.id===ITEM_BOW){bowStartCharge();return;}
@@ -8755,7 +8765,7 @@ document.getElementById('btn-next').addEventListener('pointerdown',function(e){e
     // Réinitialiser l'état du jeu
     gameStarted=false;
     closeSettings();
-    document.getElementById('overlay').style.display='flex';if(window._titleArtStart)_titleArtStart();
+    document.getElementById('overlay').style.display='flex';if(typeof setPlayHudPeek==='function')setPlayHudPeek(false);if(window._titleArtStart)_titleArtStart();
     document.getElementById('survival-bars').style.display='none';
     document.getElementById('paused').style.display='none';
     if(mouseLocked)document.exitPointerLock();
@@ -8796,6 +8806,10 @@ function viewportSize(){
 }
 
 function setPlayHudPeek(on){
+  if(on)document.body.classList.add('playing');
+  else document.body.classList.remove('playing');
+  var cv=document.getElementById('canvas');
+  if(cv)cv.style.pointerEvents=on?'auto':'none';
   ['joystick-zone','camera-zone','action-btns','btn-inv-mobile','btn-map'].forEach(function(id){
     var el=document.getElementById(id);if(el)el.style.pointerEvents=on?'auto':'none';
   });
@@ -8983,21 +8997,18 @@ function bindTap(el,fn){
   el.addEventListener('click',go);
   el.addEventListener('touchend',go,{passive:false});
 }
-bindTap(document.getElementById('continueBtn'),function(){
+window.__mcContinue=function(e){
+  if(e){try{e.preventDefault();e.stopPropagation();}catch(_e){}}
   document.getElementById('overlay').style.display='none';
   if(typeof setPlayHudPeek==='function')setPlayHudPeek(true);
   gameStarted=true;applySettings();
-  // Charger la save AVANT spawnPlayer pour que _modifiedBlocks soit prêt
-  // quand genChunk génère les chunks
   var saveLoaded=loadGame();
   _modifiedBlocksEnabled=true;
   spawnPlayer();showHudEditBtn();
   spawnInitialAnimals();updateBars();initWeatherCanvas();
-  // Si save chargée : repositionner le joueur sur les coords sauvegardées
   if(saveLoaded){
-    // Re-appliquer la position (spawnPlayer l'a écrasée)
     var raw=_ls.get(SAVE_KEY,null);
-    if(raw){try{var sv=JSON.parse(raw);player.pos.set(sv.px,sv.py,sv.pz);player.yaw=sv.pyaw||0;player.pitch=sv.ppitch||0;}catch(e){}}
+    if(raw){try{var sv=JSON.parse(raw);player.pos.set(sv.px,sv.py,sv.pz);player.yaw=sv.pyaw||0;player.pitch=sv.ppitch||0;}catch(e2){}}
     updateBars();syncHotbar();
     showSaveIndicator('↩ Partie chargée!');
   }
@@ -9007,11 +9018,25 @@ bindTap(document.getElementById('continueBtn'),function(){
   document.getElementById('survival-bars').style.display=false?'none':'flex';
   if(!isMobile)document.getElementById('tracking-hint').style.display='block';
   updateChunks();
-});
-
-bindTap(document.getElementById('btn-settings-open'),function(){if(typeof openSettings==='function')openSettings();});
-bindTap(document.getElementById('deleteSaveMenuBtn'),function(){var modal=document.getElementById('delete-confirm-modal');if(modal)modal.style.display='flex';});
-bindTap(document.getElementById('startBtn'),function(){document.getElementById('overlay').style.display='none';if(typeof setPlayHudPeek==='function')setPlayHudPeek(true);gameStarted=true;applySettings();spawnPlayer();showHudEditBtn();_modifiedBlocksEnabled=true;spawnInitialAnimals();updateBars();initWeatherCanvas();revealFog(player.pos.x,player.pos.z,_fogRevealRadius);var hb=document.getElementById('btn-settings-hud');if(hb)hb.classList.add('visible');weather.duration=weatherDuration();document.getElementById('survival-bars').style.display=false?'none':'flex';if(!isMobile)document.getElementById('tracking-hint').style.display='block';});
+};
+window.__mcStart=function(e){
+  if(e){try{e.preventDefault();e.stopPropagation();}catch(_e){}}
+  document.getElementById('overlay').style.display='none';
+  if(typeof setPlayHudPeek==='function')setPlayHudPeek(true);
+  gameStarted=true;applySettings();spawnPlayer();showHudEditBtn();
+  _modifiedBlocksEnabled=true;spawnInitialAnimals();updateBars();initWeatherCanvas();
+  revealFog(player.pos.x,player.pos.z,_fogRevealRadius);
+  var hb=document.getElementById('btn-settings-hud');if(hb)hb.classList.add('visible');
+  weather.duration=weatherDuration();
+  document.getElementById('survival-bars').style.display=false?'none':'flex';
+  if(!isMobile)document.getElementById('tracking-hint').style.display='block';
+};
+window.__mcSettings=function(e){if(e){try{e.preventDefault();e.stopPropagation();}catch(_e){}}if(typeof openSettings==='function')openSettings();};
+window.__mcDelete=function(e){if(e){try{e.preventDefault();e.stopPropagation();}catch(_e){}}var modal=document.getElementById('delete-confirm-modal');if(modal)modal.style.display='flex';};
+bindTap(document.getElementById('continueBtn'),window.__mcContinue);
+bindTap(document.getElementById('startBtn'),window.__mcStart);
+bindTap(document.getElementById('btn-settings-open'),window.__mcSettings);
+bindTap(document.getElementById('deleteSaveMenuBtn'),window.__mcDelete);
 document.getElementById('canvas').addEventListener('click',function(){if(!gameStarted||invOpen||isMobile)return;if(mouseLocked)return;document.getElementById('canvas').requestPointerLock();});
 document.addEventListener('pointerlockerror',function(){setTracking(true);});
 var _sb=document.getElementById('saveBtn');
