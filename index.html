@@ -55,9 +55,8 @@ width: 100vw;
 height: 100vh;
 z-index: 0;
 pointer-events: none;
-visibility: hidden;
 }
-body.playing #canvas { pointer-events: auto; visibility: visible; }
+body.playing #canvas { pointer-events: auto; }
 
 /* ═══════════════════════════════════════════════════════
 VISEUR
@@ -164,14 +163,11 @@ font-weight: bold;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 2147483647; overflow: hidden;
-  isolation: isolate;
+  z-index: 10000;
+  overflow: hidden;
   background: #02060a;
   font-family: 'IM Fell English', Georgia, serif;
-  width: 100%;
-  height: 100%;
   touch-action: manipulation;
-  pointer-events: auto;
 }
 #overlay-bg {
   position: absolute; inset: 0;
@@ -8832,59 +8828,18 @@ document.getElementById('btn-next').addEventListener('pointerdown',function(e){e
 
 // Fonction centrale : met à jour les boutons de la page d'accueil selon l'état de la save
 
-function viewportSize(){
-  var vv=window.visualViewport;
-  if(vv&&vv.width>0&&vv.height>0)return {w:vv.width,h:vv.height,x:vv.offsetLeft||0,y:vv.offsetTop||0};
-  return {w:window.innerWidth||document.documentElement.clientWidth,h:window.innerHeight||document.documentElement.clientHeight,x:0,y:0};
-}
-
 function setPlayHudPeek(on){
   if(on)document.body.classList.add('playing');
   else document.body.classList.remove('playing');
   var cv=document.getElementById('canvas');
-  if(cv)cv.style.pointerEvents=on?'auto':'none';
+  if(cv){cv.style.pointerEvents=on?'auto':'none';cv.style.visibility='visible';}
   ['joystick-zone','camera-zone','action-btns','btn-inv-mobile','btn-map'].forEach(function(id){
     var el=document.getElementById(id);if(el)el.style.pointerEvents=on?'auto':'none';
   });
+  var ov=document.getElementById('overlay');
+  if(ov){ov.style.left='';ov.style.top='';ov.style.width='';ov.style.height='';ov.style.right='';ov.style.bottom='';}
 }
 setPlayHudPeek(false);
-function fitTitleScreen(){
-  var box=document.getElementById('overlay-content');
-  var ov=document.getElementById('overlay');
-  if(!box||!ov||ov.style.display==='none')return;
-  var vs=viewportSize();
-  ov.style.left=vs.x+'px';
-  ov.style.top=vs.y+'px';
-  ov.style.width=vs.w+'px';
-  ov.style.height=vs.h+'px';
-  ov.style.right='auto';
-  ov.style.bottom='auto';
-  ov.style.display='flex';
-  ov.style.alignItems='center';
-  ov.style.justifyContent='center';
-  ov.style.pointerEvents='auto';
-  box.style.transform='none';
-  box.style.pointerEvents='auto';
-  var fx=document.getElementById('overlay-fx');
-  if(fx)fx.style.pointerEvents='none';
-  var bg=document.getElementById('overlay-bg');
-  if(bg)bg.style.pointerEvents='none';
-}
-function scheduleFitTitle(){
-  fitTitleScreen();
-  clearTimeout(scheduleFitTitle._t1);
-  clearTimeout(scheduleFitTitle._t2);
-  clearTimeout(scheduleFitTitle._t3);
-  scheduleFitTitle._t1=setTimeout(fitTitleScreen,60);
-  scheduleFitTitle._t2=setTimeout(fitTitleScreen,200);
-  scheduleFitTitle._t3=setTimeout(fitTitleScreen,500);
-}
-window.addEventListener('resize',scheduleFitTitle);
-window.addEventListener('orientationchange',scheduleFitTitle);
-if(window.visualViewport){
-  visualViewport.addEventListener('resize',scheduleFitTitle);
-  visualViewport.addEventListener('scroll',scheduleFitTitle);
-}
 
 function refreshMenuButtons(){
   var hasSv=hasSave();
@@ -8896,7 +8851,6 @@ function refreshMenuButtons(){
   if(sb){sb.style.display=hasSv?'none':'block';sb.textContent='Nouvelle partie';}
   if(set)set.style.display='block';
   if(db)db.style.display=hasSv?'block':'none';
-  if(typeof scheduleFitTitle==='function')scheduleFitTitle(); else if(typeof fitTitleScreen==='function')fitTitleScreen();
 }
 
 function initTitleArt(){
