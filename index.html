@@ -6219,13 +6219,34 @@ function rollLoot(tableKey){
 
 
 var _chestAnim=null;
+function rebuildChestCell(wx,wy,wz){
+  var cx=Math.floor(wx/CHUNK_SIZE),cz=Math.floor(wz/CHUNK_SIZE);
+  rebuildC(cx,cz);
+  var lx=((wx%CHUNK_SIZE)+CHUNK_SIZE)%CHUNK_SIZE,lz=((wz%CHUNK_SIZE)+CHUNK_SIZE)%CHUNK_SIZE;
+  if(lx===0)rebuildC(cx-1,cz);
+  if(lx===CHUNK_SIZE-1)rebuildC(cx+1,cz);
+  if(lz===0)rebuildC(cx,cz-1);
+  if(lz===CHUNK_SIZE-1)rebuildC(cx,cz+1);
+}
 function stopChestAnim(remove){
   if(!_chestAnim)return;
-  if(remove&&_chestAnim.group){try{scene.remove(_chestAnim.group);}catch(e){}}
+  var a=_chestAnim;
+  if(a.bx!=null){
+    try{
+      setBlockRaw(a.bx,a.by,a.bz, a.savedType||B_CHEST);
+      rebuildChestCell(a.bx,a.by,a.bz);
+    }catch(e){}
+  }
+  if(remove&&a.group){try{scene.remove(a.group);}catch(e){}}
   _chestAnim=null;
 }
 function playChestOpenAnim(bx,by,bz,onDone){
   stopChestAnim(true);
+  var saved=getBlock(bx,by,bz);
+  if(saved===B_CHEST){
+    setBlockRaw(bx,by,bz,B_AIR);
+    rebuildChestCell(bx,by,bz);
+  }
   var group=new THREE.Group();
   group.position.set(bx+0.5,by+0.5,bz+0.5);
   var sideTex=typeof makeChestSideTex==='function'?makeChestSideTex():null;
@@ -6242,7 +6263,7 @@ function playChestOpenAnim(bx,by,bz,onDone){
   band.position.set(0,-0.02,0);
   group.add(body);group.add(lid);group.add(lock);group.add(band);
   scene.add(group);
-  _chestAnim={group:group,lid:lid,lock:lock,t:0,dur:0.5,phase:'open',done:onDone};
+  _chestAnim={group:group,lid:lid,lock:lock,t:0,dur:0.5,phase:'open',done:onDone,bx:bx,by:by,bz:bz,savedType:(saved===B_AIR||!saved)?B_CHEST:saved};
   if(typeof playSoundUI==='function')playSoundUI('open');
   if(typeof fbShake==='function')fbShake(0.6);
   if(typeof fbSpawnParticles==='function')fbSpawnParticles(bx+0.5,by+0.9,bz+0.5,'ore',8,{spread:1.2,up:0.5});
