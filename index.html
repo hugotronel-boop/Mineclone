@@ -1276,6 +1276,25 @@ white-space: nowrap;
 box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
 touch-action: manipulation;
 }
+#chest-float-btn {
+position: fixed;
+display: none;
+z-index: 42;
+pointer-events: auto;
+transform: translate(-50%, -100%);
+background: rgba(200, 160, 0, 0.92);
+border: 2px solid #ffd700;
+color: #111;
+font-family: 'Courier New', monospace;
+font-size: 12px;
+font-weight: bold;
+padding: 5px 12px;
+border-radius: 20px;
+cursor: pointer;
+white-space: nowrap;
+box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+touch-action: manipulation;
+}
 
 #loot-modal {
 position: fixed;
@@ -2311,6 +2330,7 @@ display: none !important;
   </div>
   <div id="water-float-btn">💧 Boire</div>
   <div id="loot-float-btn">&#x1F392; Butin</div>
+  <div id="chest-float-btn">&#x1F4E6; Coffre</div>
 
   <!-- Modal loot -->
 
@@ -8453,6 +8473,18 @@ document.getElementById('water-float-btn').addEventListener('pointerdown',functi
   if(typeof _noise==='function'&&_ac)_noise(0.15,0.08,{type:'lowpass',freq:1200},_sfxGain);
 });
 document.getElementById('loot-float-btn').addEventListener('pointerdown',function(e){e.stopPropagation();if(this._animal&&this._animal.dying&&this._animal.loot&&this._animal.loot.length>0)openLootModal(this._animal);});
+(function(){
+  var btn=document.getElementById('chest-float-btn'); if(!btn)return;
+  var lock=0;
+  function go(e){
+    e.stopPropagation(); if(e.cancelable)e.preventDefault();
+    var n=Date.now(); if(n-lock<450)return; lock=n;
+    var c=btn._chest; if(!c)return;
+    if(typeof tryInteractBlock==='function') tryInteractBlock(c.x,c.y,c.z);
+  }
+  btn.addEventListener('pointerdown',go);
+  btn.addEventListener('touchend',go,{passive:false});
+})();
 document.getElementById('loot-modal').addEventListener('pointerdown',function(e){if(e.target===this){closeLootModal();activeLoot=null;}});
 
 // ── Breaking ───────────────────────────────────────────────
@@ -11069,6 +11101,34 @@ renderer.render(scene,camera);
   var floatBtn=document.getElementById('loot-float-btn'),nearestDying=null,nearestDist=Infinity;
   for(var _ai=0;_ai<animals.length;_ai++){var _a=animals[_ai];if(!_a.dying||!_a.loot||_a.loot.length===0)continue;var _dx=player.pos.x-_a.pos.x,_dz=player.pos.z-_a.pos.z,_d=Math.sqrt(_dx*_dx+_dz*_dz);if(_d<8&&_d<nearestDist){nearestDist=_d;nearestDying=_a;}}
   if(nearestDying&&!lootModalOpen){var _wp=new THREE.Vector3(nearestDying.mesh.position.x,nearestDying.mesh.position.y+1.8,nearestDying.mesh.position.z),_sv=_wp.clone().project(camera);if(_sv.z<1){floatBtn.style.display='block';floatBtn.style.left=(_sv.x*0.5+0.5)*window.innerWidth+'px';floatBtn.style.top=((-_sv.y*0.5+0.5)*window.innerHeight)+'px';floatBtn._animal=nearestDying;}else floatBtn.style.display='none';}else floatBtn.style.display='none';
+
+  var cfBtn=document.getElementById('chest-float-btn');
+  var chestUi=document.getElementById('chest-modal');
+  var chestOpen=chestUi&&chestUi.classList.contains('open');
+  if(cfBtn&&!invOpen&&!lootModalOpen&&!chestOpen){
+    var cpx=Math.floor(player.pos.x),cpy=Math.floor(player.pos.y),cpz=Math.floor(player.pos.z);
+    var bestC=null,bestCd=36;
+    for(var cdx=-4;cdx<=4;cdx++)for(var cdz=-4;cdz<=4;cdz++)for(var cdy=-2;cdy<=3;cdy++){
+      var cxx=cpx+cdx,cyy=cpy+cdy,czz=cpz+cdz;
+      if(getBlock(cxx,cyy,czz)!==B_CHEST)continue;
+      var ck2=_chestKey(cxx,cyy,czz);
+      if(_openedChests&&_openedChests.has(ck2)&&!(_playerChests&&_playerChests[ck2]))continue;
+      var cd=cdx*cdx+cdz*cdz+cdy*cdy;
+      if(cd<bestCd){bestCd=cd;bestC={x:cxx,y:cyy,z:czz};}
+    }
+    if(bestC){
+      var cwp=new THREE.Vector3(bestC.x+0.5,bestC.y+1.15,bestC.z+0.5);
+      var csv=cwp.clone().project(camera);
+      cfBtn.style.display='block';
+      if(csv.z<1){
+        cfBtn.style.left=(csv.x*0.5+0.5)*window.innerWidth+'px';
+        cfBtn.style.top=((-csv.y*0.5+0.5)*window.innerHeight)+'px';
+      } else {
+        cfBtn.style.left='50%';cfBtn.style.top='58%';
+      }
+      cfBtn._chest=bestC;
+    } else cfBtn.style.display='none';
+  } else if(cfBtn) cfBtn.style.display='none';
 }
 requestAnimationFrame(animate);
 </script>
