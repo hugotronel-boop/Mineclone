@@ -2314,7 +2314,7 @@ display: none !important;
       <div id="chest-slots"></div>
       <div style="font-size:10px;color:#555;margin:6px 0 3px;border-top:2px solid #999;padding-top:6px;">🎒 Inventaire</div>
       <div id="chest-player-slots"></div>
-      <div id="chest-label">Clique un objet du coffre pour le prendre · Clique ton inventaire pour déposer</div>
+      <div id="chest-label">Prendre : va dans un slot vide (n'écrase jamais un objet) · Déposer : clique un slot vide du coffre</div>
     </div>
   </div>
 
@@ -5477,7 +5477,7 @@ document.getElementById('split-cancel').addEventListener('pointerdown',function(
 function slotClick(e,idx){
   if(splitPending)hideSplitBar();var slot=INV[idx];
   if(e.button===2||e.pointerType==='touch'&&e._longPress){if(heldItem.id!==0){if(slot.id===0||slot.id===heldItem.id){slot.id=heldItem.id;slot.qty=(slot.qty||0)+1;heldItem.qty--;if(heldItem.qty<=0)heldItem={id:0,qty:0};}}else if(slot.id!==0){if(slot.qty===1){heldItem={id:slot.id,qty:1};slot.id=0;slot.qty=0;}else showSplitBar(idx,slot.qty);}}
-  else{if(heldItem.id===0){heldItem={id:slot.id,qty:slot.qty};slot.id=0;slot.qty=0;}else if(slot.id===0){slot.id=heldItem.id;slot.qty=heldItem.qty;heldItem={id:0,qty:0};}else if(slot.id===heldItem.id&&slot.qty<64){var add=Math.min(heldItem.qty,64-slot.qty);slot.qty+=add;heldItem.qty-=add;if(heldItem.qty<=0)heldItem={id:0,qty:0};}else{var tmp={id:slot.id,qty:slot.qty};slot.id=heldItem.id;slot.qty=heldItem.qty;heldItem=tmp;}}
+  else{if(heldItem.id===0){if(slot.id){heldItem={id:slot.id,qty:slot.qty};slot.id=0;slot.qty=0;}}else if(slot.id===0){slot.id=heldItem.id;slot.qty=heldItem.qty;heldItem={id:0,qty:0};}else if(slot.id===heldItem.id&&slot.qty<64){var add=Math.min(heldItem.qty,64-slot.qty);slot.qty+=add;heldItem.qty-=add;if(heldItem.qty<=0)heldItem={id:0,qty:0};}else{showPopup('Slot occupé',player.pos.clone().add(new THREE.Vector3(0,1.2,0)));}}
   buildInvUI();if(document.getElementById('inv-page-craft').classList.contains('active'))buildCraftUI();updateCursor();syncHotbar();
   if(typeof playSoundUI==='function')playSoundUI(heldItem.id?'click':'drop');
 }
@@ -5748,19 +5748,38 @@ var heldItem={id:0,qty:0};var invOpen=false;
 function hasBag(){return EQUIP.bag.id===ITEM_BACKPACK;}
 
 // Donne un item : hotbar d'abord, puis sac si équipé, sinon plein
-function giveItem(id,qty,silent){if(!silent&&typeof _audioInitialized!=='undefined'&&_audioInitialized)playSoundPickup();
+function giveItem(id,qty,silent){
+  if(!id||!(qty>0))return false;
+  if(!silent&&typeof _audioInitialized!=='undefined'&&_audioInitialized)playSoundPickup();
   var bag=hasBag();
-  // 1. Empiler sur existant dans la hotbar (INV 0-6)
-  for(var i=0;i<7;i++){if(INV[i].id===id&&INV[i].qty<64){INV[i].qty=Math.min(64,INV[i].qty+qty);syncHotbar();return true;}}
-  // 2. Empiler sur existant dans le sac (INV 7-13)
-  if(bag){for(var i2=7;i2<14;i2++){if(INV[i2].id===id&&INV[i2].qty<64){INV[i2].qty=Math.min(64,INV[i2].qty+qty);syncHotbar();return true;}}}
-  // 3. Slot vide hotbar
-  for(var j=0;j<7;j++){if(INV[j].id===0){INV[j]={id:id,qty:qty};syncHotbar();return true;}}
-  // 4. Slot vide sac
-  if(bag){for(var j2=7;j2<14;j2++){if(INV[j2].id===0){INV[j2]={id:id,qty:qty};syncHotbar();return true;}}}
-  // 5. Plein
-  showPopup('Inventaire plein!',player.pos.clone().add(new THREE.Vector3(0,2,0)));
-  return false;
+  var left=qty;
+  function stackRange(a,b){
+    for(var i=a;i<b&&left>0;i++){
+      if(INV[i]&&INV[i].id===id&&INV[i].qty<64){
+        var add=Math.min(64-INV[i].qty,left);
+        INV[i].qty+=add;left-=add;
+      }
+    }
+  }
+  function emptyRange(a,b){
+    for(var i=a;i<b&&left>0;i++){
+      if(!INV[i]||!INV[i].id){
+        var add=Math.min(64,left);
+        INV[i]={id:id,qty:add};left-=add;
+      }
+    }
+  }
+  stackRange(0,7);
+  if(bag)stackRange(7,14);
+  emptyRange(0,7);
+  if(bag)emptyRange(7,14);
+  syncHotbar();
+  if(left===qty){
+    showPopup('Inventaire plein!',player.pos.clone().add(new THREE.Vector3(0,2,0)));
+    return false;
+  }
+  if(left>0)return left;
+  return true;
 }
 
 // Synchronise les icônes de la hotbar (INV 0-6)
@@ -8387,7 +8406,7 @@ var activeLoot=null,lootModalOpen=false,lootSelected={};
 function openLootModal(a){activeLoot=a;lootModalOpen=true;lootSelected={};document.getElementById('loot-animal-name').textContent=MOB_DEF[a.type].label;a.loot.forEach(function(_,i){lootSelected[i]=true;});buildLootRows(a);document.getElementById('loot-modal').classList.add('open');document.getElementById('loot-float-btn').style.display='none';if(mouseLocked)document.exitPointerLock();}
 function closeLootModal(){lootModalOpen=false;document.getElementById('loot-modal').classList.remove('open');if(!isMobile&&gameStarted)document.getElementById('canvas').requestPointerLock();}
 function buildLootRows(a){var rows=document.getElementById('loot-rows');rows.innerHTML='';a.loot.forEach(function(d,i){var row=document.createElement('div');row.className='loot-item-row'+(lootSelected[i]?' selected':'');var cv=document.createElement('canvas');drawBlockIconCanvas(cv,d.id);var name=document.createElement('span');name.textContent=BNAMES[d.id]||'?';var qty=document.createElement('span');qty.className='loot-qty';qty.textContent='x'+d.qty;row.appendChild(cv);row.appendChild(name);row.appendChild(qty);row.addEventListener('pointerdown',function(e){e.stopPropagation();lootSelected[i]=!lootSelected[i];row.classList.toggle('selected',lootSelected[i]);});rows.appendChild(row);});}
-document.getElementById('loot-btn-take').addEventListener('pointerdown',function(e){e.stopPropagation();if(!activeLoot)return;var remaining=[];activeLoot.loot.forEach(function(d,i){if(lootSelected[i]){giveItem(d.id,d.qty);showPopup('+'+d.qty+' '+BNAMES[d.id],activeLoot.pos.clone().add(new THREE.Vector3(0,1,0)));}else remaining.push(d);});activeLoot.loot=remaining;if(remaining.length===0)activeLoot.dead=true;syncHotbar();closeLootModal();activeLoot=null;});
+document.getElementById('loot-btn-take').addEventListener('pointerdown',function(e){e.stopPropagation();if(!activeLoot)return;var remaining=[];activeLoot.loot.forEach(function(d,i){if(lootSelected[i]){var r=giveItem(d.id,d.qty);if(r===false)remaining.push(d);else if(r!==true)remaining.push({id:d.id,qty:r});else showPopup('+'+d.qty+' '+BNAMES[d.id],activeLoot.pos.clone().add(new THREE.Vector3(0,1,0)));}else remaining.push(d);});activeLoot.loot=remaining;if(remaining.length===0)activeLoot.dead=true;syncHotbar();closeLootModal();activeLoot=null;});
 document.getElementById('loot-btn-leave').addEventListener('pointerdown',function(e){e.stopPropagation();closeLootModal();activeLoot=null;});
 document.getElementById('cook-float-btn').addEventListener('pointerdown',function(e){
   e.stopPropagation();
@@ -9768,31 +9787,19 @@ function chestSlotClick(idx){
   var handSlot=INV[selectedSlot];
   var chestSlot=inv[idx];
 
-  if(handSlot&&handSlot.id&&handSlot.qty>0){
-    // Déposer 1 item de la main dans le coffre
-    if(chestSlot.id===handSlot.id){
-      // Empiler
-      chestSlot.qty++;
-    } else if(!chestSlot.id){
-      // Slot vide → déposer
-      chestSlot.id=handSlot.id;
-      chestSlot.qty=1;
-    } else {
-      // Échanger
-      var tmp={id:chestSlot.id,qty:chestSlot.qty};
-      chestSlot.id=handSlot.id;chestSlot.qty=handSlot.qty;
-      handSlot.id=tmp.id;handSlot.qty=tmp.qty;
-      syncHotbar();
-      buildChestUI(inv);
-      return;
-    }
-    handSlot.qty--;
-    if(handSlot.qty<=0){handSlot.id=0;handSlot.qty=0;}
+  if(chestSlot&&chestSlot.id&&chestSlot.qty>0){
+    var r=giveItem(chestSlot.id,chestSlot.qty);
+    if(r===false){buildChestUI(inv);return;}
+    if(r===true){chestSlot.id=0;chestSlot.qty=0;}
+    else{chestSlot.qty=r;}
     syncHotbar();
-  } else if(chestSlot.id&&chestSlot.qty>0){
-    if(giveItem(chestSlot.id,chestSlot.qty)!==false){
-      chestSlot.id=0;chestSlot.qty=0;
-    }
+    buildChestUI(inv);
+    return;
+  }
+  if(handSlot&&handSlot.id&&handSlot.qty>0){
+    chestSlot.id=handSlot.id;
+    chestSlot.qty=handSlot.qty;
+    handSlot.id=0;handSlot.qty=0;
     syncHotbar();
   }
   buildChestUI(inv);
