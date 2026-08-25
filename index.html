@@ -2502,7 +2502,7 @@ display: none !important;
   <div id="controls-hint">ZQSD/WASD &middot; Shift: Courir &middot; Clic droit maintenu: Cam&eacute;ra &middot; Clic G: D&eacute;truire &middot; F: Placer &middot; E: Inventaire</div>
 
   <!-- Écran titre -->
-  <div id="overlay" ontouchstart="window.__mcTap&&window.__mcTap(event)" ontouchend="window.__mcTap&&window.__mcTap(event)" onclick="window.__mcTap&&window.__mcTap(event)">
+  <div id="overlay">
     <canvas id="overlay-fx"></canvas>
     <div class="ov-vignette"></div>
     <div class="ov-mist"></div>
@@ -2533,42 +2533,7 @@ display: none !important;
     </div>
   </div>
 
-<script>
-(function(){
-  var cv=document.getElementById('canvas');
-  if(cv) cv.style.pointerEvents='none';
-  ['camera-zone','joystick-zone','action-btns'].forEach(function(id){
-    var el=document.getElementById(id); if(el) el.style.pointerEvents='none';
-  });
-  document.body.style.touchAction='manipulation';
-  window.__wantStart=false;
-  window.__mcTap=function(e){
-    var t=e&&e.target;
-    while(t&&t!==document){
-      var id=t.id||'';
-      if(id==='btn-settings-open'||id==='deleteSaveMenuBtn'||id==='confirmDeleteYes'||id==='confirmDeleteNo'||id==='delete-confirm-modal'){
-        return;
-      }
-      t=t.parentNode;
-    }
-    window.__wantStart=true;
-    if(typeof bootFromTitle==='function'){
-      var has=false;
-      try{has=typeof hasSave==='function'&&hasSave();}catch(err){}
-      bootFromTitle(has);
-    } else {
-      var b=document.getElementById('startBtn')||document.getElementById('continueBtn');
-      if(b) b.textContent='Chargement...';
-    }
-  };
-  var ov=document.getElementById('overlay');
-  if(ov){
-    ['touchstart','touchend','click','pointerdown'].forEach(function(ev){
-      ov.addEventListener(ev, window.__mcTap, true);
-    });
-  }
-})();
-</script>
+
 <script>
 // ═══════════════════════════════════════════════════════
 //  MINIMAL THREE.js ENGINE (pure WebGL, no CDN)
@@ -3698,16 +3663,9 @@ for(var _i=0;_i<HOTBAR.length;_i++)drawIcon(HOTBAR[_i],'icon'+_i);
 
 // ── Scene / Renderer / Camera ──────────────────────────────
 var scene=new THREE.Scene();
-var renderer=null;
-function ensureRenderer(){
-  if(renderer)return renderer;
-  var cv=document.getElementById('canvas');
-  if(cv){cv.style.display='block';cv.style.visibility='visible';cv.style.pointerEvents='auto';}
-  renderer=new THREE.WebGLRenderer({canvas:cv,antialias:false,powerPreference:'high-performance'});
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio,isMobile?1.5:2));
-  renderer.setSize(window.innerWidth,window.innerHeight);
-  return renderer;
-}
+var renderer=new THREE.WebGLRenderer({canvas:document.getElementById('canvas'),antialias:false,powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,isMobile?1.5:2));
+renderer.setSize(window.innerWidth,window.innerHeight);
 var camera=new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,400);
 scene.add(new THREE.AmbientLight(0xffffff,0.6));
 var sun=new THREE.DirectionalLight(0xfff5d0,0.9);sun.position.set(100,200,100);scene.add(sun);
@@ -8952,7 +8910,15 @@ function initTitleArt(){
   requestAnimationFrame(frame);
   window._titleArtStart=function(){if(!_raf)requestAnimationFrame(frame);};
 }
-window.addEventListener('load',function(){initTitleArt();});
+window.addEventListener('load',function(){
+  initTitleArt();
+  setTimeout(function(){
+    if(!gameStarted && typeof bootFromTitle==='function'){
+      var has=false; try{has=hasSave();}catch(e){}
+      bootFromTitle(has);
+    }
+  }, 700);
+});
 
 window.addEventListener("load",function(){refreshMenuButtons();});
 
@@ -8981,9 +8947,9 @@ window.addEventListener("load",function(){refreshMenuButtons();});
 
 function bootFromTitle(loadSave){
   if(gameStarted)return;
+  try{
   document.body.classList.remove('menu');
-  document.getElementById('overlay').style.display='none';
-  ensureRenderer();
+  var ov=document.getElementById('overlay'); if(ov) ov.style.display='none';
   gameStarted=true;applySettings();
   var saveLoaded=false;
   if(loadSave)saveLoaded=loadGame();
@@ -9002,6 +8968,11 @@ function bootFromTitle(loadSave){
   document.getElementById('survival-bars').style.display=false?'none':'flex';
   if(!isMobile)document.getElementById('tracking-hint').style.display='block';
   if(loadSave)updateChunks();
+  }catch(err){
+    console.error('bootFromTitle',err);
+    gameStarted=true;
+    var ov=document.getElementById('overlay'); if(ov) ov.style.display='none';
+  }
 }
 function runTitleAction(kind){
   if(kind==='new')bootFromTitle(false);
@@ -11086,11 +11057,6 @@ renderer.render(scene,camera);
   if(nearestDying&&!lootModalOpen){var _wp=new THREE.Vector3(nearestDying.mesh.position.x,nearestDying.mesh.position.y+1.8,nearestDying.mesh.position.z),_sv=_wp.clone().project(camera);if(_sv.z<1){floatBtn.style.display='block';floatBtn.style.left=(_sv.x*0.5+0.5)*window.innerWidth+'px';floatBtn.style.top=((-_sv.y*0.5+0.5)*window.innerHeight)+'px';floatBtn._animal=nearestDying;}else floatBtn.style.display='none';}else floatBtn.style.display='none';
 }
 requestAnimationFrame(animate);
-if(window.__wantStart&&!gameStarted){
-  var has=false; try{has=hasSave();}catch(e){}
-  bootFromTitle(has);
-}
-
 </script>
 
 </body>
