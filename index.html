@@ -2314,7 +2314,7 @@ display: none !important;
       <div id="chest-slots"></div>
       <div style="font-size:10px;color:#555;margin:6px 0 3px;border-top:2px solid #999;padding-top:6px;">🎒 Inventaire</div>
       <div id="chest-player-slots"></div>
-      <div id="chest-label">Clic : transférer · Main pleine = déposer · Main vide = prendre</div>
+      <div id="chest-label">Clique un objet du coffre pour le prendre · Clique ton inventaire pour déposer</div>
     </div>
   </div>
 
@@ -5751,15 +5751,16 @@ function hasBag(){return EQUIP.bag.id===ITEM_BACKPACK;}
 function giveItem(id,qty,silent){if(!silent&&typeof _audioInitialized!=='undefined'&&_audioInitialized)playSoundPickup();
   var bag=hasBag();
   // 1. Empiler sur existant dans la hotbar (INV 0-6)
-  for(var i=0;i<7;i++){if(INV[i].id===id&&INV[i].qty<64){INV[i].qty=Math.min(64,INV[i].qty+qty);syncHotbar();return;}}
+  for(var i=0;i<7;i++){if(INV[i].id===id&&INV[i].qty<64){INV[i].qty=Math.min(64,INV[i].qty+qty);syncHotbar();return true;}}
   // 2. Empiler sur existant dans le sac (INV 7-13)
-  if(bag){for(var i2=7;i2<14;i2++){if(INV[i2].id===id&&INV[i2].qty<64){INV[i2].qty=Math.min(64,INV[i2].qty+qty);syncHotbar();return;}}}
+  if(bag){for(var i2=7;i2<14;i2++){if(INV[i2].id===id&&INV[i2].qty<64){INV[i2].qty=Math.min(64,INV[i2].qty+qty);syncHotbar();return true;}}}
   // 3. Slot vide hotbar
-  for(var j=0;j<7;j++){if(INV[j].id===0){INV[j]={id:id,qty:qty};syncHotbar();return;}}
+  for(var j=0;j<7;j++){if(INV[j].id===0){INV[j]={id:id,qty:qty};syncHotbar();return true;}}
   // 4. Slot vide sac
-  if(bag){for(var j2=7;j2<14;j2++){if(INV[j2].id===0){INV[j2]={id:id,qty:qty};syncHotbar();return;}}}
+  if(bag){for(var j2=7;j2<14;j2++){if(INV[j2].id===0){INV[j2]={id:id,qty:qty};syncHotbar();return true;}}}
   // 5. Plein
   showPopup('Inventaire plein!',player.pos.clone().add(new THREE.Vector3(0,2,0)));
+  return false;
 }
 
 // Synchronise les icônes de la hotbar (INV 0-6)
@@ -6275,31 +6276,19 @@ function updateChestAnim(dt){
   if(k>=1) stopChestAnim(true);
 }
 function openWorldChest(bx,by,bz){
-  var key=bx+','+by+','+bz;
-  if(_openedChests.has(key)){
-    showPopup('📦 Coffre vide.',new THREE.Vector3(bx+0.5,by+2,bz+0.5));
-    return;
-  }
-  playChestOpenAnim(bx,by,bz,function(){
+  var key=_chestKey(bx,by,bz);
+  if(!_openedChests.has(key)){
     _openedChests.add(key);
-    var chestType=getChestType(bx,by,bz);
-    var loot=rollLoot(chestType);
-    var quality={survival:'🟤',village:'🟠 Village',cave_mid:'🔵 Grotte',cave_deep:'🟣 Profondeur',ruin:'🟡 Ruine',cave_rare:'💎 Rare'};
-    showPopup((quality[chestType]||'📦')+' Coffre ouvert!',new THREE.Vector3(bx+0.5,by+2,bz+0.5));
-    var pos=new THREE.Vector3(bx+0.5,by+1.5,bz+0.5);
-    for(var i=0;i<loot.length;i++){
-      giveItem(loot[i].id,loot[i].qty);
-      setTimeout((function(item){return function(){
-        showPopup('+'+item.qty+' '+(BNAMES[item.id]||'?'),pos.clone().add(new THREE.Vector3((Math.random()-0.5)*2,(Math.random()+0.5),0)));
-      };})(loot[i]),i*180);
+    var loot=rollLoot(getChestType(bx,by,bz));
+    var inv=getPlayerChest(bx,by,bz);
+    var si=0;
+    for(var i=0;i<loot.length && si<21;i++){
+      if(!loot[i]||!loot[i].id)continue;
+      inv[si]={id:loot[i].id,qty:loot[i].qty||1};
+      si++;
     }
-    syncHotbar();
-    if(chestType==='cave_deep'||chestType==='ruin'){
-      var vgEl=document.getElementById('cold-vignette');
-      if(vgEl){vgEl.style.background='radial-gradient(ellipse at center, transparent 40%, rgba(200,150,0,0.3) 100%)';vgEl.classList.add('active');setTimeout(function(){vgEl.classList.remove('active');vgEl.style.background='';},1500);}
-    }
-    setTimeout(function(){playChestCloseAnim();},900);
-  });
+  }
+  openPlayerChest(bx,by,bz);
 }
 
 var _sleeping=false,_sleepFade=0,_sleepPhase='idle',_sleepKind='bed';
@@ -9916,10 +9905,9 @@ function chestSlotClick(idx){
     if(handSlot.qty<=0){handSlot.id=0;handSlot.qty=0;}
     syncHotbar();
   } else if(chestSlot.id&&chestSlot.qty>0){
-    // Prendre 1 item du coffre → inventaire joueur
-    giveItem(chestSlot.id,1);
-    chestSlot.qty--;
-    if(chestSlot.qty<=0){chestSlot.id=0;chestSlot.qty=0;}
+    if(giveItem(chestSlot.id,chestSlot.qty)!==false){
+      chestSlot.id=0;chestSlot.qty=0;
+    }
     syncHotbar();
   }
   buildChestUI(inv);
