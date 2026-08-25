@@ -3814,88 +3814,247 @@ function genChunk(cx,cz){
 function genVillage(data,idx,cx,cz,vcx,vcz,vwx,vh,vwz){
   var CS2=CHUNK_SIZE;
   function sb(wx,wy,wz,type){var lx=wx-cx*CS2,lz=wz-cz*CS2;if(lx<0||lx>=CS2||lz<0||lz>=CS2||wy<0||wy>=CHUNK_HEIGHT)return;data[idx(lx,wy,lz)]=type;}
-  // Terrain aplani
-  for(var fx=-18;fx<=18;fx++)for(var fz=-18;fz<=18;fz++){var fh=getH(vwx+fx,vwz+fz);sb(vwx+fx,fh,vwz+fz,B_GRAVEL);sb(vwx+fx,fh+1,vwz+fz,B_AIR);}
-  // Palissade
-  var pallR=17;
-  for(var pa=-pallR;pa<=pallR;pa++){
-    for(var ph2=0;ph2<4;ph2++){sb(vwx+pa,vh+ph2,vwz-pallR,B_WOOD);sb(vwx+pa,vh+ph2,vwz+pallR,B_WOOD);sb(vwx-pallR,vh+ph2,vwz+pa,B_WOOD);sb(vwx+pallR,vh+ph2,vwz+pa,B_WOOD);}
-    if(Math.abs(pa)%3===0){sb(vwx+pa,vh+4,vwz-pallR,B_WOOD);sb(vwx+pa,vh+4,vwz+pallR,B_WOOD);}
+  function hsh(a,b,c){return hash(a,b,SEED+(c||0));}
+  var R=14;
+
+  // Terrasse du camp (niveau vh) : terre battue, pas un parking de gravier
+  for(var fx=-R;fx<=R;fx++)for(var fz=-R;fz<=R;fz++){
+    if(fx*fx+fz*fz>R*R+8)continue;
+    var gh=getH(vwx+fx,vwz+fz);
+    if(vh>gh){for(var fy=gh;fy<vh;fy++)sb(vwx+fx,fy,vwz+fz,B_DIRT);}
+    var rr=hsh(vwx+fx,vwz+fz,11);
+    sb(vwx+fx,vh,vwz+fz,rr>0.62?B_GRAVEL:B_DIRT);
+    sb(vwx+fx,vh+1,vwz+fz,B_AIR);
+    sb(vwx+fx,vh+2,vwz+fz,B_AIR);
+    sb(vwx+fx,vh+3,vwz+fz,B_AIR);
   }
-  // Ouvertures
-  for(var gph=0;gph<4;gph++){sb(vwx-1,vh+gph,vwz-pallR,B_AIR);sb(vwx+1,vh+gph,vwz-pallR,B_AIR);sb(vwx-1,vh+gph,vwz+pallR,B_AIR);sb(vwx+1,vh+gph,vwz+pallR,B_AIR);sb(vwx-pallR,vh+gph,vwz-1,B_AIR);sb(vwx-pallR,vh+gph,vwz+1,B_AIR);sb(vwx+pallR,vh+gph,vwz-1,B_AIR);sb(vwx+pallR,vh+gph,vwz+1,B_AIR);}
-  // 4 maisons variées
-  var houses=[{ox:10,oz:0,w:6,d:5},{ox:-11,oz:0,w:5,d:6},{ox:0,oz:10,w:5,d:5},{ox:0,oz:-11,w:6,d:5}];
-  for(var hi=0;hi<4;hi++){
-    var hx=vwx+houses[hi].ox,hz=vwz+houses[hi].oz,hh=getH(hx,hz);
-    var hw2=houses[hi].w,hd=houses[hi].d,wallH=3+Math.floor(hash(hi,SEED,cx)*2);
-    for(var sw=-1;sw<=hw2;sw++)for(var sd=-1;sd<=hd;sd++){sb(hx+sw,hh-1,hz+sd,B_STONE);sb(hx+sw,hh-2,hz+sd,B_STONE);}
-    for(var hy=0;hy<wallH;hy++)for(var hw=0;hw<hw2;hw++){sb(hx+hw,hh+hy,hz,B_WOOD);sb(hx+hw,hh+hy,hz+hd-1,B_WOOD);sb(hx,hh+hy,hz+hw,B_WOOD);sb(hx+hw2-1,hh+hy,hz+hw,B_WOOD);}
-    for(var tw=0;tw<hw2;tw++)for(var td=0;td<hd;td++){sb(hx+tw,hh+wallH,hz+td,B_WOOD);}
-    sb(hx+Math.floor(hw2/2),hh,hz,B_AIR);sb(hx+Math.floor(hw2/2),hh+1,hz,B_AIR);
-    sb(hx+1,hh+1,hz,B_AIR);sb(hx+hw2-2,hh+1,hz,B_AIR);
-    sb(hx+Math.floor(hw2/2),hh,hz+Math.floor(hd/2),B_CAMPFIRE);
-    sb(hx+1,hh,hz+1,B_CHEST);
-    sb(hx+Math.floor(hw2/2),hh+wallH-1,hz+1,B_TORCH);
+
+  // Chemins vers les portes
+  for(var p=-R;p<=R;p++){
+    sb(vwx,vh,vwz+p,B_GRAVEL);sb(vwx+1,vh,vwz+p,B_DIRT);
+    sb(vwx+p,vh,vwz,B_GRAVEL);sb(vwx+p,vh,vwz+1,B_DIRT);
   }
-  // Grand feu central
-  for(var fp=-1;fp<=1;fp++)for(var fd=-1;fd<=1;fd++)sb(vwx+fp,vh,vwz+fd,B_GRAVEL);
-  sb(vwx,vh,vwz,B_CAMPFIRE);sb(vwx+1,vh,vwz,B_CAMPFIRE);
-  // Marquer village pour spawn d'ennemis
+
+  // Palissade irrégulière (pieux de hauteurs différentes, pointes)
+  function isGate(a){return Math.abs(a)<=1;}
+  for(var pa=-R;pa<=R;pa++){
+    var sides=[[vwx+pa,vwz-R],[vwx+pa,vwz+R],[vwx-R,vwz+pa],[vwx+R,vwz+pa]];
+    for(var si=0;si<4;si++){
+      var sx=sides[si][0],sz=sides[si][1];
+      if(isGate(pa))continue;
+      var stake=3+Math.floor(hsh(sx,sz,21)*4);
+      sb(sx,vh,sz,B_STONE);
+      for(var ph2=1;ph2<stake;ph2++)sb(sx,vh+ph2,sz,B_WOOD);
+      if(hsh(sx,sz,22)>0.45)sb(sx,vh+stake,sz,B_FENCE);
+      if(hsh(sx,sz,23)>0.82)sb(sx,vh+stake,sz,B_TORCH);
+      if(hsh(sx,sz,24)>0.7)sb(sx,vh+Math.floor(stake*0.6),sz+((si<2)?(si===0?-1:1):0),B_LEAF);
+    }
+  }
+  // Portes : poteaux + ouverture
+  var gates=[[0,-R],[0,R],[-R,0],[R,0]];
+  for(var gi=0;gi<4;gi++){
+    var gx=vwx+gates[gi][0],gz=vwz+gates[gi][1];
+    for(var go=-2;go<=2;go++){
+      var gxx=gates[gi][0]===0?gx+go:gx, gzz=gates[gi][1]===0?gz+go:gz;
+      if(Math.abs(go)===2){
+        sb(gxx,vh,gzz,B_WOOD);sb(gxx,vh+1,gzz,B_WOOD);sb(gxx,vh+2,gzz,B_WOOD);sb(gxx,vh+3,gzz,B_FENCE);
+      } else {
+        for(var gy=1;gy<6;gy++)sb(gxx,vh+gy,gzz,B_AIR);
+        sb(gxx,vh,gzz,B_GRAVEL);
+      }
+    }
+  }
+
+  // Place centrale : cercle de pierre + grand feu
+  for(var fp=-2;fp<=2;fp++)for(var fd=-2;fd<=2;fd++){
+    if(fp*fp+fd*fd>5)continue;
+    sb(vwx+fp,vh,vwz+fd,(Math.abs(fp)===2||Math.abs(fd)===2)?B_STONE:B_GRAVEL);
+  }
+  sb(vwx,vh+1,vwz,B_CAMPFIRE);
+  sb(vwx+1,vh+1,vwz,B_CAMPFIRE);
+  sb(vwx,vh+1,vwz+1,B_GRILL);
+  sb(vwx-2,vh+2,vwz,B_TORCH);
+  sb(vwx+2,vh+2,vwz,B_TORCH);
+
+  // Totems / effigies (The Forest)
+  var totems=[[6,4],[-7,5],[5,-6],[-5,-5],[8,0],[-8,2]];
+  for(var ti=0;ti<totems.length;ti++){
+    var tx=vwx+totems[ti][0],tz=vwz+totems[ti][1];
+    var tht=3+Math.floor(hsh(tx,tz,31)*3);
+    sb(tx,vh,tz,B_WOOD);
+    for(var ty=1;ty<tht;ty++)sb(tx,vh+ty,tz,B_WOOD);
+    sb(tx,vh+tht,tz,B_FENCE);
+    if(hsh(tx,tz,32)>0.5)sb(tx,vh+tht+1,tz,B_FENCE);
+    if(hsh(tx,tz,33)>0.6)sb(tx+1,vh+tht-1,tz,B_FENCE);
+    if(hsh(tx,tz,34)>0.5)sb(tx,vh+2,tz+1,B_TORCH);
+  }
+
+  // Tentes (abris de toile)
+  var tents=[[8,8],[-9,7],[7,-9],[-8,-8]];
+  for(var ni=0;ni<tents.length;ni++){
+    var nx=vwx+tents[ni][0],nz=vwz+tents[ni][1];
+    for(var tw=-1;tw<=1;tw++)for(var td=-1;td<=1;td++){
+      sb(nx+tw,vh,nz+td,B_DIRT);
+      if(Math.abs(tw)+Math.abs(td)<2)sb(nx+tw,vh+1,nz+td,B_TENT);
+    }
+    sb(nx,vh+2,nz,B_TENT);
+    sb(nx,vh+1,nz,B_AIR);
+    if(ni%2===0)sb(nx,vh+1,nz,B_CHEST);
+    else sb(nx,vh+1,nz,B_BED);
+    sb(nx+1,vh+1,nz+1,B_TORCH);
+  }
+
+  // Abri de bois (lean-to)
+  var lx0=vwx-3,lz0=vwz+8,lh=vh;
+  for(var ly=0;ly<3;ly++){
+    for(var lw=0;lw<4;lw++){sb(lx0+lw,lh+ly,lz0,B_WOOD);sb(lx0+lw,lh+ly,lz0+3,B_WOOD);}
+    sb(lx0,lh+ly,lz0+1,B_WOOD);sb(lx0,lh+ly,lz0+2,B_WOOD);
+  }
+  for(var rw=0;rw<4;rw++){sb(lx0+rw,lh+3,lz0,B_STAIRS);sb(lx0+rw,lh+3,lz0+1,B_WOOD);sb(lx0+rw,lh+3,lz0+2,B_WOOD);sb(lx0+rw,lh+3,lz0+3,B_STAIRS);}
+  sb(lx0+3,lh,lz0+1,B_AIR);sb(lx0+3,lh+1,lz0+1,B_AIR); // entrée
+  sb(lx0+1,lh,lz0+1,B_CHEST);
+  sb(lx0+1,lh+2,lz0+2,B_TORCH);
+
+  // Tour de guet
+  var wx0=vwx+9,wz0=vwz-3,wh=vh;
+  for(var wy=0;wy<6;wy++){
+    sb(wx0,wh+wy,wz0,B_WOOD);sb(wx0+1,wh+wy,wz0,B_WOOD);
+    sb(wx0,wh+wy,wz0+1,B_WOOD);sb(wx0+1,wh+wy,wz0+1,B_WOOD);
+  }
+  for(var plat=-1;plat<=2;plat++)for(var p2=-1;p2<=2;p2++)sb(wx0+plat,wh+6,wz0+p2,B_WOOD);
+  sb(wx0,wh+7,wz0,B_FENCE);sb(wx0+1,wh+7,wz0,B_FENCE);
+  sb(wx0,wh+7,wz0+1,B_FENCE);sb(wx0+1,wh+7,wz0+1,B_TORCH);
+  sb(wx0,wh,wz0,B_STAIRS);
+
+  // Cages (prisonniers)
+  var cages=[[-10,-2],[4,10]];
+  for(var ci=0;ci<cages.length;ci++){
+    var kx=vwx+cages[ci][0],kz=vwz+cages[ci][1],kh=vh;
+    for(var ck=0;ck<3;ck++)for(var cl=0;cl<3;cl++){
+      if(ck===0||ck===2||cl===0||cl===2){
+        sb(kx+ck,kh,kz+cl,B_WOOD);
+        sb(kx+ck,kh+1,kz+cl,B_FENCE);
+        sb(kx+ck,kh+2,kz+cl,B_FENCE);
+      }
+    }
+    sb(kx+1,kh,kz+1,B_GRAVEL);
+  }
+
+  // Détails : souches, orties, champignons
+  for(var di=0;di<10;di++){
+    var dx=vwx-10+Math.floor(hsh(di,vwx,41)*20);
+    var dz=vwz-10+Math.floor(hsh(di,vwz,42)*20);
+    if(Math.abs(dx-vwx)<3&&Math.abs(dz-vwz)<3)continue;
+    var dt=hsh(dx,dz,43);
+    if(dt>0.75)sb(dx,vh+1,dz,B_NETTLES);
+    else if(dt>0.55)sb(dx,vh+1,dz,B_STUMP);
+    else if(dt>0.4)sb(dx,vh+1,dz,B_MUSHROOM_BLOCK);
+  }
+
   if(!genChunk._villageSpawns)genChunk._villageSpawns=[];
   if(cx===vcx&&cz===vcz)genChunk._villageSpawns.push({x:vwx,z:vwz,spawned:false});
 }
 function genRuin(data,idx,lx,rh,lz,cx,cz){
   var CS2=CHUNK_SIZE;
-  var rsize=4+Math.floor(hash(lx,lz,SEED+777)*5); // 4-8 blocs de large
-  var ruinType=Math.floor(hash(lx*2.3,lz*1.7,SEED+888)*3); // 0=murs, 1=temple, 2=camp
+  function set(x,y,z,t){if(x<0||x>=CS2||z<0||z>=CS2||y<0||y>=CHUNK_HEIGHT)return;data[idx(x,y,z)]=t;}
+  function hsh(a,b,c){return hash(a,b,SEED+(c||0));}
+  // garder la ruine dans le chunk
+  var maxS=Math.min(8,CS2-lx-1,CS2-lz-1);
+  if(maxS<5)return;
+  var rsize=5+Math.floor(hsh(lx,lz,777)*(maxS-4));
+  var ruinType=Math.floor(hsh(lx*2.3,lz*1.7,888)*3);
+  var mid=Math.floor(rsize/2);
+
+  // Sol brisé commun
+  for(var ds=0;ds<rsize;ds++)for(var dd=0;dd<rsize;dd++){
+    var fl=hsh(lx+ds,lz+dd,100);
+    if(fl>0.35)set(lx+ds,rh-1,lz+dd,fl>0.75?B_GRAVEL:B_STONE);
+    if(fl>0.88)set(lx+ds,rh,lz+dd,B_GRAVEL); // débris
+  }
 
   if(ruinType===1){
-    // Temple : piliers aux coins + dalles
-    var pillar=[[-1,-1],[rsize,-1],[-1,rsize],[rsize,rsize]];
+    // Temple : colonnes cassées, autel, dalles manquantes, mousse
+    var pillar=[[0,0],[rsize-1,0],[0,rsize-1],[rsize-1,rsize-1]];
     for(var pi=0;pi<4;pi++){
-      var px=lx+pillar[pi][0],pz=lz+pillar[pi][1];if(px<0||px>=CS2||pz<0||pz>=CS2)continue;
-      for(var ph=0;ph<5;ph++)data[idx(px,rh+ph,pz)]=B_STONE;
+      var px=lx+pillar[pi][0],pz=lz+pillar[pi][1];
+      var ph=1+Math.floor(hsh(px,pz,210)*5); // 1-5, irrégulier
+      for(var py=0;py<ph;py++)set(px,rh+py,pz,py===ph-1&&hsh(px,py,211)>0.5?B_GRAVEL:B_STONE);
+      if(hsh(px,pz,212)>0.55)set(px,rh+ph,pz,B_LEAF); // lierre
+      if(ph>=3){set(px+ (pi%2? -1:1),rh+1,pz,B_STONE);} // morceau tombé
     }
-    // Autel central avec coffre
-    var cx2=lx+Math.floor(rsize/2),cz2=lz+Math.floor(rsize/2);
-    if(cx2>=0&&cx2<CS2&&cz2>=0&&cz2<CS2){
-      data[idx(cx2,rh,cz2)]=B_STONE;data[idx(cx2,rh+1,cz2)]=B_STONE;
-    }
-    // Dalles de sol
-    for(var ds=0;ds<rsize;ds++)for(var dd=0;dd<rsize;dd++){
-      if(lx+ds>=0&&lx+ds<CS2&&lz+dd>=0&&lz+dd<CS2)
-        if(hash(lx+ds,lz+dd,SEED+100)>0.4)data[idx(lx+ds,rh-1,lz+dd)]=B_STONE;
-    }
+    // Autel
+    set(lx+mid,rh,lz+mid,B_STONE);
+    set(lx+mid,rh+1,lz+mid,B_STONE);
+    set(lx+mid,rh+2,lz+mid,B_TORCH);
+    set(lx+mid,rh+1,lz+mid+1,B_CHEST);
+    // Marches cassées
+    set(lx+mid-1,rh,lz+mid-2,B_STAIRS);
+    set(lx+mid,rh,lz+mid-2,B_STAIRS);
+    if(hsh(lx,lz,213)>0.4)set(lx+mid+1,rh,lz+mid-1,B_STAIRS);
+    // Colonnes intérieures écroulées
+    set(lx+mid-2,rh,lz+1,B_STONE);
+    set(lx+mid-2,rh+1,lz+1,B_GRAVEL);
+    set(lx+2,rh,lz+mid+1,B_STONE);
   } else if(ruinType===2){
-    // Camp abandonné : murs effondrés en pierre, traces de vie
-    for(var rw=0;rw<rsize;rw++)for(var rd=0;rd<rsize;rd++){
-      if(lx+rw>=CS2||lz+rd>=CS2||lx+rw<0||lz+rd<0)continue;
-      if(!(rw===0||rw===rsize-1||rd===0||rd===rsize-1))continue;
-      var wallH2=1+Math.floor(hash(lx+rw*1.3,lz+rd,SEED+555)*2);
-      for(var ry2=rh;ry2<rh+wallH2;ry2++)
-        if(hash(lx+rw,ry2+lz,SEED+333)>0.3)data[idx(lx+rw,ry2,lz+rd)]=B_STONE;
-    }
-    // Sol en gravier
-    for(var gs=1;gs<rsize-1;gs++)for(var gd=1;gd<rsize-1;gd++)
-      if(lx+gs>=0&&lx+gs<CS2&&lz+gd>=0&&lz+gd<CS2&&hash(lx+gs,lz+gd,SEED+600)>0.5)
-        data[idx(lx+gs,rh-1,lz+gd)]=B_GRAVEL;
-  } else {
-    // Murs en ruine classiques mais plus variés
-    for(var rw=0;rw<rsize;rw++)for(var rd=0;rd<rsize;rd++){
-      if(lx+rw>=CS2||lz+rd>=CS2||lx+rw<0||lz+rd<0)continue;
-      if(!(rw===0||rw===rsize-1||rd===0||rd===rsize-1))continue;
-      var wallH=1+Math.floor(hash(lx+rw,lz+rd,SEED+555)*4);
-      for(var ry=rh;ry<rh+wallH;ry++){
-        if(hash(lx+rw,ry+lz+rd*7,SEED+333)>0.25)
-          data[idx(lx+rw,ry,lz+rd)]=hash(lx+rw,ry,SEED+400)>0.8?B_GRAVEL:B_STONE;
+    // Tour / puits effondré
+    var tw=Math.min(rsize,6);
+    for(var rw=0;rw<tw;rw++)for(var rd=0;rd<tw;rd++){
+      var edge=(rw===0||rd===0||rw===tw-1||rd===tw-1);
+      if(!edge){
+        if(hsh(lx+rw,lz+rd,300)>0.5)set(lx+rw,rh-1,lz+rd,B_GRAVEL);
+        continue;
       }
+      // un côté presque absent (mur tombé)
+      if(rd===tw-1&&hsh(lx,lz,301)>0.4)continue;
+      var wallH2=1+Math.floor(hsh(lx+rw,lz+rd,302)*5);
+      if(rw===0)wallH2=Math.max(wallH2,3); // un mur encore debout
+      for(var ry2=0;ry2<wallH2;ry2++){
+        if(hsh(lx+rw,ry2+lz,303)<0.18)continue; // trous
+        set(lx+rw,rh+ry2,lz+rd,hsh(lx+rw,ry2,304)>0.85?B_GRAVEL:B_STONE);
+      }
+      if(wallH2>=3&&hsh(lx+rw,lz+rd,305)>0.6)set(lx+rw,rh+wallH2,lz+rd,B_LEAF);
     }
-    // Coffre caché dans les ruines (rare)
-    if(hash(lx*4.1,lz*3.7,SEED+999)>0.7){
-      var rcx=lx+Math.floor(rsize/2),rcz=lz+Math.floor(rsize/2);
-
+    // Poutres restantes
+    set(lx+1,rh+2,lz,B_WOOD);set(lx+2,rh+2,lz,B_WOOD);
+    set(lx,rh+3,lz+1,B_WOOD);
+    // Coffre sous les débris
+    set(lx+Math.floor(tw/2),rh,lz+Math.floor(tw/2),B_CHEST);
+    set(lx+Math.floor(tw/2),rh+1,lz+Math.floor(tw/2),B_GRAVEL);
+    set(lx+1,rh,lz+1,B_TORCH);
+  } else {
+    // Maison en ruine : 2-3 murs, toit effondré, porte, végétation
+    var missingWall=Math.floor(hsh(lx,lz,400)*4); // 0=N 1=E 2=S 3=W tombé
+    for(var rw=0;rw<rsize;rw++)for(var rd=0;rd<rsize;rd++){
+      var n=rd===0,s=rd===rsize-1,w=rw===0,e=rw===rsize-1;
+      if(!(n||s||w||e))continue;
+      if((missingWall===0&&n)||(missingWall===1&&e)||(missingWall===2&&s)||(missingWall===3&&w)){
+        if(hsh(lx+rw,lz+rd,401)>0.35)set(lx+rw,rh,lz+rd,B_GRAVEL); // gravats du mur
+        continue;
+      }
+      var wallH=1+Math.floor(hsh(lx+rw*3,lz+rd,402)*4);
+      // ouverture de porte
+      if(n&&rw===mid){set(lx+rw,rh,lz+rd,B_AIR);set(lx+rw,rh+1,lz+rd,B_AIR);continue;}
+      for(var ry=0;ry<wallH;ry++){
+        if(hsh(lx+rw,ry+lz+rd*7,403)<0.22)continue;
+        var blk=B_STONE;
+        if(hsh(lx+rw,ry,404)>0.78)blk=B_GRAVEL;
+        else if(hsh(lx+rw,ry,405)>0.9)blk=B_WOOD; // poutre
+        set(lx+rw,rh+ry,lz+rd,blk);
+      }
+      if(wallH>=2&&hsh(lx+rw,lz+rd,406)>0.55)set(lx+rw,rh+wallH,lz+rd,B_LEAF);
     }
+    // Toit effondré à l'intérieur
+    for(var i=1;i<rsize-1;i++){
+      if(hsh(lx+i,lz,410)>0.45)set(lx+i,rh,lz+1,B_STAIRS);
+      if(hsh(lx+i,lz,411)>0.55)set(lx+i,rh,lz+2,B_WOOD);
+      if(hsh(lx,lz+i,412)>0.7)set(lx+1,rh+1,lz+i,B_WOOD);
+    }
+    // Intérieur
+    set(lx+mid,rh,lz+mid,B_CHEST);
+    if(hsh(lx,lz,420)>0.4)set(lx+mid-1,rh,lz+mid,B_TORCH);
+    if(hsh(lx,lz,421)>0.5)set(lx+1,rh,lz+rsize-2,B_NETTLES);
+    if(hsh(lx,lz,422)>0.45)set(lx+rsize-2,rh,lz+1,B_MUSHROOM_BLOCK);
+    if(hsh(lx,lz,423)>0.5)set(lx+2,rh,lz+mid,B_STUMP);
   }
 }
 
