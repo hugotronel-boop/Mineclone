@@ -9141,6 +9141,13 @@ function hideOverlayAndBoot(loadSave){
   if(ov) ov.style.display='none';
   gameStarted=true;
   applySettings();
+  if(!loadSave){
+    SEED=(SETTINGS.seed&&SETTINGS.seed>0)?SETTINGS.seed:(Math.random()*999999)|0;
+    CAVE_NET.ready=false;
+    CAVE_NET.open={};CAVE_NET.conn={};CAVE_NET.rooms={};
+    CAVE_NET.entrances=[];CAVE_NET.camps=[];CAVE_NET.safes=[];CAVE_NET.loots=[];CAVE_NET.campSpawns=[];
+    genChunk._villages=null;genChunk._villageSpawns=null;
+  }
   var saveLoaded=false;
   if(loadSave){ try{ saveLoaded=loadGame(); }catch(e){} }
   _modifiedBlocksEnabled=true;
@@ -9296,6 +9303,7 @@ function loadGame(){
     if(!raw||raw.length<10)return false;
     var save=JSON.parse(raw);
     if(!save||save.v!==1)return false;
+    if(save.seed!==undefined&&save.seed!==null)SEED=save.seed;
 
     // Restaurer position
     player.pos.set(save.px||0,save.py||70,save.pz||0);
