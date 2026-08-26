@@ -3145,211 +3145,200 @@ function cvTex(){var cv=document.createElement('canvas');cv.width=cv.height=16;r
 // ════════════════════════════════════════════════════════
 
 // 1. GAZON — dessus vert avec brins d'herbe, côté terre brune
+function cv32(){var cv=document.createElement('canvas');cv.width=cv.height=32;return cv;}
+function clampf(v){return v<0?0:v>255?255:v|0;}
+function pxi(ctx,x,y,r,g,b){ctx.fillStyle='rgb('+clampf(r)+','+clampf(g)+','+clampf(b)+')';ctx.fillRect(x,y,1,1);}
+
 function makeGrassTop(){
-  var cv=cvTex(),ctx=cv.getContext('2d');
-  for(var y=0;y<16;y++)for(var x=0;x<16;x++){
-    var n=ntex(x,y,1);
-    var r=Math.round(60+n*40),g=Math.round(140+n*60),b=Math.round(30+n*20);
-    px(ctx,x,y,r,g,b);
+  var cv=cv32(),ctx=cv.getContext('2d');
+  for(var y=0;y<32;y++)for(var x=0;x<32;x++){
+    var n=ntex(x,y,1),p=ntex(x*0.35,y*0.35,41),d=ntex(x,y,71);
+    var r=42+n*32,g=108+n*55,b=18+n*18;
+    if(p>0.58){r+=16;g+=38;b+=8;}
+    if(d>0.8){r-=22;g-=28;b-=10;}
+    if(((x+y*3)&7)===0){g+=12;r+=4;}
+    pxi(ctx,x,y,r,g,b);
   }
-  // Brins d'herbe
-  ctx.fillStyle='#3a9010';
-  for(var i=0;i<12;i++){var gx=Math.floor(ntex(i,0,99)*14)+1,gy=Math.floor(ntex(i,1,88)*14)+1;ctx.fillRect(gx,gy,1,2);}
-  ctx.fillStyle='#5ab820';
-  for(var i2=0;i2<8;i2++){var gx2=Math.floor(ntex(i2,2,77)*14)+1,gy2=Math.floor(ntex(i2,3,66)*14)+1;ctx.fillRect(gx2,gy2,1,1);}
+  for(var i=0;i<48;i++){
+    var gx=(ntex(i,0,99)*30)|0,gy=(ntex(i,1,88)*30)|0;
+    pxi(ctx,gx,gy,36,130,16);pxi(ctx,gx,gy+1,70,170,28);
+  }
   return new THREE.CanvasTexture(cv);
 }
 function makeGrassSide(){
-  var cv=cvTex(),ctx=cv.getContext('2d');
-  // Bande de terre brune
-  for(var y=0;y<16;y++)for(var x=0;x<16;x++){
-    var n=ntex(x,y,2);
-    if(y<3){var r=Math.round(70+n*30),g=Math.round(150+n*40),b=Math.round(35+n*20);px(ctx,x,y,r,g,b);}
-    else{var r2=Math.round(100+n*30),g2=Math.round(72+n*25),b2=Math.round(28+n*20);px(ctx,x,y,r2,g2,b2);}
+  var cv=cv32(),ctx=cv.getContext('2d');
+  for(var y=0;y<32;y++)for(var x=0;x<32;x++){
+    var n=ntex(x,y,2),edge=4+(ntex(x,0,55)*5)|0;
+    if(y<edge){
+      var r=48+n*28,g=120+n*50,b=22+n*16;
+      if(y===edge-1){r=72;g=150;b=30;}
+      pxi(ctx,x,y,r,g,b);
+    } else {
+      var r2=118+n*28,g2=78+n*22,b2=38+n*14;
+      if(ntex(x,y,13)>0.78){r2-=22;g2-=16;}
+      pxi(ctx,x,y,r2,g2,b2);
+    }
   }
-  // Bord gazon
-  ctx.fillStyle='rgba(80,180,40,0.6)';ctx.fillRect(0,2,16,1);
+  for(var x2=0;x2<32;x2++){
+    var h=3+(ntex(x2,9,61)*4)|0;
+    for(var k=0;k<h;k++)pxi(ctx,x2,k,50+k*6,140+k*8,24);
+  }
   return new THREE.CanvasTexture(cv);
 }
-
-// 2. TERRE — granuleuse, taches sombres
 function makeDirtTex(){
-  var cv=cvTex(),ctx=cv.getContext('2d');
-  for(var y=0;y<16;y++)for(var x=0;x<16;x++){
-    var n=ntex(x,y,3),n2=ntex(x+3,y+5,13);
-    var r=Math.round(110+n*35),g=Math.round(78+n*28),b=Math.round(30+n*18);
-    if(n2>0.75){r=Math.max(0,r-25);g=Math.max(0,g-20);b=Math.max(0,b-10);}
-    px(ctx,x,y,r,g,b);
+  var cv=cv32(),ctx=cv.getContext('2d');
+  for(var y=0;y<32;y++)for(var x=0;x<32;x++){
+    var n=ntex(x,y,3),c=ntex(x*0.4,y*0.4,13);
+    var r=122+n*30,g=82+n*22,b=42+n*12;
+    if(c>0.62){r-=18;g-=14;b-=8;}
+    if(c<0.28){r+=16;g+=10;b+=6;}
+    pxi(ctx,x,y,r,g,b);
   }
-  // Petits cailloux
-  ctx.fillStyle='#8a7a6a';
-  for(var i=0;i<5;i++){var rx=Math.floor(ntex(i,7,55)*14)+1,ry=Math.floor(ntex(i,8,44)*14)+1;ctx.fillRect(rx,ry,2,1);}
+  for(var i=0;i<18;i++){
+    var rx=(ntex(i,7,55)*29)|0,ry=(ntex(i,8,44)*29)|0;
+    pxi(ctx,rx,ry,150,130,100);pxi(ctx,rx+1,ry,96,86,70);
+  }
   return new THREE.CanvasTexture(cv);
 }
-
-// 3. PIERRE — blocs avec joints, variations grises
 function makeStoneTex(bright){
-  var cv=cvTex(),ctx=cv.getContext('2d');
+  var cv=cv32(),ctx=cv.getContext('2d');
   var b=bright||1.0;
-  for(var y=0;y<16;y++)for(var x=0;x<16;x++){
-    var n=ntex(x,y,5);
-    var v=Math.round((105+n*55)*b);
-    px(ctx,x,y,v,v,v);
+  for(var y=0;y<32;y++)for(var x=0;x<32;x++){
+    var n=ntex(x,y,5),p=ntex(x*0.4,y*0.4,27);
+    var v=(108+n*42+p*18)*b;
+    if(ntex(x,y,91)>0.84)v*=0.72;
+    pxi(ctx,x,y,v,v*1.01,v*1.04);
   }
-  // Joints de maçonnerie
-  ctx.fillStyle='rgba(50,50,50,0.5)';
-  ctx.fillRect(0,5,16,1);ctx.fillRect(0,11,16,1);
-  ctx.fillRect(4,0,1,5);ctx.fillRect(12,0,1,5);
-  ctx.fillRect(2,6,1,5);ctx.fillRect(10,6,1,5);
-  ctx.fillRect(6,12,1,4);ctx.fillRect(14,12,1,4);
-  // Légère brillance
-  ctx.fillStyle='rgba(255,255,255,0.07)';
-  ctx.fillRect(0,0,16,1);ctx.fillRect(0,0,1,16);
+  ctx.fillStyle='rgba(40,42,48,0.45)';
+  for(var i=0;i<10;i++){
+    var x0=(ntex(i,2,33)*26)|0,y0=(ntex(i,3,34)*26)|0,w=3+(ntex(i,4,35)*6)|0;
+    ctx.fillRect(x0,y0,w,1);ctx.fillRect(x0,y0,1,2+(ntex(i,5,36)*5)|0);
+  }
+  ctx.fillStyle='rgba(210,215,220,0.12)';ctx.fillRect(0,0,32,1);ctx.fillRect(0,0,1,32);
   return new THREE.CanvasTexture(cv);
 }
-
-// 4. SABLE — grain fin, ondulations subtiles
 function makeSandTex(){
-  var cv=cvTex(),ctx=cv.getContext('2d');
-  for(var y=0;y<16;y++)for(var x=0;x<16;x++){
-    var n=ntex(x,y,7),n2=ntex(x*2,y*2,17);
-    var r=Math.round(200+n*30),g=Math.round(182+n*28),b=Math.round(100+n*20);
-    if(n2>0.8){r=Math.min(255,r+15);g=Math.min(255,g+12);}
-    px(ctx,x,y,r,g,b);
+  var cv=cv32(),ctx=cv.getContext('2d');
+  for(var y=0;y<32;y++)for(var x=0;x<32;x++){
+    var n=ntex(x,y,7),n2=ntex(x*2,y*2,17),rip=Math.sin((y+ntex(x,0,8)*4)*0.55)*0.5+0.5;
+    var r=210+n*28+rip*8,g=188+n*24+rip*6,b=118+n*18;
+    if(n2>0.82){r+=18;g+=14;b+=8;}
+    if(n2<0.18){r-=16;g-=14;b-=10;}
+    pxi(ctx,x,y,r,g,b);
   }
-  // Stries de vent
-  ctx.fillStyle='rgba(190,170,90,0.3)';
-  ctx.fillRect(0,4,16,1);ctx.fillRect(0,10,16,1);
   return new THREE.CanvasTexture(cv);
 }
-
-// 5. BOIS — cernes, grain vertical (côté), anneaux (dessus)
 function makeWoodTop(){
-  var cv=cvTex(),ctx=cv.getContext('2d');
-  for(var y=0;y<16;y++)for(var x=0;x<16;x++){
-    var dx=x-7.5,dy=y-7.5,dist=Math.sqrt(dx*dx+dy*dy);
-    var ring=Math.sin(dist*1.2)*0.5+0.5;
-    var n=ntex(x,y,9)*0.3;
-    var r=Math.round(140+ring*40+n*20),g=Math.round(95+ring*30+n*15),b=Math.round(35+ring*15+n*10);
-    px(ctx,x,y,r,g,b);
+  var cv=cv32(),ctx=cv.getContext('2d');
+  for(var y=0;y<32;y++)for(var x=0;x<32;x++){
+    var dx=x-15.5,dy=y-15.5,dist=Math.sqrt(dx*dx+dy*dy);
+    var ring=Math.sin(dist*0.95)*0.5+0.5,n=ntex(x,y,9)*0.25;
+    var r=118+ring*55+n*18,g=78+ring*38+n*12,b=32+ring*16+n*8;
+    if(dist<2.2){r-=20;g-=16;b-=8;}
+    pxi(ctx,x,y,r,g,b);
   }
-  ctx.fillStyle='rgba(80,50,15,0.4)';ctx.beginPath();ctx.arc(8,8,6,0,Math.PI*2);ctx.strokeStyle='rgba(80,50,15,0.3)';ctx.lineWidth=1;ctx.stroke();
-  ctx.beginPath();ctx.arc(8,8,3,0,Math.PI*2);ctx.stroke();
+  ctx.strokeStyle='rgba(70,42,12,0.55)';ctx.lineWidth=1.2;
+  ctx.beginPath();ctx.arc(16,16,12,0,Math.PI*2);ctx.stroke();
+  ctx.beginPath();ctx.arc(16,16,7,0,Math.PI*2);ctx.stroke();
+  ctx.beginPath();ctx.arc(16,16,3,0,Math.PI*2);ctx.stroke();
   return new THREE.CanvasTexture(cv);
 }
 function makeWoodSide(){
-  var cv=cvTex(),ctx=cv.getContext('2d');
-  for(var y=0;y<16;y++)for(var x=0;x<16;x++){
-    var grain=Math.sin((x+ntex(x,y,11)*2)*0.8)*0.5+0.5;
-    var n=ntex(x,y,19)*0.25;
-    var r=Math.round(130+grain*50+n*20),g=Math.round(88+grain*35+n*15),b=Math.round(30+grain*20+n*8);
-    px(ctx,x,y,r,g,b);
+  var cv=cv32(),ctx=cv.getContext('2d');
+  for(var y=0;y<32;y++)for(var x=0;x<32;x++){
+    var band=Math.sin(x*0.7+ntex(x,0,11)*1.4)*0.5+0.5;
+    var n=ntex(x,y,19)*0.22;
+    var r=108+band*58+n*16,g=70+band*40+n*12,b=28+band*18+n*6;
+    if((x%8)===3){r-=18;g-=12;}
+    pxi(ctx,x,y,r,g,b);
   }
-  // Nœud de bois
-  ctx.fillStyle='rgba(60,35,10,0.5)';ctx.beginPath();ctx.ellipse(4,9,2,1.5,0.3,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='rgba(55,32,10,0.65)';
+  ctx.beginPath();ctx.ellipse(8,18,3.2,2.2,0.4,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='rgba(160,110,50,0.35)';
+  ctx.beginPath();ctx.ellipse(8,18,1.6,1.1,0.4,0,Math.PI*2);ctx.fill();
   return new THREE.CanvasTexture(cv);
 }
-
-// 6. FEUILLES — touffe verte avec transparence simulée
 function makeLeafTex(){
-  var cv=cvTex(),ctx=cv.getContext('2d');
-  ctx.fillStyle='#1a4a0a';ctx.fillRect(0,0,16,16);
-  for(var y=0;y<16;y++)for(var x=0;x<16;x++){
-    var n=ntex(x,y,13),n2=ntex(x+7,y+3,23);
-    if(n>0.35){
-      var r=Math.round(40+n*60),g=Math.round(100+n*80),b=Math.round(15+n*30);
-      if(n2>0.7){r=Math.min(255,r+20);g=Math.min(255,g+25);}
-      px(ctx,x,y,r,g,b);
-    }
+  var cv=cv32(),ctx=cv.getContext('2d');
+  ctx.fillStyle='#16380a';ctx.fillRect(0,0,32,32);
+  for(var y=0;y<32;y++)for(var x=0;x<32;x++){
+    var n=ntex(x,y,13),n2=ntex(x+5,y+2,23);
+    if(n<0.22)continue;
+    var r=32+n*50,g=92+n*90,b=12+n*28;
+    if(n2>0.72){r+=18;g+=28;b+=8;}
+    if(n>0.85){r=210;g=220;b=80;}
+    pxi(ctx,x,y,r,g,b);
   }
-  // Nervures
-  ctx.strokeStyle='rgba(30,90,10,0.4)';ctx.lineWidth=0.5;
-  ctx.beginPath();ctx.moveTo(8,0);ctx.lineTo(8,16);ctx.stroke();
-  ctx.beginPath();ctx.moveTo(0,8);ctx.lineTo(16,8);ctx.stroke();
   return new THREE.CanvasTexture(cv);
 }
-
-// 7. EAU — reflets animés simulés
 function makeWaterTex(){
-  var cv=cvTex(),ctx=cv.getContext('2d');
-  for(var y=0;y<16;y++)for(var x=0;x<16;x++){
-    var wave=Math.sin((x+y)*0.7)*0.5+0.5;
-    var n=ntex(x,y,15)*0.3;
-    var r=Math.round(30+wave*20+n*15),g=Math.round(100+wave*40+n*20),b=Math.round(200+wave*35+n*15);
-    px(ctx,x,y,Math.min(255,r),Math.min(255,g),Math.min(255,b));
+  var cv=cv32(),ctx=cv.getContext('2d');
+  for(var y=0;y<32;y++)for(var x=0;x<32;x++){
+    var wave=Math.sin(x*0.45+y*0.35)*0.5+0.5,n=ntex(x,y,15)*0.28;
+    var r=18+wave*22+n*10,g=92+wave*50+n*18,b=168+wave*50+n*20;
+    pxi(ctx,x,y,r,g,b);
   }
-  // Reflets blancs
-  ctx.fillStyle='rgba(255,255,255,0.15)';
-  ctx.fillRect(2,3,3,1);ctx.fillRect(10,7,4,1);ctx.fillRect(5,12,3,1);
+  ctx.fillStyle='rgba(220,245,255,0.28)';
+  ctx.fillRect(4,5,8,1);ctx.fillRect(18,11,10,1);ctx.fillRect(8,20,7,1);ctx.fillRect(22,26,6,1);
+  ctx.fillStyle='rgba(255,255,255,0.18)';ctx.fillRect(6,6,4,1);ctx.fillRect(20,12,5,1);
   return new THREE.CanvasTexture(cv);
 }
-
-// 8. NEIGE — blanc pur avec cristaux
 function makeSnowTex(){
-  var cv=cvTex(),ctx=cv.getContext('2d');
-  for(var y=0;y<16;y++)for(var x=0;x<16;x++){
+  var cv=cv32(),ctx=cv.getContext('2d');
+  for(var y=0;y<32;y++)for(var x=0;x<32;x++){
     var n=ntex(x,y,17);
-    var v=Math.round(220+n*35);
-    px(ctx,x,y,Math.min(255,v),Math.min(255,v),Math.min(255,v+10));
+    var v=228+n*24;
+    pxi(ctx,x,y,v,v,v+8);
   }
-  // Cristaux de neige
-  ctx.fillStyle='rgba(255,255,255,0.9)';
-  ctx.fillRect(3,3,1,1);ctx.fillRect(11,6,1,1);ctx.fillRect(7,12,1,1);ctx.fillRect(14,2,1,1);
-  ctx.fillStyle='rgba(200,220,255,0.5)';
-  ctx.fillRect(1,8,2,1);ctx.fillRect(9,4,2,1);ctx.fillRect(6,14,2,1);
+  ctx.fillStyle='#ffffff';
+  for(var i=0;i<14;i++)pxi(ctx,(ntex(i,3,18)*31)|0,(ntex(i,4,19)*31)|0,255,255,255);
+  ctx.fillStyle='rgba(180,210,255,0.45)';
+  ctx.fillRect(2,10,3,1);ctx.fillRect(16,6,4,1);ctx.fillRect(10,22,3,1);
   return new THREE.CanvasTexture(cv);
 }
-
-// 9. GRAVIER — cailloux inégaux
 function makeGravelTex(){
-  var cv=cvTex(),ctx=cv.getContext('2d');
-  for(var y=0;y<16;y++)for(var x=0;x<16;x++){
-    var n=ntex(x,y,21),n2=ntex(x+4,y+8,31);
-    var v=Math.round(120+n*50);
-    var r=Math.round(v+n2*10),g=Math.round(v-5),b=Math.round(v-10);
-    px(ctx,x,y,Math.max(0,r),Math.max(0,g),Math.max(0,b));
+  var cv=cv32(),ctx=cv.getContext('2d');
+  for(var y=0;y<32;y++)for(var x=0;x<32;x++){
+    var n=ntex(x,y,21),c=ntex(x*0.45,y*0.45,31);
+    var v=118+n*40+c*20;
+    pxi(ctx,x,y,v+8,v,v-8);
   }
-  // Contours de cailloux
-  ctx.strokeStyle='rgba(60,55,50,0.6)';ctx.lineWidth=0.8;
-  ctx.beginPath();ctx.ellipse(4,4,3,2,0.3,0,Math.PI*2);ctx.stroke();
-  ctx.beginPath();ctx.ellipse(11,5,2,3,-0.2,0,Math.PI*2);ctx.stroke();
-  ctx.beginPath();ctx.ellipse(5,12,4,2,0.5,0,Math.PI*2);ctx.stroke();
-  ctx.beginPath();ctx.ellipse(13,12,2,2,0,0,Math.PI*2);ctx.stroke();
+  var cols=['#9a9084','#6a645c','#c0b8a8','#5a5248','#8a8070'];
+  for(var i=0;i<16;i++){
+    ctx.fillStyle=cols[i%cols.length];
+    var rx=(ntex(i,1,40)*28)|0,ry=(ntex(i,2,41)*28)|0,rw=2+(ntex(i,3,42)*3)|0,rh=2+(ntex(i,4,43)*3)|0;
+    ctx.fillRect(rx,ry,rw,rh);
+  }
   return new THREE.CanvasTexture(cv);
 }
-
-// 10. CHARBON — pierre noire avec veines brillantes
 function makeCoalTex(){
-  var cv=cvTex(),ctx=cv.getContext('2d');
-  for(var y=0;y<16;y++)for(var x=0;x<16;x++){
-    var n=ntex(x,y,23);
-    var v=Math.round(35+n*35);
-    px(ctx,x,y,v,v,v);
+  var cv=cv32(),ctx=cv.getContext('2d');
+  for(var y=0;y<32;y++)for(var x=0;x<32;x++){
+    var n=ntex(x,y,23),v=88+n*40;
+    pxi(ctx,x,y,v,v,v);
   }
-  // Veines de charbon brillant
-  ctx.fillStyle='rgba(0,0,0,0.7)';
-  ctx.fillRect(3,2,2,8);ctx.fillRect(9,5,2,7);ctx.fillRect(6,1,1,12);
-  // Joints pierre
-  ctx.fillStyle='rgba(80,80,80,0.3)';
-  ctx.fillRect(0,7,16,1);ctx.fillRect(8,0,1,7);
+  ctx.fillStyle='#1a1a1a';
+  for(var i=0;i<9;i++){
+    var x0=(ntex(i,2,50)*26)|0,y0=(ntex(i,3,51)*26)|0,w=3+(ntex(i,4,52)*6)|0,h=4+(ntex(i,5,53)*7)|0;
+    ctx.fillRect(x0,y0,w,h);
+    ctx.fillStyle='#0a0a0a';ctx.fillRect(x0+1,y0+1,Math.max(1,w-2),Math.max(1,h-2));
+    ctx.fillStyle='#1a1a1a';
+  }
+  ctx.fillStyle='rgba(80,80,80,0.35)';ctx.fillRect(0,14,32,1);ctx.fillRect(15,0,1,14);
   return new THREE.CanvasTexture(cv);
 }
-
-// 11. MINERAI DE FER — pierre avec pépites orangées
 function makeIronTex(){
-  var cv=cvTex(),ctx=cv.getContext('2d');
-  for(var y=0;y<16;y++)for(var x=0;x<16;x++){
-    var n=ntex(x,y,25);
-    var v=Math.round(100+n*50);
-    px(ctx,x,y,v,v,v);
+  var cv=cv32(),ctx=cv.getContext('2d');
+  for(var y=0;y<32;y++)for(var x=0;x<32;x++){
+    var n=ntex(x,y,25),v=100+n*46;
+    pxi(ctx,x,y,v,v,v);
   }
-  // Joints
-  ctx.fillStyle='rgba(50,50,50,0.4)';
-  ctx.fillRect(0,6,16,1);ctx.fillRect(0,12,16,1);
-  ctx.fillRect(5,0,1,6);ctx.fillRect(11,7,1,5);
-  // Pépites de fer (orange-beige)
-  ctx.fillStyle='#d4956a';ctx.fillRect(2,2,3,3);ctx.fillRect(11,4,3,2);ctx.fillRect(7,9,2,3);ctx.fillRect(3,12,4,2);
-  ctx.fillStyle='#e8b090';ctx.fillRect(3,3,1,1);ctx.fillRect(12,5,1,1);ctx.fillRect(8,10,1,1);
+  ctx.fillStyle='rgba(50,50,50,0.4)';ctx.fillRect(0,12,32,1);ctx.fillRect(0,22,32,1);ctx.fillRect(10,0,1,12);
+  var ores=['#d4a06a','#e8c090','#b07840','#f0d0a8'];
+  for(var i=0;i<14;i++){
+    ctx.fillStyle=ores[i%ores.length];
+    ctx.fillRect((ntex(i,6,60)*28)|0,(ntex(i,7,61)*28)|0,2+(ntex(i,8,62)*2)|0,2+(ntex(i,9,63)*2)|0);
+  }
   return new THREE.CanvasTexture(cv);
 }
 
