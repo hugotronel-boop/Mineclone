@@ -917,15 +917,20 @@ pointer-events: none;
 #food-row,
 #thirst-row,
 #stamina-row,
+#air-row,
 #temp-row {
 display: flex;
 gap: 3px;
 align-items: center;
 }
+#air-row{min-height:22px;}
+#air-row.hidden{display:none;}
+.air-icon{font-size:16px;filter:drop-shadow(0 1px 1px #000);}
 
 .heart,
 .food-icon,
 .thirst-icon,
+.air-icon,
 .stamina-icon,
 .temp-icon {
 width: 18px;
@@ -2281,6 +2286,7 @@ display: none !important;
     <div id="food-row"></div>
     <div id="thirst-row"></div>
     <div id="stamina-row"></div>
+    <div id="air-row"></div>
     <div id="temp-row"></div>
   </div>
 
@@ -5030,6 +5036,7 @@ var player={
   thirst:14,maxThirst:14,
   // Endurance (diminue en sprintant, sautant, combattant, minant)
   stamina:14,maxStamina:14,
+  air:20,maxAir:20,_drownT:0,
   // Température (0=glacial, 7=normal, 14=chaud) — cible: 7
   temp:10,maxTemp:14,
   fallVelPeak:0,wasOnGround:false
@@ -5066,7 +5073,14 @@ function drawTemp(){
     row.appendChild(el);
   }
 }
-function updateBars(){drawHearts();drawFood();drawThirst();drawStamina();drawTemp();}
+function updateBars(){drawHearts();drawFood();drawThirst();drawStamina();drawAir();drawTemp();}
+function drawAir(){
+  var row=document.getElementById('air-row');if(!row)return;
+  var headW=typeof isInWater==='function'&&isInWater(player.pos.x,player.pos.y-0.15,player.pos.z);
+  if(!headW&&player.air>=player.maxAir){row.classList.add('hidden');row.innerHTML='';return;}
+  row.classList.remove('hidden');
+  drawRow('air-row','air-icon',player.air,player.maxAir,'🫧','💧','·');
+}
 
 function hurtPlayer(dmg,cause,attacker){if(dmg>0)if(typeof playSoundHurt==='function')playSoundHurt();
   if(false)return;
@@ -6937,6 +6951,22 @@ var _sleepTimer=0;   // fatigue qui pèse sur l'endurance
 
 function updateSurvival(dt){
   if(false)return;
+  var headWater=isInWater(player.pos.x,player.pos.y-0.15,player.pos.z);
+  if(headWater){
+    player.air=Math.max(0,player.air-dt*(player.maxAir/15));
+    if(player.air<=0){
+      player._drownT=(player._drownT||0)+dt;
+      if(player._drownT>=1){
+        player._drownT=0;
+        hurtPlayer(2,'Noyade !');
+        showPopup('😵 Plus d\'air !',player.pos.clone().add(new THREE.Vector3(0,1.4,0)));
+      }
+    } else player._drownT=0;
+  } else {
+    if(player.air<player.maxAir)player.air=Math.min(player.maxAir,player.air+dt*18);
+    player._drownT=0;
+  }
+  if(typeof drawAir==='function')drawAir();
   var inWater=isInWater(player.pos.x,player.pos.y-0.5,player.pos.z);
   var isRunning=(_sprintDrainTimer>0);
   var isCold=(player.temp<=4);
