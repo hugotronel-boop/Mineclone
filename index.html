@@ -6013,26 +6013,56 @@ var heldItem={id:0,qty:0};var invOpen=false;
 function hasBag(){return EQUIP.bag.id===ITEM_BACKPACK;}
 
 // Donne un item : hotbar d'abord, puis sac si équipé, sinon plein
+function pourLooseIntoPouch(pouchId){
+  var ammoId=pouchId===ITEM_QUIVER?ITEM_ARROW:ITEM_PEBBLE;
+  var mx=pouchId===ITEM_QUIVER?QUIVER_MAX:PEBBLE_POUCH_MAX;
+  for(var i=0;i<INV.length;i++){
+    if(!INV[i]||INV[i].id!==ammoId||!INV[i].qty)continue;
+    for(var p=0;p<INV.length&&INV[i].qty>0;p++){
+      if(INV[p]&&INV[p].id===pouchId){
+        var a=INV[p].ammo||0, add=Math.min(mx-a,INV[i].qty);
+        if(add>0){INV[p].ammo=a+add;INV[i].qty-=add;}
+      }
+    }
+    if(INV[i].qty<=0)INV[i]={id:0,qty:0};
+  }
+}
 function giveItem(id,qty,silent){
   if(!id||!(qty>0))return false;
   if(!silent&&typeof _audioInitialized!=='undefined'&&_audioInitialized)playSoundPickup();
   var bag=hasBag();
   var left=qty;
-  if(id===ITEM_PEBBLE||id===ITEM_ARROW){
-    var pid=id===ITEM_ARROW?ITEM_QUIVER:ITEM_PEBBLE_POUCH;
+  var pouchId=(id===ITEM_ARROW)?ITEM_QUIVER:(id===ITEM_PEBBLE)?ITEM_PEBBLE_POUCH:0;
+  var hasPouch=false;
+  if(pouchId){
     var mx=id===ITEM_ARROW?QUIVER_MAX:PEBBLE_POUCH_MAX;
     for(var pi=0;pi<INV.length&&left>0;pi++){
-      if(INV[pi]&&INV[pi].id===pid){
+      if(INV[pi]&&INV[pi].id===pouchId){
+        hasPouch=true;
         var a=INV[pi].ammo||0, add=Math.min(mx-a,left);
         if(add>0){INV[pi].ammo=a+add;left-=add;}
       }
     }
-    if(left<=0){syncHotbar();return true;}
+    if(left<=0){syncHotbar();if(typeof buildInvUI==='function'&&invOpen)buildInvUI();return true;}
+    if(hasPouch){
+      showPopup(id===ITEM_ARROW?'Carquois plein !':'Pochette pleine !',player.pos.clone().add(new THREE.Vector3(0,1.6,0)));
+      syncHotbar();
+      return left;
+    }
+    var have=0;
+    for(var ci=0;ci<INV.length;ci++)if(INV[ci]&&INV[ci].id===id)have+=INV[ci].qty||0;
+    var room=Math.max(0,5-have);
+    if(room<=0){
+      showPopup(id===ITEM_ARROW?'Max 5 fleches sans carquois':'Max 5 cailloux sans pochette',player.pos.clone().add(new THREE.Vector3(0,1.6,0)));
+      return qty;
+    }
+    if(left>room)left=room;
   }
   function stackRange(a,b){
+    var cap=(id===ITEM_PEBBLE||id===ITEM_ARROW)?5:64;
     for(var i=a;i<b&&left>0;i++){
-      if(INV[i]&&INV[i].id===id&&INV[i].qty<64){
-        var add=Math.min(64-INV[i].qty,left);
+      if(INV[i]&&INV[i].id===id&&INV[i].qty<cap){
+        var add=Math.min(cap-INV[i].qty,left);
         INV[i].qty+=add;left-=add;
       }
     }
@@ -6042,6 +6072,7 @@ function giveItem(id,qty,silent){
       if(!INV[i]||!INV[i].id){
         var add=Math.min(64,left);
         INV[i]={id:id,qty:add,ammo:(id===ITEM_PEBBLE_POUCH||id===ITEM_QUIVER)?0:0};left-=add;
+        if(id===ITEM_PEBBLE_POUCH||id===ITEM_QUIVER)pourLooseIntoPouch(id);
       }
     }
   }
@@ -7879,21 +7910,14 @@ function spawnPebblesInChunk(cx,cz){
   _pebbleSpawned[key]=1;
   var ox=cx*CHUNK_SIZE,oz=cz*CHUNK_SIZE;
   if(getIsland(ox+8,oz+8)===0)return;
-  var n=hash(cx,cz,SEED+4100)>0.58?0:(1+Math.floor(hash(cx,cz,SEED+4101)*3));
+  var n=hash(cx,cz,SEED+4100)>0.28?0:(1+Math.floor(hash(cx,cz,SEED+4101)*3));
+  if(hash(cx,cz,SEED+4102)>0.72)n+=1+Math.floor(hash(cx,cz,SEED+4103)*2);
   for(var i=0;i<n;i++){
     var lx=2+Math.floor(hash(cx,i,SEED+4110)*12),lz=2+Math.floor(hash(cz,i,SEED+4111)*12);
     var wx=ox+lx+0.5,wz=oz+lz+0.5;
-    var biome=getBiome(Math.floor(wx),Math.floor(wz));
-    var nearW=biome==='beach'||isLake(Math.floor(wx),Math.floor(wz));
-    if(!nearW){
-      for(var t=0;t<6&&!nearW;t++){
-        var tx=Math.floor(wx)+[-2,2,0,0,-3,3][t],tz=Math.floor(wz)+[0,0,-2,2,-1,1][t];
-        if(getBlock(tx,SEA_LEVEL,tz)===B_WATER||isLake(tx,tz)||getH(tx,tz)<=SEA_LEVEL)nearW=true;
-      }
-    }
-    if(!nearW&&hash(cx,i,SEED+4112)>0.35)continue;
     var wy=getH(Math.floor(wx),Math.floor(wz))+0.08;
-    if(wy<SEA_LEVEL-0.2)continue;
+    if(wy<=SEA_LEVEL+0.05)continue;
+    if(isLake(Math.floor(wx),Math.floor(wz)))continue;
     var g=new THREE.Group();
     var m1=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.09,0.14),new THREE.MeshBasicMaterial({color:0x8a8680}));
     var m2=new THREE.Mesh(new THREE.BoxGeometry(0.10,0.07,0.11),new THREE.MeshBasicMaterial({color:0x6e6a64}));
@@ -7909,7 +7933,8 @@ function pickupPebble(pb){
   if(!pb)return;
   var i=_pebbles.indexOf(pb);
   if(i<0)return;
-  giveItem(ITEM_PEBBLE,1);
+  var r=giveItem(ITEM_PEBBLE,1);
+  if(r===false||(typeof r==='number'&&r>=1))return;
   try{scene.remove(pb.mesh);}catch(e){}
   _pebbles.splice(i,1);
   var btn=document.getElementById('pebble-float-btn');
