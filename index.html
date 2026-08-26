@@ -7945,6 +7945,24 @@ function trySpawnAnimalsInChunk(cx,cz){
   }
 }
 var _pebbles=[],_pebbleSpawned={};
+function makePebbleMesh(){
+  var g=new THREE.Group();
+  var a=new THREE.MeshBasicMaterial({color:0x8a8680});
+  var b=new THREE.MeshBasicMaterial({color:0x6a6660});
+  var c=new THREE.MeshBasicMaterial({color:0xa8a298});
+  var m1=new THREE.Mesh(new THREE.BoxGeometry(0.15,0.08,0.13),a);
+  m1.position.set(0,0.04,0);
+  var m2=new THREE.Mesh(new THREE.BoxGeometry(0.09,0.06,0.10),b);
+  m2.position.set(0.07,0.03,0.04);
+  var m3=new THREE.Mesh(new THREE.BoxGeometry(0.07,0.05,0.07),c);
+  m3.position.set(-0.05,0.025,-0.03);
+  g.add(m1);g.add(m2);g.add(m3);
+  return g;
+}
+function pebbleGroundY(x,z,fallback){
+  var h=(typeof getH==='function')?getH(Math.floor(x),Math.floor(z)):Math.floor(fallback||0);
+  return h+1;
+}
 function spawnPebblesInChunk(cx,cz){
   var key=ckey(cx,cz);
   if(_pebbleSpawned[key])return;
@@ -7956,14 +7974,10 @@ function spawnPebblesInChunk(cx,cz){
   for(var i=0;i<n;i++){
     var lx=2+Math.floor(hash(cx,i,SEED+4110)*12),lz=2+Math.floor(hash(cz,i,SEED+4111)*12);
     var wx=ox+lx+0.5,wz=oz+lz+0.5;
-    var wy=getH(Math.floor(wx),Math.floor(wz))+0.08;
+    var wy=pebbleGroundY(wx,wz);
     if(wy<=SEA_LEVEL+0.05)continue;
     if(isLake(Math.floor(wx),Math.floor(wz)))continue;
-    var g=new THREE.Group();
-    var m1=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.09,0.14),new THREE.MeshBasicMaterial({color:0x8a8680}));
-    var m2=new THREE.Mesh(new THREE.BoxGeometry(0.10,0.07,0.11),new THREE.MeshBasicMaterial({color:0x6e6a64}));
-    m2.position.set(0.08,0,0.04);
-    g.add(m1);g.add(m2);
+    var g=makePebbleMesh();
     g.position.set(wx,wy,wz);
     g.rotation.y=hash(cx,i,SEED+4113)*6;
     scene.add(g);
@@ -7994,7 +8008,7 @@ function updatePebbles(){
   var best=null,bestD=2.4*2.4,kind='pebble';
   for(var i=_pebbles.length-1;i>=0;i--){
     var pb=_pebbles[i];
-    if(pb.mesh)pb.mesh.position.y=pb.y+Math.sin(Date.now()*0.004+i)*0.02;
+    if(pb.mesh)pb.mesh.position.y=pb.y;
     var dx=pb.x-px,dz=pb.z-pz,dy=pb.y-py;
     var d2=dx*dx+dz*dz+dy*dy;
     if(d2<bestD){bestD=d2;best=pb;kind='pebble';}
@@ -10146,18 +10160,19 @@ function _fireSlingProjectile(charge,isArrow,isHand){
   }
 
   // Mesh
-  var geo=new THREE.BoxGeometry(isArrow?0.04:0.18,isArrow?0.04:0.18,isArrow?0.5:0.18);
-  var mat=new THREE.MeshBasicMaterial({color:isArrow?0x8B5E1A:0x888888});
-  var mesh=new THREE.Mesh(geo,mat);
+  var mesh;
+  if(isArrow){
+    mesh=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.04,0.5),new THREE.MeshBasicMaterial({color:0x8B5E1A}));
+    mesh.rotation.x=Math.atan2(dirY,Math.sqrt(dirX*dirX+dirZ*dirZ));
+    mesh.rotation.y=Math.atan2(-dirX,-dirZ);
+  } else {
+    mesh=makePebbleMesh();
+  }
   mesh.position.set(
     player.pos.x+dirX*0.9,
     player.pos.y+1.4+dirY*0.9,
     player.pos.z+dirZ*0.9
   );
-  if(isArrow){
-    mesh.rotation.x=Math.atan2(dirY,Math.sqrt(dirX*dirX+dirZ*dirZ));
-    mesh.rotation.y=Math.atan2(-dirX,-dirZ);
-  }
   scene.add(mesh);
 
   _slingProjectiles.push({
@@ -10171,16 +10186,21 @@ function dropSpentAmmo(p,x,y,z){
     var old=_spentAmmo.shift();
     try{scene.remove(old.mesh);}catch(e){}
   }
-  var gy=y;
-  if(typeof getH==='function'){
-    var gh=getH(Math.floor(x),Math.floor(z))+0.07;
-    if(gy<gh)gy=gh;
+  var gy=pebbleGroundY(x,z,y);
+  if(p.isArrow){
+    p.mesh.position.set(x,gy+0.02,z);
+    p.mesh.rotation.x=0.15;p.mesh.rotation.z=1.2;
+    _spentAmmo.push({mesh:p.mesh,x:x,y:gy,z:z,id:ITEM_ARROW});
+    p.mesh=null;
+    return;
   }
-  if(typeof isSolid==='function'&&isSolid(x,gy,z))gy=Math.floor(gy)+1.07;
-  p.mesh.position.set(x,gy,z);
-  if(p.isArrow){p.mesh.rotation.x=0.2;p.mesh.rotation.z=1.15;}
-  _spentAmmo.push({mesh:p.mesh,x:x,y:gy,z:z,id:p.isArrow?ITEM_ARROW:ITEM_PEBBLE});
+  try{scene.remove(p.mesh);}catch(e){}
+  var g=makePebbleMesh();
+  g.position.set(x,gy,z);
+  g.rotation.y=Math.random()*6;
+  scene.add(g);
   p.mesh=null;
+  _spentAmmo.push({mesh:g,x:x,y:gy,z:z,id:ITEM_PEBBLE});
 }
 
 function updateBow(dt){
