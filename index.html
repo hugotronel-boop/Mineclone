@@ -3580,36 +3580,39 @@ FDEF[ITEM_WATER_COLLECTOR]={t:'#8a5a28',s:'#6a4420',b:'#3a2410'};
 
 
 // ── Texture Buisson de Baies (B_BERRY_BUSH = 120) ───────────
+function plantTex(paint){
+  var cv=document.createElement('canvas');cv.width=cv.height=16;
+  var ctx=cv.getContext('2d');
+  var img=ctx.createImageData(16,16),d=img.data;
+  function set(x,y,r,g,b,a){
+    if(x<0||y<0||x>15||y>15)return;
+    var i=(y*16+x)*4;d[i]=r;d[i+1]=g;d[i+2]=b;d[i+3]=a==null?255:a;
+  }
+  paint(set);
+  ctx.putImageData(img,0,0);
+  var cv2=cv32(),c2=cv2.getContext('2d');c2.imageSmoothingEnabled=false;c2.drawImage(cv,0,0,32,32);
+  return new THREE.CanvasTexture(cv2);
+}
 function makeBerryTex(){
-  var cv=document.createElement('canvas');cv.width=cv.height=16;var ctx=cv.getContext('2d');
-  // Fond vert feuillage
-  ctx.fillStyle='#2a7a1a';ctx.fillRect(0,0,16,16);
-  // Variations de vert pour simuler le feuillage
-  var greens=['#3a9020','#206010','#4aaa28','#1a5010'];
-  for(var i=0;i<24;i++){ctx.fillStyle=greens[i%greens.length];var px=Math.floor(Math.sin(i*137.5)*7+8),py=Math.floor(Math.cos(i*97.3)*6+8);ctx.fillRect(px,py,2,2);}
-  // Baies rouges/roses dispersées
-  var berryPos=[[2,3],[5,6],[9,2],[12,5],[3,10],[7,12],[11,9],[14,13],[6,1],[10,14],[1,7],[13,3]];
-  for(var b=0;b<berryPos.length;b++){
-    var bx=berryPos[b][0],by=berryPos[b][1];
-    ctx.fillStyle='#cc1040';ctx.fillRect(bx,by,2,2);
-    ctx.fillStyle='#ff4070';ctx.fillRect(bx,by,1,1); // reflet
-  }
-  return new THREE.CanvasTexture(cv);
+  return plantTex(function(set){
+    var pal=[[36,110,22],[52,138,32],[28,88,16],[70,158,40],[44,124,26]];
+    for(var y=0;y<16;y++)for(var x=0;x<16;x++){
+      var dx=x-8,dy=(y-9)*0.85;
+      var blob=1-Math.sqrt(dx*dx+dy*dy)/7.2;
+      var n=ntex(x,y,44),n2=ntex(x*0.6,y*0.6,45);
+      if(blob+n*0.25<0.28)continue;
+      if(n2<0.16)continue;
+      var c=pal[((n*5)|0)%5];
+      set(x,y,c[0],c[1],c[2],255);
+    }
+    var berries=[[4,6],[9,4],[12,8],[6,10],[11,12],[3,11],[8,7],[13,5],[5,3]];
+    for(var i=0;i<berries.length;i++){
+      var bx=berries[i][0],by=berries[i][1];
+      set(bx,by,180,20,40);set(bx+1,by,200,30,50);set(bx,by+1,140,16,32);set(bx,by,230,70,80);
+    }
+  });
 }
-function makeBerryTopTex(){
-  var cv=document.createElement('canvas');cv.width=cv.height=16;var ctx=cv.getContext('2d');
-  ctx.fillStyle='#3a9020';ctx.fillRect(0,0,16,16);
-  // Vue du dessus : feuilles touffues
-  for(var i=0;i<20;i++){
-    var px=Math.floor(Math.random()*14),py=Math.floor(Math.random()*14);
-    ctx.fillStyle=i%3===0?'#4aaa28':'#206010';ctx.fillRect(px,py,2+i%2,2+i%2);
-  }
-  // Quelques baies vues du dessus
-  ctx.fillStyle='#cc1040';
-  var tops=[[3,4],[8,3],[12,7],[5,11],[10,12],[2,9],[14,5]];
-  tops.forEach(function(p){ctx.fillRect(p[0],p[1],2,2);ctx.fillStyle='#ff4070';ctx.fillRect(p[0],p[1],1,1);ctx.fillStyle='#cc1040';});
-  return new THREE.CanvasTexture(cv);
-}
+function makeBerryTopTex(){return makeBerryTex();}
 TEX[120]={top:makeBerryTopTex(),side:makeBerryTex(),bot:makeBerryTex()};
 
 // ── Texture Champignon (B_MUSHROOM_BLOCK = 121) ─────────────
@@ -3657,46 +3660,42 @@ TEX[121]={top:makeMushroomCapTex(),side:makeMushroomStemTex(),bot:makeMushroomBo
 
 // ── Texture Herbe médicinale (B_HERB_BLOCK = 122) ───────────
 function makeHerbTex(){
-  var cv=document.createElement('canvas');cv.width=cv.height=16;var ctx=cv.getContext('2d');
-  ctx.clearRect(0,0,16,16);
-  // Tiges vertes fines
-  ctx.strokeStyle='#50c820';ctx.lineWidth=1;
-  var stems=[[3,15,5,3],[6,15,7,2],[10,15,9,4],[13,15,11,2],[1,15,3,6],[8,15,12,3]];
-  stems.forEach(function(s){ctx.beginPath();ctx.moveTo(s[0],s[1]);ctx.lineTo(s[2],s[3]);ctx.stroke();});
-  // Petites feuilles ovales
-  var leaves=[
-    {x:4,y:4,r:'#50c820'},{x:9,y:3,r:'#3aaa10'},{x:12,y:5,r:'#60d828'},
-    {x:2,y:7,r:'#3aaa10'},{x:7,y:2,r:'#50c820'},{x:11,y:7,r:'#60d828'}
-  ];
-  leaves.forEach(function(l){
-    ctx.fillStyle=l.r;ctx.beginPath();ctx.ellipse(l.x,l.y,2,1,0.3,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='rgba(255,255,255,0.3)';ctx.fillRect(l.x-1,l.y-1,1,1);
+  return plantTex(function(set){
+    var stems=[[3,15,4,5],[6,15,7,3],[8,15,8,4],[11,15,12,6],[13,15,11,4]];
+    for(var si=0;si<stems.length;si++){
+      var x0=stems[si][0],y0=stems[si][1],x1=stems[si][2],y1=stems[si][3];
+      var steps=12;
+      for(var t=0;t<=steps;t++){
+        var u=t/steps,x=Math.round(x0+(x1-x0)*u),y=Math.round(y0+(y1-y0)*u);
+        set(x,y,48,130,28);set(x,y-1,62,150,36);
+        if(t>4&&t%3===0){
+          set(x-1,y,56,148,32);set(x+1,y,40,120,22);
+          set(x-2,y-1,70,160,40);set(x+2,y-1,50,140,30);
+        }
+      }
+      set(x1,y1,240,240,230);set(x1-1,y1,255,230,80);set(x1+1,y1,255,230,80);set(x1,y1-1,255,255,255);
+    }
   });
-  // Petites fleurs blanches/jaunes
-  var flowers=[[5,6],[10,4],[2,11],[8,8],[13,11]];
-  flowers.forEach(function(f){
-    ctx.fillStyle='#ffffff';ctx.fillRect(f[0]-1,f[1]-1,3,1);ctx.fillRect(f[0],f[1]-2,1,3);
-    ctx.fillStyle='#ffee44';ctx.fillRect(f[0],f[1],1,1);
-  });
-  return new THREE.CanvasTexture(cv);
 }
 TEX[122]={top:makeHerbTex(),side:makeHerbTex(),bot:makeHerbTex()};
 // ── Texture Ortie (B_NETTLES = 123)
 function makeNettleTex(){
-  var cv=document.createElement('canvas');cv.width=cv.height=16;var ctx=cv.getContext('2d');
-  ctx.clearRect(0,0,16,16);
-  // Fond vert
-  ctx.fillStyle='#70c030';ctx.fillRect(3,8,10,8);
-  // Feuilles dentelées caractéristiques des orties
-  var pts1=[[4,2],[5,0],[7,3],[6,1],[8,0],[9,2],[10,1],[11,3],[10,5],[8,4],[6,5]];
-  ctx.fillStyle='#50a010';ctx.beginPath();ctx.moveTo(pts1[0][0],pts1[0][1]);
-  pts1.forEach(function(p){ctx.lineTo(p[0],p[1]);});ctx.closePath();ctx.fill();
-  // Petits poils (dents)
-  ctx.fillStyle='#ffffff';
-  [[5,1],[7,0],[9,1],[11,2],[4,3],[6,4],[10,4]].forEach(function(p){ctx.fillRect(p[0],p[1],1,1);});
-  // Tige verte
-  ctx.fillStyle='#408008';ctx.fillRect(7,5,2,11);
-  return new THREE.CanvasTexture(cv);
+  return plantTex(function(set){
+    for(var y=4;y<16;y++){set(7,y,40,96,20);set(8,y,48,110,24);}
+    var rows=[[3,6,4],[5,5,5],[7,4,5],[9,5,4],[11,6,3]];
+    for(var r=0;r<rows.length;r++){
+      var y=rows[r][0],len=rows[r][2],mid=8;
+      for(var k=-len;k<=len;k++){
+        if(k===0)continue;
+        var x=mid+k,yy=y+(k<0?-1:0);
+        var g=k%2?40:28;
+        set(x,yy,36+g,110+g,18);
+        set(x,yy-1,50+g,140,28);
+        if(Math.abs(k)===len){set(x,yy-1,70,160,36);set(x+(k>0?1:-1),yy,44,120,22);}
+      }
+    }
+    set(7,3,60,150,30);set(8,2,70,160,34);set(8,3,52,140,26);
+  });
 }
 TEX[123]={top:makeNettleTex(),side:makeNettleTex(),bot:makeNettleTex()};
 
@@ -4879,7 +4878,7 @@ function buildMesh(cx,cz){
     if(bid!==B_BERRY_BUSH&&bid!==B_HERB_BLOCK&&bid!==B_NETTLES&&bid!==B_SAPLING)continue;
     var wpx=ox+lx,wpz=oz+lz;
     // Hauteur selon le type : buisson = 0.8 bloc, champignon = 0.7 bloc
-    var ph=bid===B_BERRY_BUSH?0.82:0.70;
+    var ph=bid===B_BERRY_BUSH?1.0:bid===B_NETTLES?0.95:bid===B_HERB_BLOCK?0.7:0.75;
     // 2 quads croisés = forme X vue de dessus (comme les herbes de Minecraft)
     var crosses=[
       // quad A : diagonale /
@@ -4921,7 +4920,7 @@ function buildMesh(cx,cz){
     for(var wi=0;wi<WLD.length;wi++){var wd=WLD[wi];if(getW(lx+wd.dx,y,lz+wd.dz)!==B_AIR)continue;var nab=getW(lx+wd.dx,y+1,lz+wd.dz)===B_WATER,tF=nab?y+1.0:y+WATER_TOP,wq3=wC;wP.push(wx6+wd.bx[0],y,wz6+wd.bz[0],wx6+wd.bx[1],y,wz6+wd.bz[1],wx6+wd.bx[2],tF,wz6+wd.bz[2],wx6+wd.bx[3],topY,wz6+wd.bz[3]);wU.push(0,1,1,1,1,0,0,0);for(var wb3=0;wb3<4;wb3++)wB.push(0.72);wI.push(wq3,wq3+1,wq3+2,wq3,wq3+2,wq3+3);wC+=4;}
   }
   var group=new THREE.Group();group.userData.cx=cx;group.userData.cz=cz;group.userData.minY=0;group.userData.maxY=maxY;
-  for(var bk in bkts){var b=bkts[bk];if(!b.cnt)continue;var geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(b.pos,3));geo.setAttribute('uv',new THREE.Float32BufferAttribute(b.uv,2));geo.setAttribute('brightness',new THREE.Float32BufferAttribute(b.br,1));geo.index=new Uint16Array(b.idx);var tex=TEX[b.id]?TEX[b.id][b.face]:null;var isPlant=(b.id===B_LEAF||b.id===B_BERRY_BUSH||b.id===B_MUSHROOM_BLOCK);group.add(new THREE.Mesh(geo,isPlant?new THREE.MeshBasicMaterial({map:tex,transparent:true,opacity:1}):new THREE.MeshBasicMaterial({map:tex})));}
+  for(var bk in bkts){var b=bkts[bk];if(!b.cnt)continue;var geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(b.pos,3));geo.setAttribute('uv',new THREE.Float32BufferAttribute(b.uv,2));geo.setAttribute('brightness',new THREE.Float32BufferAttribute(b.br,1));geo.index=new Uint16Array(b.idx);var tex=TEX[b.id]?TEX[b.id][b.face]:null;var isPlant=(b.id===B_LEAF||b.id===B_BERRY_BUSH||b.id===B_HERB_BLOCK||b.id===B_NETTLES||b.id===B_SAPLING);group.add(new THREE.Mesh(geo,isPlant?new THREE.MeshBasicMaterial({map:tex,transparent:true,opacity:1}):new THREE.MeshBasicMaterial({map:tex})));}
   if(wC>0){var wgeo=new THREE.BufferGeometry();wgeo.setAttribute('position',new THREE.Float32BufferAttribute(wP,3));wgeo.setAttribute('uv',new THREE.Float32BufferAttribute(wU,2));wgeo.setAttribute('brightness',new THREE.Float32BufferAttribute(wB,1));wgeo.index=new Uint16Array(wI);group.add(new THREE.Mesh(wgeo,new THREE.MeshBasicMaterial({color:0x1a6eb5,transparent:true,opacity:0.72})));}
     var mushCap=new THREE.MeshBasicMaterial({color:0xc44a28});
   var mushStem=new THREE.MeshBasicMaterial({color:0xf0e6c8});
