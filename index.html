@@ -7831,23 +7831,35 @@ function buildAnimalMesh(type){
     boxCol(armW*1.2,0.10,armW*1.3,skin,-torsoW*0.62,shoulderY-armL*0.72,0.06);
     boxCol(armW*1.2,0.10,armW*1.3,skin, torsoW*0.62,shoulderY-armL*0.72,0.06);
 
-    // arme
-    var held;
-    if(kind==='chasseur'){
-      held=boxCol(0.05,0.95,0.05,0x6a4420, torsoW*0.70,shoulderY-armL*0.15,0.16);
-      boxCol(0.09,0.14,0.03,bone, torsoW*0.70,shoulderY+0.38,0.16);
-    } else if(kind==='brute'){
-      held=boxCol(0.16,0.70,0.16,0x4a3010, torsoW*0.85,shoulderY-0.05,0.18);
-      boxCol(0.22,0.18,0.22,0x3a3a3a, torsoW*0.85,shoulderY+0.28,0.18);
-    } else if(kind==='guerrier'){
-      held=boxCol(0.10,0.55,0.10,0x5a3818, torsoW*0.72,shoulderY-0.10,0.16);
-      boxCol(0.18,0.16,0.12,bone, torsoW*0.72,shoulderY+0.18,0.16);
-    } else if(kind==='rodeur'){
-      held=boxCol(0.04,0.08,0.22,0x3a3a3a, torsoW*0.58,shoulderY-armL*0.55,0.22);
-    } else {
-      held=boxCol(0.08,0.45,0.08,0x4a5a30, torsoW*0.78,shoulderY-0.05,0.14);
+    // arme dans la main droite (suit le bras)
+    var wep=new THREE.Group();
+    rA.add(wep);
+    wep.position.set(armW*1.05,-armL*0.42,armW*0.7);
+    wep.rotation.x=0.45;
+    function wbox(w,h,d,col,x,y,z){
+      var m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshBasicMaterial({color:col}));
+      m.position.set(x,y,z);wep.add(m);return m;
     }
-    group.userData.held=held;
+    if(kind==='rodeur'){
+      wbox(0.045,0.88,0.045,0x6a4a24,0,0.18,0);
+      wbox(0.055,0.10,0.055,0x4a3010,0,-0.22,0);
+      wbox(0.07,0.08,0.07,0x8a8880,0,0.58,0);
+    } else if(kind==='brute'){
+      wbox(0.13,0.52,0.13,0x4a3018,0,0.02,0);
+      wbox(0.28,0.34,0.28,0x3a220e,0,0.40,0);
+      wbox(0.08,0.14,0.08,bone,0.13,0.48,0.08);
+      wbox(0.08,0.14,0.08,bone,-0.12,0.50,0.05);
+      wbox(0.10,0.16,0.10,0x2a1a0c,0,0.55,0);
+      wbox(0.11,0.12,0.11,0x5a4030,0,-0.24,0);
+    } else {
+      var axH=(kind==='chasseur')?0.80:0.64;
+      wbox(0.05,axH,0.05,0x6a4428,0,0.06,0);
+      wbox(0.30,0.16,0.08,0x8a8a82,0.14,axH*0.40,0);
+      wbox(0.12,0.18,0.06,0x5a5a54,0.02,axH*0.40,0);
+      wbox(0.22,0.05,0.05,0x6a6a64,0.18,axH*0.40,0);
+      wbox(0.06,0.08,0.06,0x5a4030,0,-0.20,0);
+    }
+    group.userData.held=wep;
 
     // mutant : 3e bras
     if(kind==='mutant'){
@@ -8513,7 +8525,7 @@ function updateAnimals(dt){
       if(arms&&arms.length){
         for(var ai=0;ai<arms.length;ai++){if(arms[ai])arms[ai].rotation.x=-lp*0.5*((ai%2===0)?1:-1);}
       }
-      if(a.mesh.userData.held&&arms&&arms[1]){
+      if(a.mesh.userData.held&&a.mesh.userData.held.parent===a.mesh&&arms&&arms[1]){
         a.mesh.userData.held.rotation.x=arms[1].rotation.x;
       }
       var segs=a.mesh.userData.segments;
