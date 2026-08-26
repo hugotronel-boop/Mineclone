@@ -7803,8 +7803,8 @@ function trySpawnAnimalsInChunk(cx,cz){
   spawnedChunks.add(key);
   if(hash(cx*7.3,cz*4.9,SEED+321)>0.62)return;
   var types=isl===1
-    ?['cow','cow','sheep','sheep','sheep','rabbit','rabbit','rabbit','rabbit','deer','deer','chicken','chicken','chicken','boar','wolf']
-    :['cow','sheep','sheep','rabbit','rabbit','chicken','chicken'];
+    ?['cow','cow','sheep','sheep','sheep','sheep','sheep','rabbit','rabbit','rabbit','deer','deer','chicken','chicken','boar','wolf']
+    :['cow','sheep','sheep','sheep','rabbit','rabbit','chicken'];
   var n=1+Math.floor(hash(cx,cz,SEED+888)*2);
   if(!isMobile&&hash(cx,cz,SEED+889)>0.55)n++;
   for(var si=0;si<n;si++){
