@@ -4876,7 +4876,7 @@ function buildMesh(cx,cz){
   // Plantes (buisson de baies + champignon) — billboard en croix
   for(var lx=0;lx<CS;lx++)for(var y=0;y<maxY;y++)for(var lz=0;lz<CS;lz++){
     var bid=getD(lx,y,lz);
-    if(bid!==B_BERRY_BUSH&&bid!==B_MUSHROOM_BLOCK&&bid!==B_HERB_BLOCK&&bid!==B_NETTLES&&bid!==B_SAPLING)continue;
+    if(bid!==B_BERRY_BUSH&&bid!==B_HERB_BLOCK&&bid!==B_NETTLES&&bid!==B_SAPLING)continue;
     var wpx=ox+lx,wpz=oz+lz;
     // Hauteur selon le type : buisson = 0.8 bloc, champignon = 0.7 bloc
     var ph=bid===B_BERRY_BUSH?0.82:0.70;
@@ -4923,7 +4923,25 @@ function buildMesh(cx,cz){
   var group=new THREE.Group();group.userData.cx=cx;group.userData.cz=cz;group.userData.minY=0;group.userData.maxY=maxY;
   for(var bk in bkts){var b=bkts[bk];if(!b.cnt)continue;var geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(b.pos,3));geo.setAttribute('uv',new THREE.Float32BufferAttribute(b.uv,2));geo.setAttribute('brightness',new THREE.Float32BufferAttribute(b.br,1));geo.index=new Uint16Array(b.idx);var tex=TEX[b.id]?TEX[b.id][b.face]:null;var isPlant=(b.id===B_LEAF||b.id===B_BERRY_BUSH||b.id===B_MUSHROOM_BLOCK);group.add(new THREE.Mesh(geo,isPlant?new THREE.MeshBasicMaterial({map:tex,transparent:true,opacity:1}):new THREE.MeshBasicMaterial({map:tex})));}
   if(wC>0){var wgeo=new THREE.BufferGeometry();wgeo.setAttribute('position',new THREE.Float32BufferAttribute(wP,3));wgeo.setAttribute('uv',new THREE.Float32BufferAttribute(wU,2));wgeo.setAttribute('brightness',new THREE.Float32BufferAttribute(wB,1));wgeo.index=new Uint16Array(wI);group.add(new THREE.Mesh(wgeo,new THREE.MeshBasicMaterial({color:0x1a6eb5,transparent:true,opacity:0.72})));}
-  scene.add(group);chunkMeshes.set(key,group);if(gameStarted){trySpawnAnimalsInChunk(cx,cz);if(typeof spawnPebblesInChunk==='function')spawnPebblesInChunk(cx,cz);
+    var mushCap=new THREE.MeshBasicMaterial({color:0xc44a28});
+  var mushStem=new THREE.MeshBasicMaterial({color:0xf0e6c8});
+  var mushSpot=new THREE.MeshBasicMaterial({color:0xf7edd8});
+  var mushCapT=new THREE.MeshBasicMaterial({color:0x7a3aa0});
+  for(var mlx=0;mlx<CS;mlx++)for(var my=0;my<maxY;my++)for(var mlz=0;mlz<CS;mlz++){
+    if(getD(mlx,my,mlz)!==B_MUSHROOM_BLOCK)continue;
+    var toxic=hash(ox+mlx,oz+mlz,SEED+770)>0.35;
+    var mg=new THREE.Group();
+    var st=new THREE.Mesh(new THREE.BoxGeometry(0.07,0.11,0.07),mushStem);
+    st.position.y=0.055;mg.add(st);
+    var cap=new THREE.Mesh(new THREE.BoxGeometry(0.20,0.08,0.20),toxic?mushCapT:mushCap);
+    cap.position.y=0.14;mg.add(cap);
+    var sp=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.02,0.05),mushSpot);
+    sp.position.set(0.04,0.185,-0.03);mg.add(sp);
+    var jx=(hash(ox+mlx,oz+mlz,11)-0.5)*0.28,jz=(hash(ox+mlx,oz+mlz,12)-0.5)*0.28;
+    mg.position.set(ox+mlx+0.5+jx,my,oz+mlz+0.5+jz);
+    group.add(mg);
+  }
+scene.add(group);chunkMeshes.set(key,group);if(gameStarted){trySpawnAnimalsInChunk(cx,cz);if(typeof spawnPebblesInChunk==='function')spawnPebblesInChunk(cx,cz);
   // Spawn guerriers dans les villages si pas encore fait
   if(genChunk._villageSpawns){
     for(var vsi=0;vsi<genChunk._villageSpawns.length;vsi++){
@@ -7968,22 +7986,39 @@ function pickupPebble(pb){
   var btn=document.getElementById('pebble-float-btn');
   if(btn){btn.style.display='none';btn._pebble=null;}
 }
+function pickupMushroomAt(x,y,z){
+  if(getBlock(x,y,z)!==B_MUSHROOM_BLOCK)return false;
+  setBlock(x,y,z,B_AIR);
+  if(Math.random()<0.35)giveItem(ITEM_MUSHROOM_TOXIC,1);
+  else giveItem(ITEM_MUSHROOM,1);
+  return true;
+}
 function updatePebbles(){
   var btn=document.getElementById('pebble-float-btn');
   var px=player.pos.x,pz=player.pos.z,py=player.pos.y;
-  var best=null,bestD=2.4*2.4;
+  var best=null,bestD=2.4*2.4,kind='pebble';
   for(var i=_pebbles.length-1;i>=0;i--){
     var pb=_pebbles[i];
     if(pb.mesh)pb.mesh.position.y=pb.y+Math.sin(Date.now()*0.004+i)*0.02;
     var dx=pb.x-px,dz=pb.z-pz,dy=pb.y-py;
     var d2=dx*dx+dz*dz+dy*dy;
-    if(d2<bestD){bestD=d2;best=pb;}
+    if(d2<bestD){bestD=d2;best=pb;kind='pebble';}
+  }
+  var ipx=Math.floor(px),ipy=Math.floor(py),ipz=Math.floor(pz);
+  for(var dx=-2;dx<=2;dx++)for(var dz=-2;dz<=2;dz++)for(var dy=-1;dy<=2;dy++){
+    var mx=ipx+dx,my=ipy+dy,mz=ipz+dz;
+    if(getBlock(mx,my,mz)!==B_MUSHROOM_BLOCK)continue;
+    var d2=(mx+0.5-px)*(mx+0.5-px)+(mz+0.5-pz)*(mz+0.5-pz)+(my-py)*(my-py);
+    if(d2<bestD){bestD=d2;best={x:mx,y:my,z:mz};kind='mush';}
   }
   if(!btn)return;
   var blocked=invOpen||lootModalOpen||(document.getElementById('chest-modal')&&document.getElementById('chest-modal').classList.contains('open'));
-  if(!best||blocked){btn.style.display='none';btn._pebble=null;return;}
-  btn._pebble=best;
-  var wp=new THREE.Vector3(best.x,best.y+0.35,best.z);
+  if(!best||blocked){btn.style.display='none';btn._pebble=null;btn._mush=null;return;}
+  btn._kind=kind;
+  btn._pebble=kind==='pebble'?best:null;
+  btn._mush=kind==='mush'?best:null;
+  btn.innerHTML=kind==='mush'?'&#x1F344; Ramasser':'&#x1FAA8; Ramasser';
+  var wp=new THREE.Vector3(kind==='mush'?best.x+0.5:best.x,(kind==='mush'?best.y:best.y)+0.35,kind==='mush'?best.z+0.5:best.z);
   var sv=wp.clone().project(camera);
   btn.style.display='block';
   if(sv.z<1){
@@ -8907,6 +8942,7 @@ document.getElementById('loot-float-btn').addEventListener('pointerdown',functio
   function go(e){
     e.stopPropagation(); if(e.cancelable)e.preventDefault();
     var n=Date.now(); if(n-lock<450)return; lock=n;
+    if(btn._kind==='mush'&&btn._mush){if(typeof pickupMushroomAt==='function')pickupMushroomAt(btn._mush.x,btn._mush.y,btn._mush.z);btn.style.display='none';return;}
     if(typeof pickupPebble==='function') pickupPebble(btn._pebble);
   }
   btn.addEventListener('pointerdown',go);
@@ -9081,7 +9117,7 @@ function updateStealthHud(){
   var ns=n>=12?'noise-3':n>=5?'noise-2':n>=1.2?'noise-1':'noise-0';
   if(noi.className.indexOf(ns)<0)noi.className='stealth-ico '+ns;
 }
-function isSolid(x,y,z){var b=getBlock(Math.floor(x),Math.floor(y),Math.floor(z));return b&&b!==B_WATER&&b!==B_LEAF&&b!==B_AIR&&b!==B_BERRY_BUSH&&b!==B_HERB_BLOCK&&b!==B_SAPLING&&b!==B_NETTLES;}
+function isSolid(x,y,z){var b=getBlock(Math.floor(x),Math.floor(y),Math.floor(z));return b&&b!==B_WATER&&b!==B_LEAF&&b!==B_AIR&&b!==B_BERRY_BUSH&&b!==B_HERB_BLOCK&&b!==B_SAPLING&&b!==B_NETTLES&&b!==B_MUSHROOM_BLOCK;}
 function isInWater(x,y,z){return getBlock(Math.floor(x),Math.floor(y),Math.floor(z))===B_WATER;}
 
 function waterTopY(x,z){
