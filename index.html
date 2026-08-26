@@ -9212,7 +9212,7 @@ function punchRaft(){
 function performUseAction(){
   if(_mountedRaft){dismountRaft();return true;}
   var slot=INV[selectedSlot],id=slot&&slot.id;
-  if(id===ITEM_SLING||id===ITEM_BOW)return false;
+  if(id===ITEM_SLING||id===ITEM_BOW||id===ITEM_PEBBLE||id===ITEM_PEBBLE_POUCH)return false;
   if(id&&tryUseItem())return true;
   if(typeof tryRaftInteract==='function'&&tryRaftInteract())return true;
   var a=attackAnimalRaycast();
@@ -9241,7 +9241,7 @@ function refreshPlaceBtn(){
   else if(id===ITEM_WATER_FILTER||id===ITEM_CANTEEN||id===ITEM_CANTEEN_WATER||id===ITEM_BOWL||id===ITEM_BOWL_WATER||id===ITEM_WATER_LAKE||id===ITEM_WATER_SEA||id===ITEM_WATER_FILTERED||id===ITEM_WATER_RAIN){btn.textContent='💧';btn.title='Utiliser';}
   else if(id===ITEM_BONE){btn.textContent='🦴';btn.title='Engrais';}
   else if(id===ITEM_FAT||id===ITEM_STEAK||id===ITEM_COOKED_MEAT||id===ITEM_COOKED_RABBIT||id===ITEM_COOKED_VENISON||id===ITEM_COOKED_CHICKEN||id===ITEM_COOKED_FISH||id===ITEM_BERRY||id===ITEM_MUSHROOM||id===ITEM_HERB||id===ITEM_BANDAGE||id===ITEM_ANTIDOTE){btn.textContent='🍖';btn.title='Utiliser';}
-  else if(id===ITEM_BOW||id===ITEM_SLING){btn.textContent='🏹';btn.title='Tirer';}
+  else if(id===ITEM_BOW||id===ITEM_SLING||id===ITEM_PEBBLE||id===ITEM_PEBBLE_POUCH){btn.textContent=id===ITEM_BOW?'🏹':'🪨';btn.title=id===ITEM_BOW?'Tirer':'Lancer';}
   else if(id===ITEM_FISHING_ROD){btn.textContent='🎣';btn.title='Pêcher';}
   else if(ITEM_TO_BLOCK[id]||id<20){btn.textContent='🧱';btn.title='Placer';}
   else {btn.textContent='✋';btn.title='Utiliser';}
@@ -9371,11 +9371,11 @@ camZone.addEventListener('touchend',endCam,{passive:false});camZone.addEventList
 var _mobileActionUsed=false,placeTimer=null;
 document.addEventListener('mousedown',function(e){if(!gameStarted)return;if(invOpen||lootModalOpen)return;if(_mobileActionUsed){_mobileActionUsed=false;return;}if(e.button===0){performBreakAction();}if(e.button===2){if(!mouseLocked){_mouseRightDown=true;_lastMouseX=e.clientX;_lastMouseY=e.clientY;
     var _curSlotNL=INV[selectedSlot];
-    if(_curSlotNL&&_curSlotNL.id===ITEM_SLING){slingStartCharge();return;}
+    if(_curSlotNL&&(_curSlotNL.id===ITEM_SLING||_curSlotNL.id===ITEM_PEBBLE||_curSlotNL.id===ITEM_PEBBLE_POUCH)){slingStartCharge();return;}
     if(_curSlotNL&&_curSlotNL.id===ITEM_BOW){bowStartCharge();return;}
   }else{
     var _curSlot=INV[selectedSlot];
-    if(_curSlot&&_curSlot.id===ITEM_SLING){slingStartCharge();return;}
+    if(_curSlot&&(_curSlot.id===ITEM_SLING||_curSlot.id===ITEM_PEBBLE||_curSlot.id===ITEM_PEBBLE_POUCH)){slingStartCharge();return;}
     if(_curSlot&&_curSlot.id===ITEM_BOW){bowStartCharge();return;}
     performUseAction();}}});
 document.addEventListener('mouseup',function(e){if(e.button===0)stopBreaking();if(e.button===2){_mouseRightDown=false;if(_slingActive)slingRelease();else if(_bowActive)bowRelease();}});
@@ -9391,7 +9391,7 @@ document.getElementById('btn-break').addEventListener('pointercancel',function(e
 document.getElementById('btn-place').addEventListener('pointerdown',function(e){
   e.stopPropagation();_mobileActionUsed=true;
   var _cs=INV[selectedSlot];
-  if(_cs&&_cs.id===ITEM_SLING){slingStartCharge();return;}
+  if(_cs&&(_cs.id===ITEM_SLING||_cs.id===ITEM_PEBBLE||_cs.id===ITEM_PEBBLE_POUCH)){slingStartCharge();return;}
   if(_cs&&_cs.id===ITEM_BOW){bowStartCharge();return;}
   performUseAction();
   placeTimer=setInterval(function(){
@@ -10015,8 +10015,30 @@ function _consumeSlingAmmo(){
 }
 
 // Commencer à tendre
+function _handPebbleReady(){
+  var slot=INV[selectedSlot];if(!slot)return false;
+  if(slot.id===ITEM_PEBBLE&&slot.qty>0)return true;
+  if(slot.id===ITEM_PEBBLE_POUCH&&(slot.ammo||0)>0)return true;
+  return false;
+}
+function _consumeHandPebble(){
+  var slot=INV[selectedSlot];if(!slot)return false;
+  if(slot.id===ITEM_PEBBLE_POUCH&&(slot.ammo||0)>0){slot.ammo--;return true;}
+  if(slot.id===ITEM_PEBBLE&&slot.qty>0){slot.qty--;if(slot.qty<=0)INV[selectedSlot]={id:0,qty:0};return true;}
+  return false;
+}
 function slingStartCharge(){
   var slot=INV[selectedSlot];
+  _handThrow=false;
+  if(slot&&(slot.id===ITEM_PEBBLE||slot.id===ITEM_PEBBLE_POUCH)){
+    if(!_handPebbleReady()){
+      showPopup('Pas de cailloux !',player.pos.clone().add(new THREE.Vector3(0,1.5,0)));
+      return false;
+    }
+    _handThrow=true;_slingActive=true;_slingCharge=0;
+    document.getElementById('sling-overlay').classList.add('active');
+    return true;
+  }
   if(!slot||slot.id!==ITEM_SLING)return false;
   var ammoIdx=_findStoneAmmo();
   if(ammoIdx<0){
@@ -10046,7 +10068,13 @@ function slingRelease(){
   document.getElementById('sling-vignette').style.opacity='0';
   var ch=document.getElementById('sling-crosshair');
   if(ch)ch.style.transform='translate(-50%,-50%)';
-  if(_slingCharge<0.1){_slingCharge=0;return;}
+  if(_slingCharge<0.1){_slingCharge=0;_handThrow=false;return;}
+  if(_handThrow){
+    if(!_consumeHandPebble()){_slingCharge=0;_handThrow=false;return;}
+    syncHotbar();
+    _fireSlingProjectile(_slingCharge,false,true);
+    _slingCharge=0;_handThrow=false;return;
+  }
   if(!_consumeSlingAmmo()){_slingCharge=0;return;}
   syncHotbar();
   _fireSlingProjectile(_slingCharge,false);
@@ -10100,13 +10128,13 @@ function bowRelease(){
 }
 
 // Fonction commune de tir pour fronde ET arc
-function _fireSlingProjectile(charge,isArrow){
+function _fireSlingProjectile(charge,isArrow,isHand){
   var cp=Math.cos(player.pitch),sp=Math.sin(player.pitch);
   var sy=Math.sin(player.yaw),cy=Math.cos(player.yaw);
   var dirX=-sy*cp,dirY=sp,dirZ=-cy*cp;
   var t=Math.max(0.08,Math.min(1,charge||0));
-  var speed=isArrow?(6+t*16+t*t*26):(4.5+t*11+t*t*20);
-  var dmg=isArrow?Math.round(1+t*5):Math.round(1+t*3);
+  var speed=isHand?(3.2+t*5.5+t*t*4):isArrow?(6+t*16+t*t*26):(4.5+t*11+t*t*20);
+  var dmg=isHand?1:isArrow?Math.round(1+t*5):Math.round(1+t*3);
 
   // Son de tir
   if(_ac){
@@ -10134,7 +10162,7 @@ function _fireSlingProjectile(charge,isArrow){
 
   _slingProjectiles.push({
     mesh:mesh,vx:dirX*speed,vy:dirY*speed+0.6*(1-t*0.4),vz:dirZ*speed,
-    dmg:dmg,life:1.1+t*3.0,done:false,isArrow:isArrow
+    dmg:dmg,life:isHand?(0.7+t*1.1):(1.1+t*3.0),done:false,isArrow:isArrow
   });
 }
 function dropSpentAmmo(p,x,y,z){
@@ -10165,7 +10193,7 @@ function updateBow(dt){
 }
 
 // Projectiles actifs
-var _slingProjectiles=[],_spentAmmo=[];
+var _slingProjectiles=[],_spentAmmo=[],_handThrow=false;
 
 function slingRelease(){
   if(!_slingActive)return;
@@ -10293,7 +10321,7 @@ function updateSling(dt){
   updateSlingProjectiles(dt);
   updateBow(dt);
   if(!_slingActive)return;
-  _slingCharge=Math.min(1,_slingCharge+dt/_slingMaxTime);
+  _slingCharge=Math.min(1,_slingCharge+dt/(_handThrow?0.8:_slingMaxTime));
 
   // Pendant la tension : mouvements caméra normaux (rien à bloquer)
   // La caméra reste libre pour viser
