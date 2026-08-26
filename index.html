@@ -3057,7 +3057,8 @@ function getWeatherIcon(){
 // Audio vars — déclarés tôt pour éviter ReferenceError
 // (declared above)
 var _ac=null,_masterGain=null,_ambiGain=null,_musicGain=null,_sfxGain=null;
-var _windNode=null,_rainAmbiNode=null,_fireNode=null;
+var _windNode=null,_rainAmbiNode=null,_fireNode=null,_waterNode=null,_caveDrone=null;
+var _faunaT=0,_dripT=0,_heartT=0;
 var _musicNodes=[],_musicTimer=0,_footstepBuf=0;
 var _ambiTimer=0,_dirSoundTimer=0;
 
@@ -5021,6 +5022,7 @@ function hurtPlayer(dmg,cause,attacker){if(dmg>0)if(typeof playSoundHurt==='func
     var kdx=player.pos.x-attacker.pos.x,kdz=player.pos.z-attacker.pos.z,kl=Math.sqrt(kdx*kdx+kdz*kdz)||1;
     player.vel.x+=(kdx/kl)*6;player.vel.z+=(kdz/kl)*6;player.vel.y+=1.4;
     attacker.swingTimer=0.34;
+    if(typeof playSoundEnemyAttack==='function')playSoundEnemyAttack((MOB_DEF[attacker.type]&&MOB_DEF[attacker.type].label)||'');
   }
   if(player.hp<=0)killPlayer(cause);
 }
@@ -10764,30 +10766,101 @@ function updateMusic(dt){
 //  SONS DIRECTIONNELS — ennemi dans rayon 30 blocs
 // ════════════════════════════════════════════════════════
 // (declared above)
+function panDest(wx,wz){
+  if(!_ac||!_ac.createStereoPanner)return _sfxGain;
+  var p=_ac.createStereoPanner();
+  p.pan.value=Math.max(-1,Math.min(1,Math.sin(Math.atan2(wx-player.pos.x,wz-player.pos.z)-player.yaw)));
+  p.connect(_sfxGain);return p;
+}
+function worldVol(wx,wz,maxd){
+  var dx=wx-player.pos.x,dz=wz-player.pos.z;
+  return Math.max(0,1-Math.sqrt(dx*dx+dz*dz)/(maxd||24));
+}
+function playWaterAmbi(on){
+  if(!_ac)return;
+  if(on&&!_waterNode){
+    var buf=_ac.createBuffer(1,_ac.sampleRate*3,_ac.sampleRate),d=buf.getChannelData(0);
+    for(var i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*0.55+Math.sin(i*0.0018)*0.35;
+    _waterNode=_ac.createBufferSource();_waterNode.buffer=buf;_waterNode.loop=true;
+    var f=_ac.createBiquadFilter();f.type='lowpass';f.frequency.value=780;
+    var g=_ac.createGain();g.gain.value=0.065;
+    _waterNode.connect(f);f.connect(g);g.connect(_ambiGain);_waterNode.start();
+  } else if(!on&&_waterNode){try{_waterNode.stop();}catch(e){}_waterNode=null;}
+}
+function playCaveDrone(on){
+  if(!_ac)return;
+  if(on&&!_caveDrone){
+    var o=_ac.createOscillator();o.type='sine';o.frequency.value=44;
+    var o2=_ac.createOscillator();o2.type='triangle';o2.frequency.value=55.5;
+    var g=_ac.createGain();g.gain.value=0.028;
+    o.connect(g);o2.connect(g);g.connect(_ambiGain);o.start();o2.start();
+    _caveDrone={o:o,o2:o2};
+  } else if(!on&&_caveDrone){try{_caveDrone.o.stop();_caveDrone.o2.stop();}catch(e){}_caveDrone=null;}
+}
+function playFaunaSound(a){
+  if(!_ac||!a||!a.pos)return;
+  var v=worldVol(a.pos.x,a.pos.z,28);if(v<0.07)return;
+  var dest=panDest(a.pos.x,a.pos.z),t=a.type;
+  if(t==='cow'){_beep(88,0.4,'sawtooth',0.07*v,0,dest);setTimeout(function(){if(_ac)_beep(70,0.28,'sawtooth',0.05*v,0,dest);},220);}
+  else if(t==='sheep'){_beep(340,0.16,'triangle',0.055*v,0,dest);_beep(290,0.22,'triangle',0.04*v,0,dest);}
+  else if(t==='chicken'){for(var k=0;k<3;k++)(function(kk){setTimeout(function(){if(_ac)_beep(900+Math.random()*400,0.045,'square',0.04*v,0,dest);},kk*70);})(k);}
+  else if(t==='wolf'||t==='wolfpack'){
+    var o=_ac.createOscillator(),g=_ac.createGain();o.type='sine';
+    o.frequency.setValueAtTime(280, _ac.currentTime);o.frequency.exponentialRampToValueAtTime(140,_ac.currentTime+0.7);
+    g.gain.setValueAtTime(0.07*v,_ac.currentTime);g.gain.exponentialRampToValueAtTime(0.001,_ac.currentTime+0.8);
+    o.connect(g);g.connect(dest);o.start();o.stop(_ac.currentTime+0.8);
+  }
+  else if(t==='deer'||t==='rabbit'){_beep(520+Math.random()*80,0.06,'sine',0.03*v,0,dest);}
+  else if(t==='brute'){_noise(0.35,0.1*v,{type:'lowpass',freq:180},dest);_beep(55,0.4,'sawtooth',0.08*v,0,dest);}
+  else if(t==='rodeur'||t==='chasseur'||t==='guerrier'||t==='mutant'){_noise(0.22,0.07*v,{type:'bandpass',freq:420},dest);_beep(95+Math.random()*40,0.25,'sawtooth',0.05*v,0,dest);}
+}
 function updateDirectionalSounds(dt){
   if(!_ac)return;
   _dirSoundTimer-=dt;
   if(_dirSoundTimer>0)return;
-  _dirSoundTimer=12+Math.random()*18;
-  // Son directionnel si ennemi entre 15 et 30 blocs
+  _dirSoundTimer=5+Math.random()*8;
+  var best=null,bestD=26;
   for(var i=0;i<animals.length;i++){
-    var a=animals[i];
-    if(!MOB_DEF[a.type]||!MOB_DEF[a.type].hostile)continue;
-    var ex=a.pos.x-player.pos.x,ez=a.pos.z-player.pos.z;
-    var ed=Math.sqrt(ex*ex+ez*ez);
-    if(ed<15||ed>30)continue;
-    // Son grave dans la direction de l'ennemi (simulé par pan stéréo)
-    var angle=Math.atan2(ex,ez)-player.yaw;
-    var pan=Math.sin(angle); // -1 gauche, +1 droite
-    if(!_ac.createStereoPanner)break;
-    var panner=_ac.createStereoPanner();panner.pan.value=pan;
-    panner.connect(_sfxGain);
-    var g=_ac.createGain();g.gain.setValueAtTime(0.15,_ac.currentTime);g.gain.exponentialRampToValueAtTime(0.001,_ac.currentTime+0.8);g.connect(panner);
-    var o=_ac.createOscillator();o.type='sawtooth';
-    o.frequency.setValueAtTime(80+Math.random()*40,_ac.currentTime);
-    o.frequency.exponentialRampToValueAtTime(40,_ac.currentTime+0.8);
-    o.connect(g);o.start();o.stop(_ac.currentTime+0.8);
-    break;
+    var a=animals[i];if(!MOB_DEF[a.type]||!MOB_DEF[a.type].hostile)continue;
+    var ed=Math.sqrt(Math.pow(a.pos.x-player.pos.x,2)+Math.pow(a.pos.z-player.pos.z,2));
+    if(ed>4&&ed<bestD){bestD=ed;best=a;}
+  }
+  if(best)playFaunaSound(best);
+}
+function updateImmersiveAudio(dt){
+  if(!_ac||!_audioInitialized)return;
+  var cave=typeof playerInCave==='function'&&playerInCave();
+  playWaterAmbi(!cave&&typeof isNearWater==='function'&&isNearWater(8));
+  playCaveDrone(!!cave);
+  _dripT-=dt;
+  if(cave&&_dripT<=0){
+    _dripT=1.1+Math.random()*2.8;
+    var df=1600+Math.random()*1200;
+    _beep(df,0.05,'sine',0.045,0,_ambiGain);
+    setTimeout(function(){if(_ac)_beep(df*0.5,0.08,'sine',0.02,0,_ambiGain);},90);
+  }
+  _faunaT-=dt;
+  if(_faunaT<=0){
+    _faunaT=2.0+Math.random()*3.2;
+    var cand=[];
+    for(var i=0;i<animals.length;i++){
+      var a=animals[i];if(!a||a.dying||a.dead)continue;
+      var d=Math.pow(a.pos.x-player.pos.x,2)+Math.pow(a.pos.z-player.pos.z,2);
+      if(d<28*28)cand.push(a);
+    }
+    if(cand.length)playFaunaSound(cand[Math.floor(Math.random()*cand.length)]);
+  }
+  _heartT-=dt;
+  var hunted=false;
+  for(var hi=0;hi<animals.length;hi++){
+    var h=animals[hi],hd=MOB_DEF[h.type];
+    if(!hd||!hd.hostile)continue;
+    if((h.aiState==='attack'||h.aiState==='alert')&&Math.pow(h.pos.x-player.pos.x,2)+Math.pow(h.pos.z-player.pos.z,2)<10*10)hunted=true;
+  }
+  if((player.hp<=4||hunted)&&_heartT<=0){
+    _heartT=hunted?0.52:0.88;
+    _beep(52,0.09,'sine',hunted?0.09:0.055);
+    setTimeout(function(){if(_ac)_beep(44,0.11,'sine',hunted?0.07:0.04);},130);
   }
 }
 
@@ -10845,25 +10918,32 @@ function updateAudio(dt){
   // Sons directionnels ennemis
   updateDirectionalSounds(dt);
 
-  // Oiseaux le jour / grillons la nuit
+  if(typeof updateImmersiveAudio==='function')updateImmersiveAudio(dt);
+  // Oiseaux / grillons / forêt
   _ambiTimer+=dt;
-  if(_ambiTimer>2.4){
+  if(_ambiTimer>1.8){
     _ambiTimer=0;
     if(!_ac)return;
+    var inCave=typeof playerInCave==='function'&&playerInCave();
+    var bio=typeof getBiome==='function'?getBiome(Math.floor(player.pos.x),Math.floor(player.pos.z)):'';
+    if(inCave)return;
     if(phase==='day'||phase==='dawn'){
-      if(Math.random()<0.45){
-        var f=1400+Math.random()*900;
-        _beep(f,0.07,'sine',0.035,0,_ambiGain);
-        setTimeout(function(){if(_ac)_beep(f*1.12,0.06,'sine',0.028,0,_ambiGain);},80+Math.random()*60);
+      if(Math.random()<(bio==='forest'?0.7:0.42)){
+        var f=1200+Math.random()*1100;
+        _beep(f,0.08,'sine',0.04,0,_ambiGain);
+        setTimeout(function(){if(_ac)_beep(f*1.15,0.07,'sine',0.03,0,_ambiGain);},70+Math.random()*80);
+        if(Math.random()<0.45)setTimeout(function(){if(_ac)_beep(f*0.92,0.06,'sine',0.025,0,_ambiGain);},160);
       }
+      if(bio==='forest'&&Math.random()<0.2)_noise(0.35,0.035,{type:'lowpass',freq:280},_ambiGain);
     } else if(phase==='night'){
-      if(Math.random()<0.55){
-        var cf=4200+Math.random()*800;
-        _beep(cf,0.04,'square',0.018,0,_ambiGain);
-        setTimeout(function(){if(_ac)_beep(cf,0.03,'square',0.012,0,_ambiGain);},120);
+      if(Math.random()<0.6){
+        var cf=3800+Math.random()*1400;
+        _beep(cf,0.045,'square',0.02,0,_ambiGain);
+        setTimeout(function(){if(_ac)_beep(cf*0.98,0.035,'square',0.014,0,_ambiGain);},110);
       }
-    } else if(phase==='dusk'&&Math.random()<0.3){
-      _beep(900+Math.random()*200,0.2,'sine',0.02,0,_ambiGain);
+      if(Math.random()<0.18)_beep(480+Math.random()*80,0.35,'sine',0.025,0,_ambiGain);
+    } else if(phase==='dusk'&&Math.random()<0.4){
+      _beep(880+Math.random()*220,0.22,'sine',0.024,0,_ambiGain);
     }
   }
 }
