@@ -3270,17 +3270,26 @@ function makeWoodSide(){
   return new THREE.CanvasTexture(cv);
 }
 function makeLeafTex(){
-  var cv=cv32(),ctx=cv.getContext('2d');
-  var pal=[[48,118,36],[68,148,50],[86,168,60],[40,104,30],[102,178,68],[58,136,42],[76,158,54],[92,164,48]];
-  for(var y=0;y<32;y++)for(var x=0;x<32;x++){
-    var n=ntex(x>>1,y>>1,13),n2=ntex(x,y,23);
-    if(n2<0.16){pxi(ctx,x,y,18,42,12);continue;}
-    var i=(n*7+n2*1.5)|0;if(i<0)i=0;if(i>7)i=7;
-    var c=pal[i];
-    var j=ntex(x,y,31)*14-7;
-    pxi(ctx,x,y,c[0]+j,c[1]+j,c[2]+j*0.5);
+  var cv=document.createElement('canvas');cv.width=cv.height=16;
+  var ctx=cv.getContext('2d');
+  var img=ctx.createImageData(16,16),d=img.data;
+  var pal=[[48,120,28],[62,142,36],[38,102,22],[78,158,42],[54,132,32],[90,168,48],[44,112,26],[70,150,38]];
+  for(var y=0;y<16;y++)for(var x=0;x<16;x++){
+    var i=(y*16+x)*4;
+    var blob=ntex(x*0.55,y*0.55,13);
+    var edge=ntex(x,y,23);
+    var hole=blob<0.34 || (blob<0.48 && edge<0.40) || edge<0.12;
+    if((x+y*3)%11===0 && edge<0.55)hole=true;
+    if(hole){d[i]=d[i+1]=d[i+2]=d[i+3]=0;continue;}
+    var pi=(ntex(x,y,31)*7.9)|0;if(pi>7)pi=7;
+    var c=pal[pi];
+    d[i]=c[0];d[i+1]=c[1];d[i+2]=c[2];d[i+3]=255;
   }
-  return new THREE.CanvasTexture(cv);
+  ctx.putImageData(img,0,0);
+  var cv2=cv32(),ctx2=cv2.getContext('2d');
+  ctx2.imageSmoothingEnabled=false;
+  ctx2.drawImage(cv,0,0,32,32);
+  return new THREE.CanvasTexture(cv2);
 }
 function makeWaterTex(){
   var cv=cv32(),ctx=cv.getContext('2d');
@@ -4861,7 +4870,7 @@ function buildMesh(cx,cz){
   for(var lx=0;lx<CS;lx++)for(var y=0;y<maxY;y++)for(var lz=0;lz<CS;lz++){
     if(getD(lx,y,lz)!==B_LEAF)continue;var wx5=ox+lx,wz5=oz+lz;
     var LD=[{dx:0,dy:1,dz:0,c:[[0,1,1],[1,1,1],[1,1,0],[0,1,0]],br:1.0},{dx:0,dy:-1,dz:0,c:[[0,0,0],[1,0,0],[1,0,1],[0,0,1]],br:0.45},{dx:1,dy:0,dz:0,c:[[1,0,0],[1,1,0],[1,1,1],[1,0,1]],br:0.72},{dx:-1,dy:0,dz:0,c:[[0,0,1],[0,1,1],[0,1,0],[0,0,0]],br:0.72},{dx:0,dy:0,dz:1,c:[[1,0,1],[1,1,1],[0,1,1],[0,0,1]],br:0.72},{dx:0,dy:0,dz:-1,c:[[0,0,0],[0,1,0],[1,1,0],[1,0,0]],br:0.72}];
-    for(var di=0;di<6;di++){var ld=LD[di];if(getW(lx+ld.dx,y+ld.dy,lz+ld.dz)!==B_AIR)continue;var bl=bkt(B_LEAF,'side'),ql=bl.cnt;for(var vi=0;vi<4;vi++){var vc=ld.c[vi];bl.pos.push(wx5+vc[0],y+vc[1],wz5+vc[2]);bl.uv.push(vi===0||vi===3?0:1,vi<2?1:0);bl.br.push(ld.br);}bl.idx.push(ql,ql+1,ql+2,ql,ql+2,ql+3);bl.cnt+=4;}
+    for(var di=0;di<6;di++){var ld=LD[di];if(!isTransp(getW(lx+ld.dx,y+ld.dy,lz+ld.dz)))continue;var bl=bkt(B_LEAF,'side'),ql=bl.cnt;for(var vi=0;vi<4;vi++){var vc=ld.c[vi];bl.pos.push(wx5+vc[0],y+vc[1],wz5+vc[2]);bl.uv.push(vi===0||vi===3?0:1,vi<2?1:0);bl.br.push(ld.br);}bl.idx.push(ql,ql+1,ql+2,ql,ql+2,ql+3);bl.cnt+=4;}
   }
 
   // Plantes (buisson de baies + champignon) — billboard en croix
@@ -4912,7 +4921,7 @@ function buildMesh(cx,cz){
     for(var wi=0;wi<WLD.length;wi++){var wd=WLD[wi];if(getW(lx+wd.dx,y,lz+wd.dz)!==B_AIR)continue;var nab=getW(lx+wd.dx,y+1,lz+wd.dz)===B_WATER,tF=nab?y+1.0:y+WATER_TOP,wq3=wC;wP.push(wx6+wd.bx[0],y,wz6+wd.bz[0],wx6+wd.bx[1],y,wz6+wd.bz[1],wx6+wd.bx[2],tF,wz6+wd.bz[2],wx6+wd.bx[3],topY,wz6+wd.bz[3]);wU.push(0,1,1,1,1,0,0,0);for(var wb3=0;wb3<4;wb3++)wB.push(0.72);wI.push(wq3,wq3+1,wq3+2,wq3,wq3+2,wq3+3);wC+=4;}
   }
   var group=new THREE.Group();group.userData.cx=cx;group.userData.cz=cz;group.userData.minY=0;group.userData.maxY=maxY;
-  for(var bk in bkts){var b=bkts[bk];if(!b.cnt)continue;var geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(b.pos,3));geo.setAttribute('uv',new THREE.Float32BufferAttribute(b.uv,2));geo.setAttribute('brightness',new THREE.Float32BufferAttribute(b.br,1));geo.index=new Uint16Array(b.idx);var tex=TEX[b.id]?TEX[b.id][b.face]:null;var isPlant=(b.id===B_LEAF||b.id===B_BERRY_BUSH||b.id===B_MUSHROOM_BLOCK);group.add(new THREE.Mesh(geo,isPlant?new THREE.MeshBasicMaterial({map:tex,transparent:true,opacity:0.95}):new THREE.MeshBasicMaterial({map:tex})));}
+  for(var bk in bkts){var b=bkts[bk];if(!b.cnt)continue;var geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(b.pos,3));geo.setAttribute('uv',new THREE.Float32BufferAttribute(b.uv,2));geo.setAttribute('brightness',new THREE.Float32BufferAttribute(b.br,1));geo.index=new Uint16Array(b.idx);var tex=TEX[b.id]?TEX[b.id][b.face]:null;var isPlant=(b.id===B_LEAF||b.id===B_BERRY_BUSH||b.id===B_MUSHROOM_BLOCK);group.add(new THREE.Mesh(geo,isPlant?new THREE.MeshBasicMaterial({map:tex,transparent:true,opacity:1}):new THREE.MeshBasicMaterial({map:tex})));}
   if(wC>0){var wgeo=new THREE.BufferGeometry();wgeo.setAttribute('position',new THREE.Float32BufferAttribute(wP,3));wgeo.setAttribute('uv',new THREE.Float32BufferAttribute(wU,2));wgeo.setAttribute('brightness',new THREE.Float32BufferAttribute(wB,1));wgeo.index=new Uint16Array(wI);group.add(new THREE.Mesh(wgeo,new THREE.MeshBasicMaterial({color:0x1a6eb5,transparent:true,opacity:0.72})));}
   scene.add(group);chunkMeshes.set(key,group);if(gameStarted){trySpawnAnimalsInChunk(cx,cz);if(typeof spawnPebblesInChunk==='function')spawnPebblesInChunk(cx,cz);
   // Spawn guerriers dans les villages si pas encore fait
