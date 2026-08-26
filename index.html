@@ -7999,6 +7999,12 @@ function updatePebbles(){
     var d2=dx*dx+dz*dz+dy*dy;
     if(d2<bestD){bestD=d2;best=pb;kind='pebble';}
   }
+  for(var si=0;si<_spentAmmo.length;si++){
+    var am=_spentAmmo[si];
+    var dx=am.x-px,dz=am.z-pz,dy=am.y-py;
+    var d2=dx*dx+dz*dz+dy*dy;
+    if(d2<bestD){bestD=d2;best=am;kind='ammo';}
+  }
   var ipx=Math.floor(px),ipy=Math.floor(py),ipz=Math.floor(pz);
   for(var dx=-2;dx<=2;dx++)for(var dz=-2;dz<=2;dz++)for(var dy=-1;dy<=2;dy++){
     var mx=ipx+dx,my=ipy+dy,mz=ipz+dz;
@@ -8012,7 +8018,8 @@ function updatePebbles(){
   btn._kind=kind;
   btn._pebble=kind==='pebble'?best:null;
   btn._mush=kind==='mush'?best:null;
-  btn.innerHTML=kind==='mush'?'&#x1F344; Ramasser':'&#x1FAA8; Ramasser';
+  btn._ammo=kind==='ammo'?best:null;
+  btn.innerHTML=kind==='mush'?'&#x1F344; Ramasser':kind==='ammo'?(best.id===ITEM_ARROW?'&#x1F3F9; Ramasser':'&#x1FAA8; Ramasser'):'&#x1FAA8; Ramasser';
   var wp=new THREE.Vector3(kind==='mush'?best.x+0.5:best.x,(kind==='mush'?best.y:best.y)+0.35,kind==='mush'?best.z+0.5:best.z);
   var sv=wp.clone().project(camera);
   btn.style.display='block';
@@ -8938,6 +8945,15 @@ document.getElementById('loot-float-btn').addEventListener('pointerdown',functio
     e.stopPropagation(); if(e.cancelable)e.preventDefault();
     var n=Date.now(); if(n-lock<450)return; lock=n;
     if(btn._kind==='mush'&&btn._mush){if(typeof pickupMushroomAt==='function')pickupMushroomAt(btn._mush.x,btn._mush.y,btn._mush.z);btn.style.display='none';return;}
+    if(btn._kind==='ammo'&&btn._ammo){
+      var am=btn._ammo,ix=_spentAmmo.indexOf(am);
+      if(ix>=0){
+        giveItem(am.id,1);
+        try{scene.remove(am.mesh);}catch(e){}
+        _spentAmmo.splice(ix,1);
+      }
+      btn.style.display='none';return;
+    }
     if(typeof pickupPebble==='function') pickupPebble(btn._pebble);
   }
   btn.addEventListener('pointerdown',go);
@@ -10088,8 +10104,9 @@ function _fireSlingProjectile(charge,isArrow){
   var cp=Math.cos(player.pitch),sp=Math.sin(player.pitch);
   var sy=Math.sin(player.yaw),cy=Math.cos(player.yaw);
   var dirX=-sy*cp,dirY=sp,dirZ=-cy*cp;
-  var speed=isArrow?(28+charge*22):(18+charge*14);
-  var dmg=isArrow?Math.round(2+charge*4):Math.round(1+charge*3);
+  var t=Math.max(0.08,Math.min(1,charge||0));
+  var speed=isArrow?(6+t*16+t*t*26):(4.5+t*11+t*t*20);
+  var dmg=isArrow?Math.round(1+t*5):Math.round(1+t*3);
 
   // Son de tir
   if(_ac){
@@ -10116,9 +10133,26 @@ function _fireSlingProjectile(charge,isArrow){
   scene.add(mesh);
 
   _slingProjectiles.push({
-    mesh:mesh,vx:dirX*speed,vy:dirY*speed,vz:dirZ*speed,
-    dmg:dmg,life:isArrow?3.5:2.5,done:false,isArrow:isArrow
+    mesh:mesh,vx:dirX*speed,vy:dirY*speed+0.6*(1-t*0.4),vz:dirZ*speed,
+    dmg:dmg,life:1.1+t*3.0,done:false,isArrow:isArrow
   });
+}
+function dropSpentAmmo(p,x,y,z){
+  if(!p||!p.mesh)return;
+  while(_spentAmmo.length>=40){
+    var old=_spentAmmo.shift();
+    try{scene.remove(old.mesh);}catch(e){}
+  }
+  var gy=y;
+  if(typeof getH==='function'){
+    var gh=getH(Math.floor(x),Math.floor(z))+0.07;
+    if(gy<gh)gy=gh;
+  }
+  if(typeof isSolid==='function'&&isSolid(x,gy,z))gy=Math.floor(gy)+1.07;
+  p.mesh.position.set(x,gy,z);
+  if(p.isArrow){p.mesh.rotation.x=0.2;p.mesh.rotation.z=1.15;}
+  _spentAmmo.push({mesh:p.mesh,x:x,y:gy,z:z,id:p.isArrow?ITEM_ARROW:ITEM_PEBBLE});
+  p.mesh=null;
 }
 
 function updateBow(dt){
@@ -10131,7 +10165,7 @@ function updateBow(dt){
 }
 
 // Projectiles actifs
-var _slingProjectiles=[];
+var _slingProjectiles=[],_spentAmmo=[];
 
 function slingRelease(){
   if(!_slingActive)return;
@@ -10195,10 +10229,10 @@ function slingRelease(){
 function updateSlingProjectiles(dt){
   for(var i=_slingProjectiles.length-1;i>=0;i--){
     var p=_slingProjectiles[i];
-    if(p.done){scene.remove(p.mesh);_slingProjectiles.splice(i,1);continue;}
+    if(p.done){if(p.mesh)try{scene.remove(p.mesh);}catch(e){}_slingProjectiles.splice(i,1);continue;}
 
     p.life-=dt;
-    if(p.life<=0){p.done=true;continue;}
+    if(p.life<=0){dropSpentAmmo(p,p.mesh.position.x,p.mesh.position.y,p.mesh.position.z);p.done=true;continue;}
 
     // Gravité sur le projectile
     p.vy-=9.8*dt;
@@ -10235,6 +10269,7 @@ function updateSlingProjectiles(dt){
         hitAnimal(a,p.dmg);
         showPopup('-'+p.dmg+'❤️ 🪨',a.pos.clone().add(new THREE.Vector3(0,2,0)));
         if(_ac)_noise(0.1,0.35,{type:'highpass',freq:400},_sfxGain);
+        dropSpentAmmo(p,a.pos.x+(Math.random()-0.5)*0.6,a.pos.y,a.pos.z+(Math.random()-0.5)*0.6);
         p.done=true;hit=true;break;
       }
     }
@@ -10243,13 +10278,13 @@ function updateSlingProjectiles(dt){
     // Collision avec blocs
     var bx=Math.floor(px),by=Math.floor(py),bz=Math.floor(pz);
     var bl=getBlock(bx,by,bz);
-    if(bl&&bl!==B_AIR&&bl!==B_WATER&&bl!==B_LEAF){
+    if(bl&&bl!==B_AIR&&bl!==B_WATER&&bl!==B_LEAF&&bl!==B_BERRY_BUSH&&bl!==B_HERB_BLOCK&&bl!==B_NETTLES&&bl!==B_MUSHROOM_BLOCK&&bl!==B_SAPLING){
       if(_ac)_noise(0.1,0.25,{type:'bandpass',freq:600},_sfxGain);
+      dropSpentAmmo(p,px-p.vx*0.04,py-p.vy*0.04,pz-p.vz*0.04);
       p.done=true;
     }
 
-    // Tombe sous le sol
-    if(py<-10)p.done=true;
+    if(py<-10){if(p.mesh)try{scene.remove(p.mesh);}catch(e){}p.mesh=null;p.done=true;}
   }
 }
 
