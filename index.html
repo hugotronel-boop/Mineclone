@@ -3642,37 +3642,64 @@ function getIsland(wx,wz){
 function isleDistA(wx,wz){var dx=(wx-ISLE_A.cx)/ISLE_A.r,dz=(wz-ISLE_A.cz)/ISLE_A.r;return Math.min(1,Math.sqrt(dx*dx+dz*dz));}
 function isleDistB(wx,wz){var dx=(wx-ISLE_B.cx)/ISLE_B.r,dz=(wz-ISLE_B.cz)/ISLE_B.r;return Math.min(1,Math.sqrt(dx*dx+dz*dz));}
 
-function getBiomeA(wx,wz){var d=isleDistA(wx,wz),n=fbm(wx/200,wz/200,2,SEED+100)*0.04,dn=d+n;if(dn>0.94)return'beach';if(dn>0.45)return(fbm(wx/150,wz/150,2,SEED+101)>0.5)?'forest':'plain';return'mountain';}
-function getBiomeB(wx,wz){var d=isleDistB(wx,wz),n=fbm(wx/100+500,wz/100+500,2,SEED+200)*0.04,dn=d+n;if(dn>0.92)return'beach';if(dn>0.42)return(fbm(wx/80+500,wz/80+500,2,SEED+201)>0.45)?'forest':'plain';return'mountain';}
+function getBiomeA(wx,wz){
+  var d=isleDistA(wx,wz),n=fbm(wx/200,wz/200,2,SEED+100)*0.04,dn=d+n;
+  if(dn>0.94)return'beach';
+  var mx=ISLE_A.cx+55,mz=ISLE_A.cz-30;
+  var rdx=wx-mx,rdz=wz-mz,rd=Math.sqrt(rdx*rdx+rdz*rdz);
+  if(rd<250)return'mountain';
+  return(fbm(wx/150,wz/150,2,SEED+101)>0.5)?'forest':'plain';
+}
+function getBiomeB(wx,wz){
+  var d=isleDistB(wx,wz),n=fbm(wx/100+500,wz/100+500,2,SEED+200)*0.04,dn=d+n;
+  if(dn>0.92)return'beach';
+  var rdx=wx-ISLE_B.cx,rdz=wz-ISLE_B.cz,rd=Math.sqrt(rdx*rdx+rdz*rdz);
+  if(rd<90)return'mountain';
+  return(fbm(wx/80+500,wz/80+500,2,SEED+201)>0.45)?'forest':'plain';
+}
 function getBiome(wx,wz){var isl=getIsland(wx,wz);if(isl===1)return getBiomeA(wx,wz);if(isl===2)return getBiomeB(wx,wz);return'ocean';}
 
 function getHForIsle(wx,wz,isle,distFn){
   var d=distFn(wx,wz);
-  var hBeach=SEA_LEVEL+1+fbm(wx/60,wz/60,2,SEED+11)*2;
-  var hPlain=SEA_LEVEL+6+fbm(wx/100,wz/100,3,SEED+44)*10+fbm(wx/200,wz/200,2,SEED+45)*6;
-  var wxw=wx+fbm(wx/60,wz/60,2,SEED+30)*48;
-  var wzw=wz+fbm(wx/60,wz/60,2,SEED+31)*48;
-  var ridges=ridgeFbm(wxw/72,wzw/72,5,SEED+22);
-  var peaks=ridgeFbm(wxw/34,wzw/34,4,SEED+33);
-  var crags=fbm(wx/16,wz/16,2,SEED+40);
-  var core=Math.max(0,(0.38-d)/0.38);core=core*core*(3-2*core);
-  var core2=core*core;
-  var hMtn=SEA_LEVEL+8
-    +ridges*18
-    +peaks*peaks*62*core
-    +peaks*peaks*peaks*32*core2
-    +(crags-0.42)*16*core
-    +fbm(wx/22,wz/22,2,SEED+24)*7;
-  if(core>0.22&&crags>0.66)hMtn+=8+(crags-0.66)*36;
+  var hBeach=SEA_LEVEL+1+fbm(wx/80,wz/80,2,SEED+11)*2;
+  var hPlain=SEA_LEVEL+5+fbm(wx/160,wz/160,3,SEED+44)*4+fbm(wx/300,wz/300,2,SEED+45)*3;
   function ss(x){return x*x*(3-2*x);}
+  var isMain=isle.r>400;
+  var mx=isle.cx+(isMain?55:-8);
+  var mz=isle.cz+(isMain?-30:6);
+  var dx=wx-mx,dz=wz-mz;
+  var rd=Math.sqrt(dx*dx+dz*dz);
+  var ang=Math.atan2(dz,dx);
+  var R=isMain?310:100;
+  var oval=1+0.20*Math.cos(ang*2+0.5)+0.07*Math.sin(ang*3-0.3);
+  var edgeN=0.90+0.12*fbm(wx/200,wz/200,2,SEED+22);
+  var RR=R*oval*edgeN;
+  var t=Math.max(0,1-rd/Math.max(1,RR));
+  var s=ss(t);
+  var profile=Math.pow(s,1.10);
+  var peak=isMain?64:22;
+  var bumps=fbm(wx/52,wz/52,3,SEED+33);
+  var hMtn=hPlain+profile*peak+(bumps-0.38)*9*profile;
+  if(profile>0.22&&profile<0.58)hMtn+=Math.sin((profile-0.22)/0.36*Math.PI)*5;
+  var rock=fbm(wx/20,wz/20,2,SEED+40);
+  if(profile>0.42&&rock>0.72)hMtn+=(rock-0.72)*18;
+  if(isMain){
+    var dx2=wx-(mx+165),dz2=wz-(mz+115);
+    var rd2=Math.sqrt(dx2*dx2+dz2*dz2);
+    var t2=ss(Math.max(0,1-rd2/125));
+    var h2=hPlain+t2*24+(fbm(wx/42,wz/42,2,SEED+51)-0.4)*5*t2;
+    if(h2>hMtn)hMtn=hMtn*0.4+h2*0.6;
+  }
   var h;
-  if(d>0.80){h=hBeach;}
-  else if(d>0.48){var t=ss((d-0.48)/0.32);h=hPlain+(hBeach-hPlain)*t;}
-  else if(d>0.30){var t=ss((d-0.30)/0.18);h=hMtn+(hPlain-hMtn)*t;}
-  else{h=hMtn;}
+  if(d>0.80)h=hBeach;
+  else if(d>0.52){var u=ss((d-0.52)/0.28);h=hPlain+(hBeach-hPlain)*u;}
+  else{
+    h=Math.max(hPlain,hMtn);
+    if(d>0.44){var v=ss((d-0.44)/0.08);h=h+(hPlain-h)*v;}
+  }
   var ef=Math.max(0,Math.min(1,(0.95-d)/0.18));ef=ef*ef*(3-2*ef);
   h=SEA_LEVEL+1+(h-SEA_LEVEL-1)*ef;
-  return Math.max(SEA_LEVEL+1,Math.min(CHUNK_HEIGHT-6,h));
+  return Math.max(SEA_LEVEL+1,Math.min(CHUNK_HEIGHT-8,h));
 }
 function getH(wx,wz){
   var isl=getIsland(wx,wz);
@@ -3978,7 +4005,7 @@ function genChunk(cx,cz){
       var bd=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
       for(var bi2=0;bi2<bd.length;bi2++){var nx3=wx+bd[bi2][0],nz3=wz+bd[bi2][1];if(isLake(nx3,nz3)){var nll=getLakeSurfaceY(nx3,nz3);if(h<=nll)h=nll+1;break;}}
     }
-    var beach=biome==='beach'||(biome==='ocean'&&h>=SEA_LEVEL-1),snowLine=h>SEA_LEVEL+34,highMtn=biome==='mountain'&&h>SEA_LEVEL+16;
+    var beach=biome==='beach'||(biome==='ocean'&&h>=SEA_LEVEL-1),snowLine=h>SEA_LEVEL+48,highMtn=biome==='mountain'&&h>SEA_LEVEL+22;
     var surfNoise=hash(wx*3.7+5,wz*2.9+7,SEED+42);
     for(var y=0;y<CH;y++){
       var b=B_AIR;
