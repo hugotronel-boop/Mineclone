@@ -2161,7 +2161,7 @@ display: none !important;
   background:radial-gradient(ellipse at center,transparent 40%,rgba(160,0,0,0.55) 100%);
   opacity:0;transition:opacity .08s linear;
 }
-#dmg-vignette.on{opacity:1;transition:none;}
+#dmg-vignette.on{opacity:1;transition:none;background:radial-gradient(ellipse at center,rgba(180,0,0,0.15) 20%,rgba(140,0,0,0.72) 100%);}
 #fb-toasts{
   position:fixed;right:18px;top:22%;z-index:80;pointer-events:none;
   display:flex;flex-direction:column;align-items:flex-end;gap:4px;
@@ -5010,12 +5010,18 @@ function drawTemp(){
 }
 function updateBars(){drawHearts();drawFood();drawThirst();drawStamina();drawTemp();}
 
-function hurtPlayer(dmg,cause){if(dmg>0)if(typeof playSoundHurt==='function')playSoundHurt();
+function hurtPlayer(dmg,cause,attacker){if(dmg>0)if(typeof playSoundHurt==='function')playSoundHurt();
   if(false)return;
   player.hp=Math.max(0,player.hp-dmg);updateBars();
   var vg=document.getElementById('dmg-vignette');
-  if(vg){vg.classList.add('on');setTimeout(function(){vg.classList.remove('on');},100);}
-  if(typeof fbShake==='function'){fbShake(2.6+Math.min(3,dmg));fbVibrate(20);fbPulse('hearts-row');}
+  if(vg){vg.classList.add('on');clearTimeout(hurtPlayer._vt);hurtPlayer._vt=setTimeout(function(){vg.classList.remove('on');},320);}
+  if(typeof fbShake==='function'){fbShake(3.2+Math.min(4,dmg));fbVibrate(30);fbPulse('hearts-row');}
+  if(typeof fbSpawnParticles==='function')fbSpawnParticles(player.pos.x,player.pos.y-0.2,player.pos.z,'blood',isMobile?6:12,{spread:2.2,up:1.3});
+  if(attacker&&attacker.pos){
+    var kdx=player.pos.x-attacker.pos.x,kdz=player.pos.z-attacker.pos.z,kl=Math.sqrt(kdx*kdx+kdz*kdz)||1;
+    player.vel.x+=(kdx/kl)*6;player.vel.z+=(kdz/kl)*6;player.vel.y+=1.4;
+    attacker.swingTimer=0.34;
+  }
   if(player.hp<=0)killPlayer(cause);
 }
 
@@ -8152,13 +8158,17 @@ function updateAnimals(dt){
 
     // ── Flash rouge si blessé ───────────────────────────────
     if(a.hitFlash>0){
-      a.hitFlash-=dt;var flash=a.hitFlash>0;
-      a.mesh.children.forEach(function(ch){
-        if(ch.material&&ch.material.color){
-          if(flash){if(ch.userData.origColor===undefined)ch.userData.origColor=ch.material.color.getHex();ch.material.color.set(0xff4444);}
-          else if(ch.userData.origColor!==undefined){ch.material.color.set(ch.userData.origColor);delete ch.userData.origColor;}
-        }
-      });
+      a.hitFlash-=dt;
+      if(a.mesh)tintMeshTree(a.mesh,0xff2a2a,a.hitFlash<=0);
+    }
+    if(a.stagger>0){
+      a.stagger-=dt;
+      if(a.mesh&&!a.dying)a.mesh.rotation.z=Math.sin(a.stagger*30)*(a.hitKick||1)*0.25*(a.stagger/0.32);
+    } else if(a.mesh&&!a.dying)a.mesh.rotation.z=0;
+    if(a.swingTimer>0){
+      a.swingTimer-=dt;
+      var sw=a.mesh&&a.mesh.userData.arms;
+      if(sw&&sw[1])sw[1].rotation.x=-1.7*(a.swingTimer/0.34);
     }
 
     var def=MOB_DEF[a.type];
@@ -8361,7 +8371,7 @@ function updateAnimals(dt){
         a.vel.x=Math.sin(angB)*def.speed;a.vel.z=Math.cos(angB)*def.speed;a.yaw=angB;
         if(dist<1.5&&a.attackTimer<=0){
           a.attackTimer=1.2;
-          hurtPlayer(def.dmg,'Attaqué par '+def.label+'!');
+          hurtPlayer(def.dmg,'Attaqué par '+def.label+'!',a);
           showPopup('-'+def.dmg+'❤️',ppos.clone().add(new THREE.Vector3(0,1.5,0)));
           if(def.venomous){player_poisoned=Math.max(player_poisoned,45);showPopup('☠️ Venin!',ppos.clone().add(new THREE.Vector3(0,2,0)));}
           if(def.bleed&&Math.random()<0.5){player_bleeding=Math.max(player_bleeding,30);showPopup('🩸 Saignement!',ppos.clone().add(new THREE.Vector3(0,2,0)));}
@@ -8422,7 +8432,7 @@ function updateAnimals(dt){
           if(!a.attackTimer)a.attackTimer=0;a.attackTimer=Math.max(0,a.attackTimer-dt);
           if(dist<effectiveAggro){
             var angW2=Math.atan2(dx,dz);a.vel.x=Math.sin(angW2)*def.speed*1.3;a.vel.z=Math.cos(angW2)*def.speed*1.3;a.yaw=angW2;
-            if(dist<1.5&&a.attackTimer<=0){a.attackTimer=1.5;hurtPlayer(2,'Mordu par un loup!');if(Math.random()<0.3){player_bleeding=Math.max(player_bleeding,20);showPopup('🩸 Morsure!',ppos.clone().add(new THREE.Vector3(0,1.5,0)));}}
+            if(dist<1.5&&a.attackTimer<=0){a.attackTimer=1.5;hurtPlayer(2,'Mordu par un loup!',a);if(Math.random()<0.3){player_bleeding=Math.max(player_bleeding,20);showPopup('🩸 Morsure!',ppos.clone().add(new THREE.Vector3(0,1.5,0)));}}
           } else {a.vel.x=a.wanderDir.x*def.speed*0.4;a.vel.z=a.wanderDir.z*def.speed*0.4;}
         } else {
           // Jour : rôde, s'approche légèrement du joueur
@@ -8440,7 +8450,7 @@ function updateAnimals(dt){
         a.panicTimer=Math.max(0,a.panicTimer-dt);
         var angBo=Math.atan2(dx,dz);a.vel.x=Math.sin(angBo)*def.speed*1.4;a.vel.z=Math.cos(angBo)*def.speed*1.4;a.yaw=angBo;
         if(dist<1.4&&a.attackTimer<=0){
-          a.attackTimer=1.0;hurtPlayer(def.dmg||2,'Chargé par un sanglier!');
+          a.attackTimer=1.0;hurtPlayer(def.dmg||2,'Chargé par un sanglier!',a);
           showPopup('-'+(def.dmg||2)+'❤️',ppos.clone().add(new THREE.Vector3(0,1.5,0)));
           if(Math.random()<0.3){player_bleeding=Math.max(player_bleeding,15);showPopup('🩸 Défenses!',ppos.clone().add(new THREE.Vector3(0,2,0)));}
         }
@@ -8461,7 +8471,7 @@ function updateAnimals(dt){
       if(dist<snakeAggro){
         var angSn=Math.atan2(dx,dz);a.vel.x=Math.sin(angSn)*def.speed;a.vel.z=Math.cos(angSn)*def.speed;a.yaw=angSn;
         if(dist<0.8&&a.attackTimer<=0){
-          a.attackTimer=2.0;hurtPlayer(1,'Mordu par un serpent!');
+          a.attackTimer=2.0;hurtPlayer(1,'Mordu par un serpent!',a);
           player_poisoned=Math.max(player_poisoned,45);
           showPopup('☠️ Venin de serpent!',ppos.clone().add(new THREE.Vector3(0,1.2,0)));
         }
@@ -8523,7 +8533,7 @@ function updateAnimals(dt){
       }
       var arms=a.mesh.userData.arms;
       if(arms&&arms.length){
-        for(var ai=0;ai<arms.length;ai++){if(arms[ai])arms[ai].rotation.x=-lp*0.5*((ai%2===0)?1:-1);}
+        for(var ai=0;ai<arms.length;ai++){if(arms[ai]&&!(ai===1&&a.swingTimer>0))arms[ai].rotation.x=-lp*0.5*((ai%2===0)?1:-1);}
       }
       if(a.mesh.userData.held&&a.mesh.userData.held.parent===a.mesh&&arms&&arms[1]){
         a.mesh.userData.held.rotation.x=arms[1].rotation.x;
@@ -8765,18 +8775,29 @@ function spawnNightEnemies(dt){
 
 function attackAnimalRaycast(){var cp2=Math.cos(player.pitch),sp2=Math.sin(player.pitch),syw=Math.sin(player.yaw),cyw=Math.cos(player.yaw),dir=new THREE.Vector3(-syw*cp2,sp2,-cyw*cp2);for(var i=0;i<animals.length;i++){var a=animals[i];if(a.dead||a.dying)continue;var dx=a.pos.x-camera.position.x,dy=a.pos.y-camera.position.y,dz=a.pos.z-camera.position.z,dist=Math.sqrt(dx*dx+dy*dy+dz*dz);if(dist>4)continue;if((dx*dir.x+dy*dir.y+dz*dir.z)/dist>0.8)return a;}return null;}
 function getWeaponDmg(itemId){if(!itemId)return 2;if(itemId===ITEM_CLUB)return 5;if(itemId===ITEM_SPEAR)return 4;if(itemId===ITEM_BOW)return 3;if(itemId===ITEM_AXE_WOOD)return 3;if(itemId===ITEM_AXE_STONE)return 4;if(itemId===ITEM_AXE_IRON)return 5;if(itemId===ITEM_KNIFE_WOOD)return 3;if(itemId===ITEM_KNIFE_IRON)return 5;return 2;}
+function tintMeshTree(root,hex,restore){
+  function rec(n){
+    if(n.material&&n.material.color){
+      if(restore){if(n.userData.origColor!==undefined){n.material.color.setHex(n.userData.origColor);delete n.userData.origColor;}}
+      else{if(n.userData.origColor===undefined)n.userData.origColor=n.material.color.getHex();n.material.color.setHex(hex);}
+    }
+    if(n.children)for(var i=0;i<n.children.length;i++)rec(n.children[i]);
+  }
+  if(root)rec(root);
+}
 function hitAnimal(a,forceDmg){
   var def=MOB_DEF[a.type],tool=INV[selectedSlot];
   var dmg=(forceDmg!==undefined)?forceDmg:getWeaponDmg(tool?tool.id:0);
-  a.hp-=dmg;a.hitFlash=0.18;
-  a.mesh.children.forEach(function(ch){if(ch.material&&ch.material.color&&ch.userData.origColor===undefined)ch.userData.origColor=ch.material.color.getHex();});
+  a.hp-=dmg;a.hitFlash=0.36;a.stagger=0.32;a.hitKick=(Math.random()<0.5?-1:1);
+  if(a.mesh)tintMeshTree(a.mesh,0xff2a2a,false);
   showPopup('-'+dmg,a.pos.clone().add(new THREE.Vector3(0,2,0)));updateHealthBar(a);drainStamina(1);
   if(typeof fbSwing==='function'){
-    fbSwing();fbShake(1.6);fbVibrate(12);
-    fbSpawnParticles(a.pos.x,a.pos.y+1.0,a.pos.z,'blood',8,{spread:2.2,up:1});
+    fbSwing();fbShake(2.2);fbVibrate(18);
+    fbSpawnParticles(a.pos.x,a.pos.y+1.0,a.pos.z,'blood',isMobile?8:16,{spread:2.8,up:1.5});
+    fbSpawnParticles(a.pos.x,a.pos.y+1.05,a.pos.z,'spark',isMobile?4:8,{spread:1.8,up:0.9});
     var kdx=a.pos.x-player.pos.x,kdz=a.pos.z-player.pos.z,kl=Math.sqrt(kdx*kdx+kdz*kdz)||1;
-    a.vel.x+=(kdx/kl)*7;a.vel.z+=(kdz/kl)*7;a.vel.y+=2.2;
-    if(_ac){_noise(0.08,0.16,{type:'lowpass',freq:500});_beep(90,0.08,'sawtooth',0.08);}
+    a.vel.x+=(kdx/kl)*8;a.vel.z+=(kdz/kl)*8;a.vel.y+=2.6;
+    if(_ac){_noise(0.12,0.22,{type:'lowpass',freq:380});_beep(80,0.1,'sawtooth',0.1);_beep(140,0.05,'square',0.06);}
   }
   if(def.hostile){a.aiState='attack';a.alertTimer=0;}
   else if(a.type==='boar'){
@@ -11066,7 +11087,8 @@ function fbColors(kind){
   if(kind==='dirt')return[0x8B5E1A,0x6abf3a,0x5a4010];
   if(kind==='sand')return[0xE2D06E,0xD4C45A,0xf0e8b0];
   if(kind==='fire')return[0xff6600,0xffcc44,0xcc2200];
-  if(kind==='blood')return[0xaa2020,0xff6644,0x6a1010];
+  if(kind==='blood')return[0xaa2020,0xff6644,0x6a1010,0xcc0000];
+  if(kind==='spark')return[0xffee88,0xffffff,0xffaa44];
   return[0x888888,0x555555,0xcccccc];
 }
 
