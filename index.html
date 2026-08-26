@@ -109,10 +109,99 @@ z-index: 20;
 /* ═══════════════════════════════════════════════════════
 HUD INFO
 ═══════════════════════════════════════════════════════ */
+#stealth-hud {
+position: fixed;
+top: calc(10px + env(safe-area-inset-top, 0px));
+left: 8px;
+z-index: 26;
+display: flex;
+flex-direction: column;
+gap: 7px;
+pointer-events: none;
+}
+.stealth-ico {
+width: 38px;
+height: 38px;
+border-radius: 10px;
+background: rgba(0,0,0,0.5);
+border: 1px solid rgba(255,255,255,0.22);
+display: flex;
+align-items: center;
+justify-content: center;
+box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+.eye {
+width: 22px;
+height: 13px;
+border: 2px solid #f2f2f2;
+border-radius: 50%;
+position: relative;
+background: #f7f7f7;
+box-sizing: border-box;
+}
+.eye .pupil {
+width: 7px;
+height: 7px;
+background: #111;
+border-radius: 50%;
+position: absolute;
+left: 50%;
+top: 50%;
+transform: translate(-50%,-50%);
+}
+.vis-open { border-color: rgba(255,80,80,0.55); }
+.vis-open .eye { border-color: #fff; }
+.vis-half { border-color: rgba(255,200,80,0.55); }
+.vis-half .eye {
+height: 7px;
+overflow: hidden;
+border-bottom: none;
+border-radius: 11px 11px 2px 2px;
+background: #ddd;
+}
+.vis-half .pupil { top: 70%; width: 6px; height: 5px; }
+.vis-shut { border-color: rgba(80,220,120,0.5); }
+.vis-shut .eye {
+height: 2px;
+background: #c8c8c8;
+border: none;
+border-radius: 2px;
+width: 20px;
+}
+.vis-shut .pupil { display: none; }
+.noise-waves {
+display: flex;
+align-items: flex-end;
+gap: 3px;
+height: 16px;
+}
+.noise-waves i {
+display: block;
+width: 3px;
+border-radius: 2px;
+background: #9ad;
+}
+.noise-0 { border-color: rgba(140,140,140,0.35); }
+.noise-0 .noise-waves i { height: 4px; opacity: 0.25; background: #888; }
+.noise-1 { border-color: rgba(120,200,255,0.5); }
+.noise-1 .noise-waves i:nth-child(1) { height: 6px; opacity: 0.9; }
+.noise-1 .noise-waves i:nth-child(2) { height: 4px; opacity: 0.25; }
+.noise-1 .noise-waves i:nth-child(3) { height: 4px; opacity: 0.2; }
+.noise-2 { border-color: rgba(255,200,80,0.55); }
+.noise-2 .noise-waves i { background: #fc6; }
+.noise-2 .noise-waves i:nth-child(1) { height: 7px; }
+.noise-2 .noise-waves i:nth-child(2) { height: 11px; }
+.noise-2 .noise-waves i:nth-child(3) { height: 6px; opacity: 0.4; }
+.noise-3 { border-color: rgba(255,90,70,0.7); }
+.noise-3 .noise-waves i { background: #f66; }
+.noise-3 .noise-waves i:nth-child(1) { height: 9px; }
+.noise-3 .noise-waves i:nth-child(2) { height: 16px; }
+.noise-3 .noise-waves i:nth-child(3) { height: 12px; }
+
 #info {
 position: fixed;
 top: 8px;
-left: 8px;
+left: 52px;
 z-index: 20;
 color: #fff;
 font-size: 11px;
@@ -2127,6 +2216,10 @@ display: none !important;
 
   <!-- HUD infos -->
 
+  <div id="stealth-hud">
+    <div id="stealth-eye" class="stealth-ico vis-open"><span class="eye"><span class="pupil"></span></span></div>
+    <div id="stealth-noise" class="stealth-ico noise-0"><span class="noise-waves"><i></i><i></i><i></i></span></div>
+  </div>
   <div id="info">
     <span id="fps">60</span> FPS<br>
     <span id="pos"></span><br>
@@ -8766,6 +8859,18 @@ function syncCrouchBtn(){
   var el=document.getElementById('btn-crouch');
   if(el){if(_crouching)el.classList.add('on');else el.classList.remove('on');}
 }
+function updateStealthHud(){
+  var eye=document.getElementById('stealth-eye');
+  var noi=document.getElementById('stealth-noise');
+  if(!eye||!noi)return;
+  var inBush=typeof playerInBush==='function'&&playerInBush();
+  var crouch=_crouching||_crouchY>0.28;
+  var vis=(!crouch&&!inBush)?'vis-open':(inBush&&crouch)?'vis-shut':'vis-half';
+  if(eye.className.indexOf(vis)<0)eye.className='stealth-ico '+vis;
+  var n=_playerNoise||0;
+  var ns=n>=12?'noise-3':n>=5?'noise-2':n>=1.2?'noise-1':'noise-0';
+  if(noi.className.indexOf(ns)<0)noi.className='stealth-ico '+ns;
+}
 function isSolid(x,y,z){var b=getBlock(Math.floor(x),Math.floor(y),Math.floor(z));return b&&b!==B_WATER&&b!==B_LEAF&&b!==B_AIR&&b!==B_BERRY_BUSH&&b!==B_HERB_BLOCK&&b!==B_SAPLING;}
 function isInWater(x,y,z){return getBlock(Math.floor(x),Math.floor(y),Math.floor(z))===B_WATER;}
 
@@ -11210,6 +11315,7 @@ function animate(now){
   camera.position.set(player.pos.x,player.pos.y-_crouchY,player.pos.z);camera.setView(camera.position,player.yaw,player.pitch);
   if(typeof fbApplyCamera==='function')fbApplyCamera();
   if(typeof updateViewmodel==='function')updateViewmodel(dt);
+  if(typeof updateStealthHud==='function')updateStealthHud();
 
   // Cycle jour/nuit
   if(!_sleeping)dayTime=(dayTime+dt)%DAY_CYCLE_TOTAL;var t=dayTime,phaseT;
