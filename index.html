@@ -1388,6 +1388,25 @@ white-space: nowrap;
 box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
 touch-action: manipulation;
 }
+#pebble-float-btn {
+position: fixed;
+display: none;
+z-index: 42;
+pointer-events: auto;
+transform: translate(-50%, -100%);
+background: rgba(200, 160, 0, 0.92);
+border: 2px solid #ffd700;
+color: #111;
+font-family: 'Courier New', monospace;
+font-size: 12px;
+font-weight: bold;
+padding: 5px 12px;
+border-radius: 20px;
+cursor: pointer;
+white-space: nowrap;
+box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+touch-action: manipulation;
+}
 #chest-float-btn {
 position: fixed;
 display: none;
@@ -2448,6 +2467,7 @@ display: none !important;
   <div id="water-float-btn">💧 Boire</div>
   <div id="loot-float-btn">&#x1F392; Butin</div>
   <div id="chest-float-btn">&#x1F4E6; Coffre</div>
+  <div id="pebble-float-btn">&#x1FAA8; Ramasser</div>
 
   <!-- Modal loot -->
 
@@ -7885,18 +7905,37 @@ function spawnPebblesInChunk(cx,cz){
     _pebbles.push({mesh:g,x:wx,y:wy,z:wz});
   }
 }
+function pickupPebble(pb){
+  if(!pb)return;
+  var i=_pebbles.indexOf(pb);
+  if(i<0)return;
+  giveItem(ITEM_PEBBLE,1);
+  try{scene.remove(pb.mesh);}catch(e){}
+  _pebbles.splice(i,1);
+  var btn=document.getElementById('pebble-float-btn');
+  if(btn){btn.style.display='none';btn._pebble=null;}
+}
 function updatePebbles(){
-  if(!_pebbles.length)return;
+  var btn=document.getElementById('pebble-float-btn');
   var px=player.pos.x,pz=player.pos.z,py=player.pos.y;
+  var best=null,bestD=2.4*2.4;
   for(var i=_pebbles.length-1;i>=0;i--){
     var pb=_pebbles[i];
     if(pb.mesh)pb.mesh.position.y=pb.y+Math.sin(Date.now()*0.004+i)*0.02;
     var dx=pb.x-px,dz=pb.z-pz,dy=pb.y-py;
-    if(dx*dx+dz*dz+dy*dy<1.8*1.8){
-      giveItem(ITEM_PEBBLE,1);
-      try{scene.remove(pb.mesh);}catch(e){}
-      _pebbles.splice(i,1);
-    }
+    var d2=dx*dx+dz*dz+dy*dy;
+    if(d2<bestD){bestD=d2;best=pb;}
+  }
+  if(!btn)return;
+  var blocked=invOpen||lootModalOpen||(document.getElementById('chest-modal')&&document.getElementById('chest-modal').classList.contains('open'));
+  if(!best||blocked){btn.style.display='none';btn._pebble=null;return;}
+  btn._pebble=best;
+  var wp=new THREE.Vector3(best.x,best.y+0.35,best.z);
+  var sv=wp.clone().project(camera);
+  btn.style.display='block';
+  if(sv.z<1){
+    btn.style.left=(sv.x*0.5+0.5)*window.innerWidth+'px';
+    btn.style.top=(1-(sv.y*0.5+0.5))*window.innerHeight+'px';
   }
 }
 function spawnInitialAnimals(){var pcx=Math.floor(player.pos.x/CHUNK_SIZE),pcz=Math.floor(player.pos.z/CHUNK_SIZE);for(var ddx=-RENDER_DIST;ddx<=RENDER_DIST;ddx++)for(var ddz=-RENDER_DIST;ddz<=RENDER_DIST;ddz++)trySpawnAnimalsInChunk(pcx+ddx,pcz+ddz);if(typeof spawnPebblesInChunk==='function')spawnPebblesInChunk(pcx+ddx,pcz+ddz);}
@@ -8799,6 +8838,17 @@ document.getElementById('loot-float-btn').addEventListener('pointerdown',functio
     var n=Date.now(); if(n-lock<450)return; lock=n;
     var c=btn._chest; if(!c)return;
     if(typeof tryInteractBlock==='function') tryInteractBlock(c.x,c.y,c.z);
+  }
+  btn.addEventListener('pointerdown',go);
+  btn.addEventListener('touchend',go,{passive:false});
+})();
+(function(){
+  var btn=document.getElementById('pebble-float-btn'); if(!btn)return;
+  var lock=0;
+  function go(e){
+    e.stopPropagation(); if(e.cancelable)e.preventDefault();
+    var n=Date.now(); if(n-lock<450)return; lock=n;
+    if(typeof pickupPebble==='function') pickupPebble(btn._pebble);
   }
   btn.addEventListener('pointerdown',go);
   btn.addEventListener('touchend',go,{passive:false});
