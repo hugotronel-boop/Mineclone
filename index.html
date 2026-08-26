@@ -3151,37 +3151,38 @@ function pxi(ctx,x,y,r,g,b){ctx.fillStyle='rgb('+clampf(r)+','+clampf(g)+','+cla
 
 function makeGrassTop(){
   var cv=cv32(),ctx=cv.getContext('2d');
+  var pal=[[89,176,70],[102,188,78],[78,158,58],[116,198,86],[70,146,52],[128,186,72],[94,182,74],[84,168,64],[110,192,80],[74,152,56]];
   for(var y=0;y<32;y++)for(var x=0;x<32;x++){
-    var n=ntex(x,y,1),p=ntex(x*0.35,y*0.35,41),d=ntex(x,y,71);
-    var r=42+n*32,g=108+n*55,b=18+n*18;
-    if(p>0.58){r+=16;g+=38;b+=8;}
-    if(d>0.8){r-=22;g-=28;b-=10;}
-    if(((x+y*3)&7)===0){g+=12;r+=4;}
-    pxi(ctx,x,y,r,g,b);
-  }
-  for(var i=0;i<48;i++){
-    var gx=(ntex(i,0,99)*30)|0,gy=(ntex(i,1,88)*30)|0;
-    pxi(ctx,gx,gy,36,130,16);pxi(ctx,gx,gy+1,70,170,28);
+    var cx=x>>1,cy=y>>1;
+    var i=(ntex(cx,cy,3)*8+ntex(x,y,11)*2)|0;if(i<0)i=0;if(i>9)i=9;
+    var c=pal[i];
+    var j=(ntex(x,y,21)*0.18-0.09);
+    pxi(ctx,x,y,c[0]+j*40,c[1]+j*40,c[2]+j*20);
   }
   return new THREE.CanvasTexture(cv);
 }
 function makeGrassSide(){
   var cv=cv32(),ctx=cv.getContext('2d');
   for(var y=0;y<32;y++)for(var x=0;x<32;x++){
-    var n=ntex(x,y,2),edge=4+(ntex(x,0,55)*5)|0;
-    if(y<edge){
-      var r=48+n*28,g=120+n*50,b=22+n*16;
-      if(y===edge-1){r=72;g=150;b=30;}
-      pxi(ctx,x,y,r,g,b);
-    } else {
-      var r2=118+n*28,g2=78+n*22,b2=38+n*14;
-      if(ntex(x,y,13)>0.78){r2-=22;g2-=16;}
-      pxi(ctx,x,y,r2,g2,b2);
-    }
+    var n=ntex(x,y,3),c=ntex(x*0.4,y*0.4,13);
+    var r=122+n*30,g=82+n*22,b=42+n*12;
+    if(c>0.62){r-=18;g-=14;b-=8;}
+    if(c<0.28){r+=16;g+=10;b+=6;}
+    pxi(ctx,x,y,r,g,b);
   }
-  for(var x2=0;x2<32;x2++){
-    var h=3+(ntex(x2,9,61)*4)|0;
-    for(var k=0;k<h;k++)pxi(ctx,x2,k,50+k*6,140+k*8,24);
+  var pal=[[89,176,70],[102,188,78],[78,158,58],[116,198,86],[70,146,52],[94,182,74]];
+  for(var x=0;x<32;x++){
+    var h=7+(ntex(x,0,55)*5)|0;
+    if(ntex(x,2,66)>0.78)h+=3;
+    if(ntex(x,3,67)<0.2)h-=2;
+    if(h<5)h=5;if(h>14)h=14;
+    for(var y=0;y<h;y++){
+      var i=(ntex(x>>1,y>>1,3)*5)|0;if(i>5)i=5;
+      var c=pal[i];
+      var fade=y>h-3?0.85:1;
+      pxi(ctx,x,y,c[0]*fade,c[1]*fade,c[2]*fade);
+    }
+    if(ntex(x,8,70)>0.82)pxi(ctx,x,h,78,158,58);
   }
   return new THREE.CanvasTexture(cv);
 }
