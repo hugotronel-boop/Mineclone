@@ -3596,23 +3596,27 @@ function plantTex(paint){
 function makeBerryTex(ripe){
   if(ripe===undefined)ripe=true;
   return plantTex(function(set){
-    var pal=[[28,96,18],[42,124,28],[22,78,14],[58,148,36],[36,112,22],[70,160,42],[18,64,10]];
-    for(var y=0;y<16;y++)for(var x=0;x<16;x++){
-      var dx=x-8,dy=(y-10)*0.72;
-      var blob=1-Math.sqrt(dx*dx*0.48+dy*dy)/8.1;
-      if(y>12&&Math.abs(x-8)<6)blob+=0.28;
-      var n=ntex(x,y,44),n2=ntex(x*0.5,y*0.5,45);
-      if(blob+n*0.2<0.16)continue;
-      if(n2<0.07&&blob<0.55)continue;
-      var c=pal[((n*7)|0)%7];
+    var leaf=[[36,110,22],[52,140,32],[24,86,14],[68,158,40],[44,124,26]];
+    function leafPx(x,y,v){
+      var c=leaf[v%5];
       set(x,y,c[0],c[1],c[2],255);
-      if(n>0.72&&y<12)set(x,y,Math.min(255,c[0]+18),Math.min(255,c[1]+28),c[2]+8,255);
+    }
+    for(var y=8;y<16;y++){set(7,y,62,48,22);set(8,y,78,58,28);}
+    set(6,10,48,38,16);set(9,11,48,38,16);
+    var clumps=[[5,7,3],[10,6,3],[3,9,2],[12,8,2],[8,4,3],[6,5,2],[11,4,2],[4,6,2],[9,9,2],[7,3,2]];
+    for(var i=0;i<clumps.length;i++){
+      var cx=clumps[i][0],cy=clumps[i][1],r=clumps[i][2];
+      for(var yy=-r;yy<=r;yy++)for(var xx=-r;xx<=r;xx++){
+        if(xx*xx+yy*yy>r*r+0.2)continue;
+        if(ntex(cx+xx,cy+yy,50+i)<0.18)continue;
+        leafPx(cx+xx,cy+yy,(ntex(cx+xx,cy+yy,9)*5)|0);
+      }
     }
     if(ripe){
-      var berries=[[4,5],[9,3],[12,7],[6,8],[11,11],[3,10],[8,6],[13,4],[5,2],[10,9],[2,7],[14,8],[7,4]];
-      for(var i=0;i<berries.length;i++){
-        var bx=berries[i][0],by=berries[i][1];
-        set(bx,by,170,18,38);set(bx+1,by,200,28,48);set(bx,by+1,130,12,28);set(bx,by,240,70,90);
+      var berries=[[4,6],[10,5],[12,8],[5,9],[9,3],[3,8],[11,11],[6,4],[13,6]];
+      for(var b=0;b<berries.length;b++){
+        var bx=berries[b][0],by=berries[b][1];
+        set(bx,by,190,22,42);set(bx+1,by,220,40,60);set(bx,by+1,140,14,30);
       }
     }
   });
@@ -3668,22 +3672,19 @@ TEX[121]={top:makeMushroomCapTex(),side:makeMushroomStemTex(),bot:makeMushroomBo
 // ── Texture Herbe médicinale (B_HERB_BLOCK = 122) ───────────
 function makeHerbTex(){
   return plantTex(function(set){
-    var pal=[[40,120,28],[56,148,38],[32,100,20],[72,168,46],[48,136,32],[24,86,16]];
-    for(var y=0;y<16;y++)for(var x=0;x<16;x++){
-      var dx=x-8,dy=(y-11)*0.62;
-      var blob=1-Math.sqrt(dx*dx*0.7+dy*dy)/6.4;
-      var n=ntex(x,y,61),n2=ntex(x*0.6,y*0.6,62);
-      if(y>13&&Math.abs(x-8)<4)blob+=0.2;
-      if(blob+n*0.25<0.2)continue;
-      if(n2<0.1&&blob<0.5)continue;
-      var c=pal[((n*6)|0)%6];
-      set(x,y,c[0],c[1],c[2],255);
-      if((x+y)%5===0)set(x,y,Math.min(255,c[0]+20),Math.min(255,c[1]+24),c[2]+6,255);
-    }
-    var flowers=[[5,3],[8,2],[11,4],[3,5],[13,6],[7,5],[10,3]];
-    for(var i=0;i<flowers.length;i++){
-      var fx=flowers[i][0],fy=flowers[i][1];
-      set(fx,fy,255,255,240);set(fx-1,fy,255,220,70);set(fx+1,fy,255,220,70);set(fx,fy-1,255,255,255);
+    var blades=[[2,15,3,6],[4,15,5,4],[5,15,4,7],[7,15,7,3],[8,15,9,5],[10,15,10,4],[11,15,12,6],[13,15,13,5],[6,15,6,8],[9,15,8,7]];
+    for(var i=0;i<blades.length;i++){
+      var x0=blades[i][0],y0=blades[i][1],x1=blades[i][2],y1=blades[i][3];
+      var steps=Math.max(4,y0-y1);
+      for(var t=0;t<=steps;t++){
+        var u=t/steps;
+        var x=Math.round(x0+(x1-x0)*u),y=Math.round(y0+(y1-y0)*u);
+        var g=t>steps*0.6?170:130;
+        set(x,y,40+t,g,24);
+        if(t%2===0)set(x+(i%2?1:-1),y,32,110,18);
+      }
+      set(x1,y1,80,190,40);
+      if(i%3===0){set(x1,y1-1,255,240,90);set(x1+1,y1,255,255,220);}
     }
   });
 }
@@ -4835,7 +4836,7 @@ function buildMesh(cx,cz){
     var ny2=faceDir===0?y+1:y-1,faceName=faceDir===0?'top':'bot',br=faceDir===0?1.0:0.45;
     var visited=new Uint8Array(CS*CS);
     for(var lx=0;lx<CS;lx++)for(var lz=0;lz<CS;lz++){
-      var idx2=lx+CS*lz;if(visited[idx2])continue;var bid=getD(lx,y,lz);if(!bid||bid===B_WATER||bid===B_LEAF||bid===B_MUSHROOM_BLOCK)continue;
+      var idx2=lx+CS*lz;if(visited[idx2])continue;var bid=getD(lx,y,lz);if(!bid||bid===B_WATER||bid===B_LEAF||bid===B_MUSHROOM_BLOCK||bid===B_BERRY_BUSH||bid===B_BERRY_EMPTY||bid===B_HERB_BLOCK||bid===B_NETTLES||bid===B_SAPLING)continue;
       if(!isTransp(getW(lx,ny2,lz))){visited[idx2]=1;continue;}
       var w=1,h=1;
       while(lz+w<CS&&getD(lx,y,lz+w)===bid&&isTransp(getW(lx,ny2,lz+w))&&!visited[lx+CS*(lz+w)])w++;
@@ -4850,7 +4851,7 @@ function buildMesh(cx,cz){
   for(var lx=0;lx<CS;lx++)for(var faceDir=0;faceDir<2;faceDir++){
     var nx=faceDir===0?lx+1:lx-1;var visited2=new Uint8Array(CS*maxY);
     for(var y=0;y<maxY;y++)for(var lz=0;lz<CS;lz++){
-      var idx3=y*CS+lz;if(visited2[idx3])continue;var bid=getD(lx,y,lz);if(!bid||bid===B_WATER||bid===B_LEAF||bid===B_MUSHROOM_BLOCK)continue;
+      var idx3=y*CS+lz;if(visited2[idx3])continue;var bid=getD(lx,y,lz);if(!bid||bid===B_WATER||bid===B_LEAF||bid===B_MUSHROOM_BLOCK||bid===B_BERRY_BUSH||bid===B_BERRY_EMPTY||bid===B_HERB_BLOCK||bid===B_NETTLES||bid===B_SAPLING)continue;
       if(!isTransp(getW(nx,y,lz))){visited2[idx3]=1;continue;}
       var w=1,h=1;
       while(lz+w<CS&&getD(lx,y,lz+w)===bid&&isTransp(getW(nx,y,lz+w))&&!visited2[y*CS+(lz+w)])w++;
@@ -4865,7 +4866,7 @@ function buildMesh(cx,cz){
   for(var lz=0;lz<CS;lz++)for(var faceDir=0;faceDir<2;faceDir++){
     var nz=faceDir===0?lz+1:lz-1;var visited3=new Uint8Array(CS*maxY);
     for(var y=0;y<maxY;y++)for(var lx=0;lx<CS;lx++){
-      var idx4=y*CS+lx;if(visited3[idx4])continue;var bid=getD(lx,y,lz);if(!bid||bid===B_WATER||bid===B_LEAF||bid===B_MUSHROOM_BLOCK)continue;
+      var idx4=y*CS+lx;if(visited3[idx4])continue;var bid=getD(lx,y,lz);if(!bid||bid===B_WATER||bid===B_LEAF||bid===B_MUSHROOM_BLOCK||bid===B_BERRY_BUSH||bid===B_BERRY_EMPTY||bid===B_HERB_BLOCK||bid===B_NETTLES||bid===B_SAPLING)continue;
       if(!isTransp(getW(lx,y,nz))){visited3[idx4]=1;continue;}
       var w=1,h=1;
       while(lx+w<CS&&getD(lx+w,y,lz)===bid&&isTransp(getW(lx+w,y,nz))&&!visited3[y*CS+(lx+w)])w++;
@@ -4889,7 +4890,7 @@ function buildMesh(cx,cz){
     if(bid!==B_BERRY_BUSH&&bid!==B_BERRY_EMPTY&&bid!==B_HERB_BLOCK&&bid!==B_NETTLES&&bid!==B_SAPLING)continue;
     var wpx=ox+lx,wpz=oz+lz;
     // Hauteur selon le type : buisson = 0.8 bloc, champignon = 0.7 bloc
-    var ph=(bid===B_BERRY_BUSH||bid===B_BERRY_EMPTY)?1.0:bid===B_NETTLES?0.95:bid===B_HERB_BLOCK?0.85:0.75;
+    var ph=(bid===B_BERRY_BUSH||bid===B_BERRY_EMPTY)?1.0:bid===B_NETTLES?0.9:bid===B_HERB_BLOCK?0.55:0.7;
     // 2 quads croisés = forme X vue de dessus (comme les herbes de Minecraft)
     var crosses=[
       // quad A : diagonale /
