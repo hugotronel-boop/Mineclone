@@ -8802,7 +8802,7 @@ function updateBreaking(dt){
 }
 
 // ── Physics ────────────────────────────────────────────────
-function isCamoBlock(b){return b===B_BERRY_BUSH||b===B_HERB_BLOCK||b===B_NETTLES||b===B_MUSHROOM_BLOCK;}
+function isCamoBlock(b){return b===B_BERRY_BUSH||b===B_HERB_BLOCK||b===B_NETTLES;}
 var _crouching=false,_crouchToggled=false,_mobileCrouch=false,_crouchY=0;
 function playerInBush(){
   var x=Math.floor(player.pos.x),z=Math.floor(player.pos.z);
@@ -8889,7 +8889,7 @@ function updateStealthHud(){
   var ns=n>=12?'noise-3':n>=5?'noise-2':n>=1.2?'noise-1':'noise-0';
   if(noi.className.indexOf(ns)<0)noi.className='stealth-ico '+ns;
 }
-function isSolid(x,y,z){var b=getBlock(Math.floor(x),Math.floor(y),Math.floor(z));return b&&b!==B_WATER&&b!==B_LEAF&&b!==B_AIR&&b!==B_BERRY_BUSH&&b!==B_HERB_BLOCK&&b!==B_SAPLING&&b!==B_NETTLES&&b!==B_MUSHROOM_BLOCK;}
+function isSolid(x,y,z){var b=getBlock(Math.floor(x),Math.floor(y),Math.floor(z));return b&&b!==B_WATER&&b!==B_LEAF&&b!==B_AIR&&b!==B_BERRY_BUSH&&b!==B_HERB_BLOCK&&b!==B_SAPLING&&b!==B_NETTLES;}
 function isInWater(x,y,z){return getBlock(Math.floor(x),Math.floor(y),Math.floor(z))===B_WATER;}
 
 function waterTopY(x,z){
