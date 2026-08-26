@@ -2854,7 +2854,7 @@ var isMobile = ('ontouchstart' in window)||(navigator.maxTouchPoints>0);
 var PERF={
   res: isMobile?0.62:1,
   far: isMobile?88:400,
-  maxAnimals: isMobile?12:48,
+  maxAnimals: isMobile?22:70,
   maxParticles: isMobile?24:90,
   rainN: isMobile?48:200,
   rainRes: isMobile?0.45:1,
@@ -7794,10 +7794,28 @@ var animals=[];
 var _playerShadowMesh=null;function _initPlayerShadow(){}
 function spawnAnimal(type,wx,wy,wz){var def=MOB_DEF[type],mesh=buildAnimalMesh(type);mesh.position.set(wx,wy,wz);scene.add(mesh);var initYaw=Math.random()*Math.PI*2,a={type:type,mesh:mesh,pos:new THREE.Vector3(wx,wy,wz),vel:new THREE.Vector3(),hp:def.hp,maxHp:def.hp,onGround:false,tamed:false,yaw:initYaw,wanderTimer:0,wanderDir:new THREE.Vector3(Math.sin(initYaw),0,Math.cos(initYaw)),panicTimer:0,hitFlash:0,dead:false,dying:false,deathTimer:0,deathRot:0,deathRotTarget:0,loot:null,aiState:'wander',attackTimer:0,alertTimer:0,hunger:10+Math.random()*4,hungerTimer:0,eatTimer:0,sleepTimer:0,warnTimer:0,preyTarget:null,patrolRoute:null,patrolIdx:0,patrolWaitTimer:0,groupId:null};animals.push(a);updateHealthBar(a);return a;}
 var spawnedChunks=new Set();
-function trySpawnAnimalsInChunk(cx,cz){if(isMobile&&animals.length>=PERF.maxAnimals)return;var key=ckey(cx,cz);if(spawnedChunks.has(key))return;spawnedChunks.add(key);if(hash(cx*7.3,cz*4.9,SEED+321)>0.18)return;var chunkCx=cx*CHUNK_SIZE+8,chunkCz=cz*CHUNK_SIZE+8,isl=getIsland(chunkCx,chunkCz);if(isl===0)return;var types=isl===1?['cow','cow','sheep','sheep','wolf','rabbit','rabbit','deer','chicken','boar','snake']:['cow','sheep','sheep','rabbit','chicken','snake'],type=types[Math.floor(hash(cx*3.1,cz*6.7,SEED+555)*types.length)],lx=2+Math.floor(hash(cx,cz,SEED+111)*12),lz=2+Math.floor(hash(cx,cz,SEED+222)*12),ax=cx*CHUNK_SIZE+lx,az=cz*CHUNK_SIZE+lz,ay=getH(Math.floor(ax),Math.floor(az));if(ay<SEA_LEVEL||ay>SEA_LEVEL+60||isLake(ax,az))return;// Serpents préfèrent montagne/forêt
-var finalType=type;
-if(type==='snake'){var sb=getBiome(ax,az);if(sb!=='mountain'&&sb!=='forest'&&Math.random()<0.6)finalType='rabbit';}
-spawnAnimal(finalType,ax,ay+(finalType==='snake'?0.5:2),az);}
+function trySpawnAnimalsInChunk(cx,cz){
+  if(animals.length>=PERF.maxAnimals)return;
+  var key=ckey(cx,cz);
+  if(spawnedChunks.has(key))return;
+  var chunkCx=cx*CHUNK_SIZE+8,chunkCz=cz*CHUNK_SIZE+8,isl=getIsland(chunkCx,chunkCz);
+  if(isl===0){spawnedChunks.add(key);return;}
+  spawnedChunks.add(key);
+  if(hash(cx*7.3,cz*4.9,SEED+321)>0.62)return;
+  var types=isl===1
+    ?['cow','cow','sheep','sheep','sheep','rabbit','rabbit','rabbit','rabbit','deer','deer','chicken','chicken','chicken','boar','wolf']
+    :['cow','sheep','sheep','rabbit','rabbit','chicken','chicken'];
+  var n=1+Math.floor(hash(cx,cz,SEED+888)*2);
+  if(!isMobile&&hash(cx,cz,SEED+889)>0.55)n++;
+  for(var si=0;si<n;si++){
+    if(animals.length>=PERF.maxAnimals)break;
+    var type=types[Math.floor(hash(cx*3.1+si,cz*6.7,SEED+555)*types.length)];
+    var lx=2+Math.floor(hash(cx,cz+si,SEED+111)*12),lz=2+Math.floor(hash(cx+si,cz,SEED+222)*12);
+    var ax=cx*CHUNK_SIZE+lx,az=cz*CHUNK_SIZE+lz,ay=getH(Math.floor(ax),Math.floor(az));
+    if(ay<SEA_LEVEL||ay>SEA_LEVEL+60||isLake(ax,az))continue;
+    spawnAnimal(type,ax,ay+2,az);
+  }
+}
 function spawnInitialAnimals(){var pcx=Math.floor(player.pos.x/CHUNK_SIZE),pcz=Math.floor(player.pos.z/CHUNK_SIZE);for(var ddx=-RENDER_DIST;ddx<=RENDER_DIST;ddx++)for(var ddz=-RENDER_DIST;ddz<=RENDER_DIST;ddz++)trySpawnAnimalsInChunk(pcx+ddx,pcz+ddz);}
 
 // ════════════════════════════════════════════════════════
