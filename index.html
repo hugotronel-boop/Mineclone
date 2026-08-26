@@ -3231,44 +3231,54 @@ function makeSandTex(){
 }
 function makeWoodTop(){
   var cv=cv32(),ctx=cv.getContext('2d');
+  var rings=[[196,154,88],[168,118,58],[210,170,102],[148,100,48],[186,140,78],[120,82,40]];
   for(var y=0;y<32;y++)for(var x=0;x<32;x++){
-    var dx=x-15.5,dy=y-15.5,dist=Math.sqrt(dx*dx+dy*dy);
-    var ring=Math.sin(dist*0.95)*0.5+0.5,n=ntex(x,y,9)*0.25;
-    var r=118+ring*55+n*18,g=78+ring*38+n*12,b=32+ring*16+n*8;
-    if(dist<2.2){r-=20;g-=16;b-=8;}
-    pxi(ctx,x,y,r,g,b);
+    var dx=x-15.5,dy=y-15.5;
+    var d=Math.sqrt(dx*dx+dy*dy*0.92);
+    var sq=Math.max(Math.abs(dx),Math.abs(dy));
+    var dist=d*0.55+sq*0.45;
+    if(sq>14.2){
+      var n=ntex(x,y,9);
+      pxi(ctx,x,y,62+n*18,42+n*12,18+n*8);
+      continue;
+    }
+    var ri=((dist*0.72)+ntex(x,y,8)*0.4)|0;
+    var c=rings[ri%rings.length];
+    var j=ntex(x,y,19)*10-5;
+    pxi(ctx,x,y,c[0]+j,c[1]+j*0.8,c[2]+j*0.5);
   }
-  ctx.strokeStyle='rgba(70,42,12,0.55)';ctx.lineWidth=1.2;
-  ctx.beginPath();ctx.arc(16,16,12,0,Math.PI*2);ctx.stroke();
-  ctx.beginPath();ctx.arc(16,16,7,0,Math.PI*2);ctx.stroke();
-  ctx.beginPath();ctx.arc(16,16,3,0,Math.PI*2);ctx.stroke();
+  pxi(ctx,15,15,96,68,32);pxi(ctx,16,15,88,60,28);pxi(ctx,15,16,90,62,30);pxi(ctx,16,16,84,56,26);
   return new THREE.CanvasTexture(cv);
 }
 function makeWoodSide(){
   var cv=cv32(),ctx=cv.getContext('2d');
+  var pal=[[92,62,28],[72,48,20],[118,80,36],[64,42,16],[104,72,32],[84,56,24],[128,88,40],[58,38,14]];
   for(var y=0;y<32;y++)for(var x=0;x<32;x++){
-    var band=Math.sin(x*0.7+ntex(x,0,11)*1.4)*0.5+0.5;
-    var n=ntex(x,y,19)*0.22;
-    var r=108+band*58+n*16,g=70+band*40+n*12,b=28+band*18+n*6;
-    if((x%8)===3){r-=18;g-=12;}
-    pxi(ctx,x,y,r,g,b);
+    var wob=(ntex(0,y,11)*1.6)|0;
+    var col=(x+wob+32)%32;
+    var i=(ntex(col,0,12)*7)|0;
+    if((col%5)===0)i=3;
+    if((col%9)===2)i=0;
+    var c=pal[i%pal.length];
+    var n=ntex(x,y,19)*12-6;
+    pxi(ctx,x,y,c[0]+n,c[1]+n*0.7,c[2]+n*0.4);
   }
-  ctx.fillStyle='rgba(55,32,10,0.65)';
-  ctx.beginPath();ctx.ellipse(8,18,3.2,2.2,0.4,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='rgba(160,110,50,0.35)';
-  ctx.beginPath();ctx.ellipse(8,18,1.6,1.1,0.4,0,Math.PI*2);ctx.fill();
+  for(var k=0;k<3;k++){
+    var cx=6+k*9,cy=8+k*6;
+    pxi(ctx,cx,cy,48,30,12);pxi(ctx,cx+1,cy,52,34,14);pxi(ctx,cx,cy+1,44,28,10);
+  }
   return new THREE.CanvasTexture(cv);
 }
 function makeLeafTex(){
   var cv=cv32(),ctx=cv.getContext('2d');
-  ctx.fillStyle='#16380a';ctx.fillRect(0,0,32,32);
+  var pal=[[48,118,36],[68,148,50],[86,168,60],[40,104,30],[102,178,68],[58,136,42],[76,158,54],[92,164,48]];
   for(var y=0;y<32;y++)for(var x=0;x<32;x++){
-    var n=ntex(x,y,13),n2=ntex(x+5,y+2,23);
-    if(n<0.22)continue;
-    var r=32+n*50,g=92+n*90,b=12+n*28;
-    if(n2>0.72){r+=18;g+=28;b+=8;}
-    if(n>0.85){r=210;g=220;b=80;}
-    pxi(ctx,x,y,r,g,b);
+    var n=ntex(x>>1,y>>1,13),n2=ntex(x,y,23);
+    if(n2<0.16){pxi(ctx,x,y,18,42,12);continue;}
+    var i=(n*7+n2*1.5)|0;if(i<0)i=0;if(i>7)i=7;
+    var c=pal[i];
+    var j=ntex(x,y,31)*14-7;
+    pxi(ctx,x,y,c[0]+j,c[1]+j,c[2]+j*0.5);
   }
   return new THREE.CanvasTexture(cv);
 }
