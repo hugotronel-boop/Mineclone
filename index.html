@@ -8747,7 +8747,20 @@ function detectPlayer(a,dist,dx,dz){
   if(dist<=1.05)see=2;
   else if(dist<=range*0.5&&los)see=2;
   else if(dist<=range)see=1;
-  return {see:see,range:range,los:los};
+  var hearMul={rabbit:1.45,deer:1.4,chicken:1.2,wolf:1.3,wolfpack:1.25,chasseur:1.2,rodeur:1.1,brute:0.85,cow:0.8,sheep:0.85};
+  var hearRange=(_playerNoise||0)*(hearMul[a.type]||1);
+  if(!los)hearRange*=0.5;
+  if(inBush&&crouch&&_playerNoise<12)hearRange*=0.22;
+  if(dist<=hearRange){
+    if(see<1)see=1;
+    if(dist<=hearRange*0.35&&_playerNoise>=10)see=Math.max(see,2);
+  }
+  range=Math.max(range,hearRange*0.9);
+  return {see:see,range:range,los:los,heard:dist<=hearRange};
+}
+var _playerNoise=0,_playerNoiseKind='idle';
+function emitNoise(radius,kind){
+  if(radius>_playerNoise){_playerNoise=radius;_playerNoiseKind=kind||'';}
 }
 function syncCrouchBtn(){
   var el=document.getElementById('btn-crouch');
@@ -8939,7 +8952,7 @@ function movePlayer(dt){
     return;
   }
   if(inW){var SS=currentSpeed*0.55;player.vel.x=dir.x*SS;player.vel.z=dir.z*SS;player.vel.y+=GRAVITY*0.18*dt;if(player.vel.y<-2.5)player.vel.y=-2.5;if(jp){player.vel.y=Math.min(player.vel.y+12*dt,2.5);}player.vel.y*=Math.pow(0.85,dt*20);if(jp){var canClimb=false;var cd=[[1,0],[-1,0],[0,1],[0,-1]];for(var ci2=0;ci2<cd.length;ci2++){if(isSolid(player.pos.x+cd[ci2][0]*0.6,player.pos.y-1.4,player.pos.z+cd[ci2][1]*0.6)&&!isSolid(player.pos.x+cd[ci2][0]*0.6,player.pos.y+0.3,player.pos.z+cd[ci2][1]*0.6)){canClimb=true;break;}}if(canClimb)player.vel.y=JUMP_FORCE;}}
-  else{player.vel.x=dir.x*currentSpeed;player.vel.z=dir.z*currentSpeed;player.vel.y+=GRAVITY*dt;if(player.onGround)player.coyoteTime=0.12;else player.coyoteTime=Math.max(0,player.coyoteTime-dt);if(jp&&(player.onGround||player.coyoteTime>0)){player.vel.y=JUMP_FORCE;player.onGround=false;player.coyoteTime=0;drainStamina(0.5);}if(player.jumpBuffer>0&&player.onGround){player.vel.y=JUMP_FORCE;player.onGround=false;player.jumpBuffer=0;drainStamina(0.5);}}
+  else{player.vel.x=dir.x*currentSpeed;player.vel.z=dir.z*currentSpeed;player.vel.y+=GRAVITY*dt;if(player.onGround)player.coyoteTime=0.12;else player.coyoteTime=Math.max(0,player.coyoteTime-dt);if(jp&&(player.onGround||player.coyoteTime>0)){player.vel.y=JUMP_FORCE;player.onGround=false;player.coyoteTime=0;drainStamina(0.5);emitNoise(10,'jump');}if(player.jumpBuffer>0&&player.onGround){player.vel.y=JUMP_FORCE;player.onGround=false;player.jumpBuffer=0;drainStamina(0.5);emitNoise(10,'jump');}}
   var nx=player.pos.x+player.vel.x*dt,ny=player.pos.y+player.vel.y*dt,nz=player.pos.z+player.vel.z*dt;
   var canX=true,canZ=true,yF=player.pos.y-1.62,yW=player.pos.y-0.9-_crouchY*0.4,yH=player.pos.y-0.1-_crouchY;
   for(var pi=0;pi<pts.length;pi++)if(isSolid(nx+pts[pi][0],yF,player.pos.z+pts[pi][1])||isSolid(nx+pts[pi][0],yW,player.pos.z+pts[pi][1])||isSolid(nx+pts[pi][0],yH,player.pos.z+pts[pi][1])){canX=false;break;}
@@ -10190,37 +10203,34 @@ function _noise(dur,gain,filter,dest){
 
 // Pas selon le sol
 var _stepTimer=0,_stepInterval=0.38;
-function playFootstep(blockBelow){
+function playFootstep(blockBelow,vol){
   if(!_ac)return;
+  vol=vol==null?1:vol;
   var t=blockBelow;
-  if(t===B_GRASS||t===B_DIRT){
-    // Terre/herbe : bruit sourd
-    _noise(0.08,0.12,{type:'lowpass',freq:300});
-    _beep(80+Math.random()*30,0.08,'sine',0.04);
+  if(t===B_GRASS||t===B_DIRT||t===B_HERB_BLOCK||t===B_BERRY_BUSH){
+    _noise(0.08,0.12*vol,{type:'lowpass',freq:300});
+    _beep(80+Math.random()*30,0.08,'sine',0.04*vol);
   } else if(t===B_STONE||t===B_GRAVEL||t===B_COAL||t===B_IRON){
-    // Pierre : claquement
-    _noise(0.06,0.15,{type:'highpass',freq:400});
-    _beep(200+Math.random()*50,0.05,'square',0.03);
+    _noise(0.06,0.15*vol,{type:'highpass',freq:400});
+    _beep(200+Math.random()*50,0.05,'square',0.03*vol);
   } else if(t===B_SAND){
-    // Sable : frottement doux
-    _noise(0.1,0.08,{type:'lowpass',freq:600});
+    _noise(0.1,0.08*vol,{type:'lowpass',freq:600});
   } else if(t===B_WOOD||t===B_STAIRS||t===B_FENCE){
-    // Bois : craquement
-    _noise(0.07,0.13,{type:'bandpass',freq:500});
-    _beep(150+Math.random()*40,0.06,'sawtooth',0.04);
+    _noise(0.07,0.13*vol,{type:'bandpass',freq:500});
+    _beep(150+Math.random()*40,0.06,'sawtooth',0.04*vol);
   } else if(t===B_WATER){
-    // Eau : éclaboussure
-    _noise(0.12,0.1,{type:'lowpass',freq:1200});
-    _beep(600,0.1,'sine',0.05);
+    _noise(0.12,0.1*vol,{type:'lowpass',freq:1200});
+    _beep(600,0.1,'sine',0.05*vol);
   } else if(t===B_SNOW){
-    _noise(0.09,0.07,{type:'lowpass',freq:400});
+    _noise(0.09,0.07*vol,{type:'lowpass',freq:400});
   } else {
-    _noise(0.07,0.1,{type:'lowpass',freq:500});
+    _noise(0.07,0.1*vol,{type:'lowpass',freq:500});
   }
 }
 
 // Cassage de bloc
 function playSoundBreak(blockType){
+  emitNoise(14,'break');
   if(!_ac)return;
   if(blockType===B_WOOD||blockType===B_LEAF||blockType===B_STUMP){
     _noise(0.18,0.32,{type:'lowpass',freq:550});
@@ -10246,6 +10256,7 @@ function playSoundBreak(blockType){
 
 // Pose de bloc
 function playSoundPlace(){
+  emitNoise(8,'place');
   if(!_ac)return;
   _noise(0.08,0.15,{type:'lowpass',freq:500});
   _beep(200,0.06,'sine',0.06);
@@ -10470,14 +10481,23 @@ function updateAudio(dt){
   // Mettre à jour le volume master
   if(_masterGain)_masterGain.gain.setTargetAtTime(SETTINGS.volume/100,_ac.currentTime,0.1);
 
+  _playerNoise=Math.max(0,(_playerNoise||0)-dt*7);
   // Pas de marche
   _footstepBuf+=dt;
   var isSprinting=(_sprintDrainTimer>0);
-  var stepInt=isSprinting?0.28:0.42;
-  if(player.onGround&&(Math.abs(player.vel.x)>0.5||Math.abs(player.vel.z)>0.5)&&_footstepBuf>stepInt){
+  var isCrouch=_crouching||_crouchY>0.28;
+  var stepInt=isSprinting?0.28:isCrouch?0.62:0.42;
+  if(player.onGround&&(Math.abs(player.vel.x)>0.4||Math.abs(player.vel.z)>0.4)&&_footstepBuf>stepInt){
     _footstepBuf=0;
-    var bUnder=getBlock(Math.floor(player.pos.x),Math.floor(player.pos.y-0.1),Math.floor(player.pos.z));
-    playFootstep(bUnder);
+    var bUnder=getBlock(Math.floor(player.pos.x),Math.floor(player.pos.y-1.55),Math.floor(player.pos.z));
+    playFootstep(bUnder,isCrouch?0.35:isSprinting?1.25:1);
+    var n=isSprinting?16:isCrouch?2.6:8;
+    if(typeof playerInBush==='function'&&playerInBush()){
+      n=isCrouch?Math.max(n,2.2):Math.max(n,9);
+      _noise(0.1,isCrouch?0.035:0.09,{type:'lowpass',freq:900});
+    }
+    if(bUnder===B_WATER)n=Math.max(n,11);
+    emitNoise(n,isSprinting?'sprint':isCrouch?'sneak':'walk');
   }
 
   // Vent (toujours présent, plus fort en hauteur)
@@ -10805,6 +10825,7 @@ function playSoundUI(kind){
   else if(kind==='ding'){_beep(880,0.08,'sine',0.12);setTimeout(function(){_beep(1174,0.16,'sine',0.1);},90);}
 }
 function playSoundSwing(){
+  emitNoise(11,'swing');
   if(!_ac)return;
   _noise(0.05,0.08,{type:'highpass',freq:800});
   _beep(140+Math.random()*40,0.05,'sawtooth',0.03);
