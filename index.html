@@ -3305,31 +3305,63 @@ function makeLeafTex(){
   ctx2.drawImage(cv,0,0,32,32);
   return new THREE.CanvasTexture(cv2);
 }
-var _waterShared=null,_waterFrame=0,_waterAnimT=0;
-function paintWaterFrame(ctx,frame){
-  var w=ctx.canvas.width,h=ctx.canvas.height,img=ctx.createImageData(w,h),d=img.data,t=frame*0.45;
-  for(var y=0;y<h;y++)for(var x=0;x<w;x++){
-    var a=Math.sin(x*0.5+t)+Math.sin(y*0.37+t*1.2)+Math.sin((x+y)*0.22+t*0.7);
-    var n=(a/3)*0.5+0.5;
-    var i=(y*w+x)*4;
-    d[i]=12+n*48;d[i+1]=95+n*85;d[i+2]=175+n*70;d[i+3]=175+n*50;
-    if(((x+y+frame)&15)===0){d[i]=210;d[i+1]=240;d[i+2]=255;d[i+3]=140;}
+var _waterShared=null,_waterAnimT=0;
+var _wGrid=new Float32Array(256),_wGridN=new Float32Array(256),_wGrid2=new Float32Array(256),_wGrid3=new Float32Array(256);
+function tickMinecraftWater(){
+  var i,j,k,f,l;
+  for(i=0;i<16;i++){
+    for(j=0;j<16;j++){
+      f=0;
+      for(k=i-1;k<=i+1;k++){
+        l=k&15;
+        f+=_wGrid[l+(j&15)*16];
+      }
+      _wGridN[i+j*16]=f/3.3+_wGrid2[i+j*16]*0.8;
+    }
   }
-  ctx.putImageData(img,0,0);
+  for(i=0;i<16;i++){
+    for(j=0;j<16;j++){
+      var idx=i+j*16;
+      _wGrid2[idx]+=_wGrid3[idx]*0.05;
+      if(_wGrid2[idx]<0)_wGrid2[idx]=0;
+      _wGrid3[idx]-=0.1;
+      if(Math.random()<0.05)_wGrid3[idx]=0.5;
+    }
+  }
+  var tmp=_wGridN;_wGridN=_wGrid;_wGrid=tmp;
+}
+function blitMinecraftWater(ctx){
+  var img=ctx.createImageData(16,16),d=img.data;
+  for(var p=0;p<256;p++){
+    var f=_wGrid[p];
+    if(f>1)f=1;if(f<0)f=0;
+    var f1=f*f;
+    d[p*4]=(32+f1*32)|0;
+    d[p*4+1]=(50+f1*64)|0;
+    d[p*4+2]=255;
+    d[p*4+3]=(146+f1*50)|0;
+  }
+  var tcv=document.createElement('canvas');tcv.width=tcv.height=16;
+  tcv.getContext('2d').putImageData(img,0,0);
+  ctx.imageSmoothingEnabled=false;
+  ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);
+  ctx.drawImage(tcv,0,0,ctx.canvas.width,ctx.canvas.height);
 }
 function makeWaterTex(){
   if(_waterShared)return _waterShared;
-  var cv=cv32();
-  paintWaterFrame(cv.getContext('2d'),0);
+  var cv=cv32(),ctx=cv.getContext('2d');
+  for(var w=0;w<48;w++)tickMinecraftWater();
+  blitMinecraftWater(ctx);
   _waterShared=new THREE.CanvasTexture(cv);
   return _waterShared;
 }
 function updateWaterAnim(dt){
   _waterAnimT+=dt;
-  if(_waterAnimT<(isMobile?0.16:0.1))return;
+  if(_waterAnimT<(isMobile?0.08:0.05))return;
   _waterAnimT=0;
   if(!_waterShared||!_waterShared._cv)return;
-  paintWaterFrame(_waterShared._cv.getContext('2d'),_waterFrame++);
+  tickMinecraftWater();
+  blitMinecraftWater(_waterShared._cv.getContext('2d'));
   _waterShared._dirty=true;
 }
 function makeSnowTex(){
@@ -4953,7 +4985,7 @@ function buildMesh(cx,cz){
   }
   var group=new THREE.Group();group.userData.cx=cx;group.userData.cz=cz;group.userData.minY=0;group.userData.maxY=maxY;
   for(var bk in bkts){var b=bkts[bk];if(!b.cnt)continue;var geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(b.pos,3));geo.setAttribute('uv',new THREE.Float32BufferAttribute(b.uv,2));geo.setAttribute('brightness',new THREE.Float32BufferAttribute(b.br,1));geo.index=new Uint16Array(b.idx);var tex=TEX[b.id]?TEX[b.id][b.face]:null;var isPlant=(b.id===B_LEAF||b.id===B_BERRY_BUSH||b.id===B_BERRY_EMPTY||b.id===B_HERB_BLOCK||b.id===B_NETTLES||b.id===B_SAPLING);group.add(new THREE.Mesh(geo,isPlant?new THREE.MeshBasicMaterial({map:tex,transparent:true,opacity:1}):new THREE.MeshBasicMaterial({map:tex})));}
-  if(wC>0){var wgeo=new THREE.BufferGeometry();wgeo.setAttribute('position',new THREE.Float32BufferAttribute(wP,3));wgeo.setAttribute('uv',new THREE.Float32BufferAttribute(wU,2));wgeo.setAttribute('brightness',new THREE.Float32BufferAttribute(wB,1));wgeo.index=new Uint16Array(wI);group.add(new THREE.Mesh(wgeo,new THREE.MeshBasicMaterial({map:TEX[B_WATER]?TEX[B_WATER].top:null,color:0x3aa0e8,transparent:true,opacity:0.72})));}
+  if(wC>0){var wgeo=new THREE.BufferGeometry();wgeo.setAttribute('position',new THREE.Float32BufferAttribute(wP,3));wgeo.setAttribute('uv',new THREE.Float32BufferAttribute(wU,2));wgeo.setAttribute('brightness',new THREE.Float32BufferAttribute(wB,1));wgeo.index=new Uint16Array(wI);group.add(new THREE.Mesh(wgeo,new THREE.MeshBasicMaterial({map:TEX[B_WATER]?TEX[B_WATER].top:null,transparent:true,opacity:0.88})));}
     var mushCap=new THREE.MeshBasicMaterial({color:0xc44a28});
   var mushStem=new THREE.MeshBasicMaterial({color:0xf0e6c8});
   var mushSpot=new THREE.MeshBasicMaterial({color:0xf7edd8});
