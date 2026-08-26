@@ -4925,18 +4925,23 @@ function buildMesh(cx,cz){
     var mushCap=new THREE.MeshBasicMaterial({color:0xc44a28});
   var mushStem=new THREE.MeshBasicMaterial({color:0xf0e6c8});
   var mushSpot=new THREE.MeshBasicMaterial({color:0xf7edd8});
-  var mushCapT=new THREE.MeshBasicMaterial({color:0x7a3aa0});
+  var mushCapT=new THREE.MeshBasicMaterial({color:0x6b3488});
+  function addTinyShroom(g,x,z,sc,toxic){
+    var st=new THREE.Mesh(new THREE.BoxGeometry(0.035*sc,0.07*sc,0.035*sc),mushStem);
+    st.position.set(x,0.035*sc,z);g.add(st);
+    var cap=new THREE.Mesh(new THREE.BoxGeometry(0.09*sc,0.045*sc,0.09*sc),toxic?mushCapT:mushCap);
+    cap.position.set(x,0.085*sc,z);g.add(cap);
+    var sp=new THREE.Mesh(new THREE.BoxGeometry(0.028*sc,0.012*sc,0.028*sc),mushSpot);
+    sp.position.set(x+0.018*sc,0.11*sc,z-0.012*sc);g.add(sp);
+  }
   for(var mlx=0;mlx<CS;mlx++)for(var my=0;my<maxY;my++)for(var mlz=0;mlz<CS;mlz++){
     if(getD(mlx,my,mlz)!==B_MUSHROOM_BLOCK)continue;
     var toxic=hash(ox+mlx,oz+mlz,SEED+770)>0.35;
     var mg=new THREE.Group();
-    var st=new THREE.Mesh(new THREE.BoxGeometry(0.07,0.11,0.07),mushStem);
-    st.position.y=0.055;mg.add(st);
-    var cap=new THREE.Mesh(new THREE.BoxGeometry(0.20,0.08,0.20),toxic?mushCapT:mushCap);
-    cap.position.y=0.14;mg.add(cap);
-    var sp=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.02,0.05),mushSpot);
-    sp.position.set(0.04,0.185,-0.03);mg.add(sp);
-    var jx=(hash(ox+mlx,oz+mlz,11)-0.5)*0.28,jz=(hash(ox+mlx,oz+mlz,12)-0.5)*0.28;
+    addTinyShroom(mg,0,0,1.15,toxic);
+    addTinyShroom(mg,0.07,0.05,0.78,toxic);
+    addTinyShroom(mg,-0.06,0.04,0.85,toxic);
+    var jx=(hash(ox+mlx,oz+mlz,11)-0.5)*0.22,jz=(hash(ox+mlx,oz+mlz,12)-0.5)*0.22;
     mg.position.set(ox+mlx+0.5+jx,my,oz+mlz+0.5+jz);
     group.add(mg);
   }
