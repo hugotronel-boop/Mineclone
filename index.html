@@ -588,6 +588,13 @@ user-select: none;
 #btn-jump {
 background: rgba(50, 100, 200, 0.7);
 }
+#btn-crouch {
+background: rgba(60, 90, 50, 0.75);
+}
+#btn-crouch.on {
+background: rgba(80, 160, 50, 0.95);
+border-color: rgba(180,255,140,0.9);
+}
 
 #block-arrows {
 position: fixed;
@@ -2187,6 +2194,7 @@ display: none !important;
   <div id="action-btns">
     <div class="action-btn" id="btn-break">&#x26CF;</div>
     <div class="action-btn" id="btn-jump">&#x2191;</div>
+    <div class="action-btn" id="btn-crouch">&#x1F9CE;</div>
     <div class="action-btn" id="btn-place">&#x1F9F1;</div>
   </div>
   <div id="block-arrows">
@@ -7889,11 +7897,15 @@ function updateAnimals(dt){
     // ── Distances effectives (nuit = plus dangereux) ────────
     var nightMult=isNight?1.8:1.0;
     var effectiveAggro=def.aggro?(def.aggro*nightMult):0;
-    if(typeof playerCamouflaged==='function'&&playerCamouflaged()){
-      effectiveAggro*=0.28;
-      if(a.aiState==='observe'||a.aiState==='alert'){
-        if(dist>effectiveAggro*1.15)a.aiState='wander';
-      }
+    var inBush=typeof playerInBush==='function'&&playerInBush();
+    var isCrouch=_crouching||_crouchY>0.3;
+    if(inBush&&isCrouch){
+      effectiveAggro=1.2;
+      if(dist>1.6&&(a.aiState==='observe'||a.aiState==='alert'||a.aiState==='attack'))a.aiState='wander';
+    } else if(isCrouch){
+      effectiveAggro*=0.40;
+    } else if(inBush){
+      effectiveAggro*=0.62;
     }
 
     // Météo : pluie → passifs cherchent couvert (bougent moins)
@@ -8686,10 +8698,16 @@ function updateBreaking(dt){
 
 // ── Physics ────────────────────────────────────────────────
 function isCamoBlock(b){return b===B_BERRY_BUSH||b===B_HERB_BLOCK;}
-function playerCamouflaged(){
+var _crouching=false,_crouchToggled=false,_mobileCrouch=false,_crouchY=0;
+function playerInBush(){
   var x=Math.floor(player.pos.x),z=Math.floor(player.pos.z);
-  var y0=Math.floor(player.pos.y),y1=Math.floor(player.pos.y-0.85);
+  var y0=Math.floor(player.pos.y-_crouchY),y1=Math.floor(player.pos.y-0.85-_crouchY);
   return isCamoBlock(getBlock(x,y0,z))||isCamoBlock(getBlock(x,y1,z));
+}
+function playerCamouflaged(){return playerInBush();}
+function syncCrouchBtn(){
+  var el=document.getElementById('btn-crouch');
+  if(el){if(_crouching)el.classList.add('on');else el.classList.remove('on');}
 }
 function isSolid(x,y,z){var b=getBlock(Math.floor(x),Math.floor(y),Math.floor(z));return b&&b!==B_WATER&&b!==B_LEAF&&b!==B_AIR&&b!==B_BERRY_BUSH&&b!==B_HERB_BLOCK&&b!==B_SAPLING;}
 function isInWater(x,y,z){return getBlock(Math.floor(x),Math.floor(y),Math.floor(z))===B_WATER;}
@@ -8854,7 +8872,13 @@ function movePlayer(dt){
     var coldPenalty=player.temp<=2?(hasClothing?0.60:0.45):(hasClothing?0.85:0.70);
     speedFactor*=coldPenalty;
   }
-  var currentSpeed=wantSprint?SPRINT_SPEED*speedFactor:MOVE_SPEED*speedFactor;
+  var wantCrouch=(_crouchToggled||_mobileCrouch||keys['ControlLeft']||keys['ControlRight'])&&player.onGround&&!wantSprint;
+  _crouching=!!wantCrouch;
+  var crouchTgt=_crouching?0.58:0;
+  _crouchY+= (crouchTgt-_crouchY)*Math.min(1,dt*10);
+  if(Math.abs(_crouchY-crouchTgt)<0.01)_crouchY=crouchTgt;
+  syncCrouchBtn();
+  var currentSpeed=wantSprint?SPRINT_SPEED*speedFactor:(_crouching?MOVE_SPEED*speedFactor*0.48:MOVE_SPEED*speedFactor);
   if(wantSprint&&dir.lengthSq()>0.001&&true){_sprintDrainTimer+=dt;if(_sprintDrainTimer>=2.0){_sprintDrainTimer=0;drainStamina(1);// Sprint draine aussi la soif légèrement
     _thirstTimer+=0.8;}}else _sprintDrainTimer=0;
   var hiW=isInWater(player.pos.x,player.pos.y-0.1,player.pos.z),fiW=isInWater(player.pos.x,player.pos.y-1.4,player.pos.z),inW=hiW||fiW,jp=keys['Space']||jumpHeld;
@@ -8873,7 +8897,7 @@ function movePlayer(dt){
   if(inW){var SS=currentSpeed*0.55;player.vel.x=dir.x*SS;player.vel.z=dir.z*SS;player.vel.y+=GRAVITY*0.18*dt;if(player.vel.y<-2.5)player.vel.y=-2.5;if(jp){player.vel.y=Math.min(player.vel.y+12*dt,2.5);}player.vel.y*=Math.pow(0.85,dt*20);if(jp){var canClimb=false;var cd=[[1,0],[-1,0],[0,1],[0,-1]];for(var ci2=0;ci2<cd.length;ci2++){if(isSolid(player.pos.x+cd[ci2][0]*0.6,player.pos.y-1.4,player.pos.z+cd[ci2][1]*0.6)&&!isSolid(player.pos.x+cd[ci2][0]*0.6,player.pos.y+0.3,player.pos.z+cd[ci2][1]*0.6)){canClimb=true;break;}}if(canClimb)player.vel.y=JUMP_FORCE;}}
   else{player.vel.x=dir.x*currentSpeed;player.vel.z=dir.z*currentSpeed;player.vel.y+=GRAVITY*dt;if(player.onGround)player.coyoteTime=0.12;else player.coyoteTime=Math.max(0,player.coyoteTime-dt);if(jp&&(player.onGround||player.coyoteTime>0)){player.vel.y=JUMP_FORCE;player.onGround=false;player.coyoteTime=0;drainStamina(0.5);}if(player.jumpBuffer>0&&player.onGround){player.vel.y=JUMP_FORCE;player.onGround=false;player.jumpBuffer=0;drainStamina(0.5);}}
   var nx=player.pos.x+player.vel.x*dt,ny=player.pos.y+player.vel.y*dt,nz=player.pos.z+player.vel.z*dt;
-  var canX=true,canZ=true,yF=player.pos.y-1.62,yW=player.pos.y-0.9,yH=player.pos.y-0.1;
+  var canX=true,canZ=true,yF=player.pos.y-1.62,yW=player.pos.y-0.9-_crouchY*0.4,yH=player.pos.y-0.1-_crouchY;
   for(var pi=0;pi<pts.length;pi++)if(isSolid(nx+pts[pi][0],yF,player.pos.z+pts[pi][1])||isSolid(nx+pts[pi][0],yW,player.pos.z+pts[pi][1])||isSolid(nx+pts[pi][0],yH,player.pos.z+pts[pi][1])){canX=false;break;}
   for(var pi2=0;pi2<pts.length;pi2++)if(isSolid(player.pos.x+pts[pi2][0],yF,nz+pts[pi2][1])||isSolid(player.pos.x+pts[pi2][0],yW,nz+pts[pi2][1])||isSolid(player.pos.x+pts[pi2][0],yH,nz+pts[pi2][1])){canZ=false;break;}
   if(canX)player.pos.x=nx;else player.vel.x=0;if(canZ)player.pos.z=nz;else player.vel.z=0;
@@ -8889,7 +8913,8 @@ var keys={},mouseLocked=false,gameStarted=false,jumpHeld=false,_flyActive=false,
 var _mouseRightDown=false,_lastMouseX=-1,_lastMouseY=-1,_trackingActive=false;
 var _wLastTap=0;
 function setTracking(on){_trackingActive=on;_lastMouseX=-1;_lastMouseY=-1;document.getElementById('canvas').style.cursor=on?'none':'default';document.getElementById('tracking-hint').style.display=on?'none':'block';}
-document.addEventListener('keydown',function(e){keys[e.code]=true;if(_sleeping){e.preventDefault();return;}if(e.code==='KeyE'&&gameStarted)toggleInventory();if(e.code==='Escape'&&invOpen)closeInventory();if(e.code==='Escape'&&!invOpen&&_trackingActive){setTracking(false);document.getElementById('tracking-hint').style.display='block';}if(e.code==='Space'){if(_mountedRaft){dismountRaft();return;}jumpHeld=true;if(false){var now3=Date.now();if(now3-_lastSpaceTime<300){_flyActive=!_flyActive;if(!_flyActive)player.vel.y=0;}_lastSpaceTime=now3;}}if(!invOpen){for(var i=0;i<9;i++)if(e.code==='Digit'+(i+1))selectSlot(i);if(e.code==='KeyF'&&gameStarted){performUseAction();}if(e.code==='KeyW'&&gameStarted){var now2=Date.now();if(now2-_wLastTap<300)setMobileSprint(!_mobileSprint);_wLastTap=now2;}}});
+document.addEventListener('keydown',function(e){keys[e.code]=true;if(_sleeping){e.preventDefault();return;}if(e.code==='KeyC'&&gameStarted){_crouchToggled=!_crouchToggled;_mobileCrouch=_crouchToggled;}
+  if(e.code==='KeyE'&&gameStarted)toggleInventory();if(e.code==='Escape'&&invOpen)closeInventory();if(e.code==='Escape'&&!invOpen&&_trackingActive){setTracking(false);document.getElementById('tracking-hint').style.display='block';}if(e.code==='Space'){if(_mountedRaft){dismountRaft();return;}jumpHeld=true;if(false){var now3=Date.now();if(now3-_lastSpaceTime<300){_flyActive=!_flyActive;if(!_flyActive)player.vel.y=0;}_lastSpaceTime=now3;}}if(!invOpen){for(var i=0;i<9;i++)if(e.code==='Digit'+(i+1))selectSlot(i);if(e.code==='KeyF'&&gameStarted){performUseAction();}if(e.code==='KeyW'&&gameStarted){var now2=Date.now();if(now2-_wLastTap<300)setMobileSprint(!_mobileSprint);_wLastTap=now2;}}});
 document.addEventListener('keyup',function(e){keys[e.code]=false;if(e.code==='Space')jumpHeld=false;});
 document.addEventListener('mousemove',function(e){if(invOpen||lootModalOpen)return;if(mouseLocked){var _s=SETTINGS.sensitivity*0.002;player.yaw-=e.movementX*_s;var _py=(SETTINGS.invertY?-1:1)*e.movementY*_s;player.pitch=Math.max(-Math.PI/2+0.05,Math.min(Math.PI/2-0.05,player.pitch+_py));}else if(_mouseRightDown&&gameStarted&&!isMobile){var dx=e.clientX-_lastMouseX,dy=e.clientY-_lastMouseY;var _s2=SETTINGS.sensitivity*0.003;player.yaw-=dx*_s2;var _py2=(SETTINGS.invertY?1:-1)*dy*_s2;player.pitch=Math.max(-Math.PI/2+0.05,Math.min(Math.PI/2-0.05,player.pitch+_py2));_lastMouseX=e.clientX;_lastMouseY=e.clientY;}});
 document.addEventListener('contextmenu',function(e){if(!invOpen)e.preventDefault();});
@@ -8936,6 +8961,7 @@ document.addEventListener('mousedown',function(e){if(!gameStarted)return;if(invO
     performUseAction();}}});
 document.addEventListener('mouseup',function(e){if(e.button===0)stopBreaking();if(e.button===2){_mouseRightDown=false;if(_slingActive)slingRelease();else if(_bowActive)bowRelease();}});
 var _lastJumpTap=0;
+document.getElementById('btn-crouch').addEventListener('pointerdown',function(e){e.stopPropagation();_mobileActionUsed=true;_mobileCrouch=!_mobileCrouch;_crouchToggled=_mobileCrouch;syncCrouchBtn();});
 document.getElementById('btn-jump').addEventListener('pointerdown',function(e){e.stopPropagation();_mobileActionUsed=true;if(_mountedRaft){dismountRaft();return;}jumpHeld=true;player.jumpBuffer=0.2;if(false){var now4=Date.now();if(now4-_lastJumpTap<300){_flyActive=!_flyActive;if(!_flyActive)player.vel.y=0;}_lastJumpTap=now4;}});
 document.getElementById('btn-jump').addEventListener('pointerup',function(){jumpHeld=false;});
 document.getElementById('btn-jump').addEventListener('pointercancel',function(){jumpHeld=false;});
@@ -10479,6 +10505,7 @@ var HUD_BTNS={
   'joystick-zone':'🕹 Joystick',
   'btn-break':'⛏ Casser',
   'btn-jump':'⬆ Sauter',
+  'btn-crouch':'🧎 S'accroupir',
   'btn-place':'✋ Utiliser / Placer',
   'block-arrows':'◄► Blocs',
   'btn-lock':'🔒 Lock',
@@ -11115,7 +11142,7 @@ function animate(now){
       }
     }
   }
-  camera.position.set(player.pos.x,player.pos.y,player.pos.z);camera.setView(camera.position,player.yaw,player.pitch);
+  camera.position.set(player.pos.x,player.pos.y-_crouchY,player.pos.z);camera.setView(camera.position,player.yaw,player.pitch);
   if(typeof fbApplyCamera==='function')fbApplyCamera();
   if(typeof updateViewmodel==='function')updateViewmodel(dt);
 
