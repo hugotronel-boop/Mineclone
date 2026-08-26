@@ -4824,7 +4824,7 @@ function buildMesh(cx,cz){
     var ny2=faceDir===0?y+1:y-1,faceName=faceDir===0?'top':'bot',br=faceDir===0?1.0:0.45;
     var visited=new Uint8Array(CS*CS);
     for(var lx=0;lx<CS;lx++)for(var lz=0;lz<CS;lz++){
-      var idx2=lx+CS*lz;if(visited[idx2])continue;var bid=getD(lx,y,lz);if(!bid||bid===B_WATER||bid===B_LEAF)continue;
+      var idx2=lx+CS*lz;if(visited[idx2])continue;var bid=getD(lx,y,lz);if(!bid||bid===B_WATER||bid===B_LEAF||bid===B_MUSHROOM_BLOCK)continue;
       if(!isTransp(getW(lx,ny2,lz))){visited[idx2]=1;continue;}
       var w=1,h=1;
       while(lz+w<CS&&getD(lx,y,lz+w)===bid&&isTransp(getW(lx,ny2,lz+w))&&!visited[lx+CS*(lz+w)])w++;
@@ -4839,7 +4839,7 @@ function buildMesh(cx,cz){
   for(var lx=0;lx<CS;lx++)for(var faceDir=0;faceDir<2;faceDir++){
     var nx=faceDir===0?lx+1:lx-1;var visited2=new Uint8Array(CS*maxY);
     for(var y=0;y<maxY;y++)for(var lz=0;lz<CS;lz++){
-      var idx3=y*CS+lz;if(visited2[idx3])continue;var bid=getD(lx,y,lz);if(!bid||bid===B_WATER||bid===B_LEAF)continue;
+      var idx3=y*CS+lz;if(visited2[idx3])continue;var bid=getD(lx,y,lz);if(!bid||bid===B_WATER||bid===B_LEAF||bid===B_MUSHROOM_BLOCK)continue;
       if(!isTransp(getW(nx,y,lz))){visited2[idx3]=1;continue;}
       var w=1,h=1;
       while(lz+w<CS&&getD(lx,y,lz+w)===bid&&isTransp(getW(nx,y,lz+w))&&!visited2[y*CS+(lz+w)])w++;
@@ -4854,7 +4854,7 @@ function buildMesh(cx,cz){
   for(var lz=0;lz<CS;lz++)for(var faceDir=0;faceDir<2;faceDir++){
     var nz=faceDir===0?lz+1:lz-1;var visited3=new Uint8Array(CS*maxY);
     for(var y=0;y<maxY;y++)for(var lx=0;lx<CS;lx++){
-      var idx4=y*CS+lx;if(visited3[idx4])continue;var bid=getD(lx,y,lz);if(!bid||bid===B_WATER||bid===B_LEAF)continue;
+      var idx4=y*CS+lx;if(visited3[idx4])continue;var bid=getD(lx,y,lz);if(!bid||bid===B_WATER||bid===B_LEAF||bid===B_MUSHROOM_BLOCK)continue;
       if(!isTransp(getW(lx,y,nz))){visited3[idx4]=1;continue;}
       var w=1,h=1;
       while(lx+w<CS&&getD(lx+w,y,lz)===bid&&isTransp(getW(lx+w,y,nz))&&!visited3[y*CS+(lx+w)])w++;
@@ -4901,15 +4901,6 @@ function buildMesh(cx,cz){
       bp.idx.push(qp+2,qp+1,qp, qp+3,qp+2,qp);
       bp.cnt+=4;
     }
-    // Dessus (top face) au sommet pour les champignons
-    if(bid===B_MUSHROOM_BLOCK){
-      var bt=bkt(bid,'top');var qt=bt.cnt;
-      var s=0.1; // léger retrait
-      bt.pos.push(wpx+s,y+ph,wpz+s, wpx+1-s,y+ph,wpz+s, wpx+1-s,y+ph,wpz+1-s, wpx+s,y+ph,wpz+1-s);
-      bt.uv.push(s,s, 1-s,s, 1-s,1-s, s,1-s);
-      for(var vi=0;vi<4;vi++)bt.br.push(1.0);
-      bt.idx.push(qt,qt+1,qt+2, qt,qt+2,qt+3);bt.cnt+=4;
-    }
   }
   // Eau
   var WATER_TOP=0.88;
@@ -4938,9 +4929,9 @@ function buildMesh(cx,cz){
     if(getD(mlx,my,mlz)!==B_MUSHROOM_BLOCK)continue;
     var toxic=hash(ox+mlx,oz+mlz,SEED+770)>0.35;
     var mg=new THREE.Group();
-    addTinyShroom(mg,0,0,1.15,toxic);
-    addTinyShroom(mg,0.07,0.05,0.78,toxic);
-    addTinyShroom(mg,-0.06,0.04,0.85,toxic);
+    addTinyShroom(mg,0.00,0.00,1.35,toxic);
+    addTinyShroom(mg,0.08,0.06,0.95,toxic);
+    addTinyShroom(mg,-0.07,0.05,1.05,toxic);
     var jx=(hash(ox+mlx,oz+mlz,11)-0.5)*0.22,jz=(hash(ox+mlx,oz+mlz,12)-0.5)*0.22;
     mg.position.set(ox+mlx+0.5+jx,my,oz+mlz+0.5+jz);
     group.add(mg);
