@@ -3090,7 +3090,7 @@ var B_WATER_COLLECTOR=128,B_WATER_COLLECTOR_FULL=129;
 var ITEM_WATER_COLLECTOR=91;
 var ITEM_PEBBLE=92,ITEM_PEBBLE_POUCH=93,ITEM_QUIVER=94;
 var PEBBLE_POUCH_MAX=20,QUIVER_MAX=10;
-var B_BERRY_BUSH=120,B_MUSHROOM_BLOCK=121,B_HERB_BLOCK=122,B_NETTLES=123;
+var B_BERRY_BUSH=120,B_MUSHROOM_BLOCK=121,B_HERB_BLOCK=122,B_NETTLES=123,B_BERRY_EMPTY=130;
 var B_STUMP=124;       // souche d'arbre après coupe
 var B_SAPLING=125;     // pousse d'arbre (plantable)
 var B_FISHING_ROD=126; // (item, pas bloc)
@@ -3593,27 +3593,34 @@ function plantTex(paint){
   var cv2=cv32(),c2=cv2.getContext('2d');c2.imageSmoothingEnabled=false;c2.drawImage(cv,0,0,32,32);
   return new THREE.CanvasTexture(cv2);
 }
-function makeBerryTex(){
+function makeBerryTex(ripe){
+  if(ripe===undefined)ripe=true;
   return plantTex(function(set){
-    var pal=[[36,110,22],[52,138,32],[28,88,16],[70,158,40],[44,124,26]];
+    var pal=[[28,96,18],[42,124,28],[22,78,14],[58,148,36],[36,112,22],[70,160,42],[18,64,10]];
     for(var y=0;y<16;y++)for(var x=0;x<16;x++){
-      var dx=x-8,dy=(y-9)*0.85;
-      var blob=1-Math.sqrt(dx*dx+dy*dy)/7.2;
-      var n=ntex(x,y,44),n2=ntex(x*0.6,y*0.6,45);
-      if(blob+n*0.25<0.28)continue;
-      if(n2<0.16)continue;
-      var c=pal[((n*5)|0)%5];
+      var dx=x-8,dy=(y-10)*0.72;
+      var blob=1-Math.sqrt(dx*dx*0.48+dy*dy)/8.1;
+      if(y>12&&Math.abs(x-8)<6)blob+=0.28;
+      var n=ntex(x,y,44),n2=ntex(x*0.5,y*0.5,45);
+      if(blob+n*0.2<0.16)continue;
+      if(n2<0.07&&blob<0.55)continue;
+      var c=pal[((n*7)|0)%7];
       set(x,y,c[0],c[1],c[2],255);
+      if(n>0.72&&y<12)set(x,y,Math.min(255,c[0]+18),Math.min(255,c[1]+28),c[2]+8,255);
     }
-    var berries=[[4,6],[9,4],[12,8],[6,10],[11,12],[3,11],[8,7],[13,5],[5,3]];
-    for(var i=0;i<berries.length;i++){
-      var bx=berries[i][0],by=berries[i][1];
-      set(bx,by,180,20,40);set(bx+1,by,200,30,50);set(bx,by+1,140,16,32);set(bx,by,230,70,80);
+    if(ripe){
+      var berries=[[4,5],[9,3],[12,7],[6,8],[11,11],[3,10],[8,6],[13,4],[5,2],[10,9],[2,7],[14,8],[7,4]];
+      for(var i=0;i<berries.length;i++){
+        var bx=berries[i][0],by=berries[i][1];
+        set(bx,by,170,18,38);set(bx+1,by,200,28,48);set(bx,by+1,130,12,28);set(bx,by,240,70,90);
+      }
     }
   });
 }
-function makeBerryTopTex(){return makeBerryTex();}
-TEX[120]={top:makeBerryTopTex(),side:makeBerryTex(),bot:makeBerryTex()};
+function makeBerryTopTex(){return makeBerryTex(true);}
+function makeBerryBareTex(){return makeBerryTex(false);}
+TEX[120]={top:makeBerryTopTex(),side:makeBerryTex(true),bot:makeBerryTex(true)};
+TEX[130]={top:makeBerryBareTex(),side:makeBerryBareTex(),bot:makeBerryBareTex()};
 
 // ── Texture Champignon (B_MUSHROOM_BLOCK = 121) ─────────────
 function makeMushroomCapTex(){
@@ -3661,19 +3668,22 @@ TEX[121]={top:makeMushroomCapTex(),side:makeMushroomStemTex(),bot:makeMushroomBo
 // ── Texture Herbe médicinale (B_HERB_BLOCK = 122) ───────────
 function makeHerbTex(){
   return plantTex(function(set){
-    var stems=[[3,15,4,5],[6,15,7,3],[8,15,8,4],[11,15,12,6],[13,15,11,4]];
-    for(var si=0;si<stems.length;si++){
-      var x0=stems[si][0],y0=stems[si][1],x1=stems[si][2],y1=stems[si][3];
-      var steps=12;
-      for(var t=0;t<=steps;t++){
-        var u=t/steps,x=Math.round(x0+(x1-x0)*u),y=Math.round(y0+(y1-y0)*u);
-        set(x,y,48,130,28);set(x,y-1,62,150,36);
-        if(t>4&&t%3===0){
-          set(x-1,y,56,148,32);set(x+1,y,40,120,22);
-          set(x-2,y-1,70,160,40);set(x+2,y-1,50,140,30);
-        }
-      }
-      set(x1,y1,240,240,230);set(x1-1,y1,255,230,80);set(x1+1,y1,255,230,80);set(x1,y1-1,255,255,255);
+    var pal=[[40,120,28],[56,148,38],[32,100,20],[72,168,46],[48,136,32],[24,86,16]];
+    for(var y=0;y<16;y++)for(var x=0;x<16;x++){
+      var dx=x-8,dy=(y-11)*0.62;
+      var blob=1-Math.sqrt(dx*dx*0.7+dy*dy)/6.4;
+      var n=ntex(x,y,61),n2=ntex(x*0.6,y*0.6,62);
+      if(y>13&&Math.abs(x-8)<4)blob+=0.2;
+      if(blob+n*0.25<0.2)continue;
+      if(n2<0.1&&blob<0.5)continue;
+      var c=pal[((n*6)|0)%6];
+      set(x,y,c[0],c[1],c[2],255);
+      if((x+y)%5===0)set(x,y,Math.min(255,c[0]+20),Math.min(255,c[1]+24),c[2]+6,255);
+    }
+    var flowers=[[5,3],[8,2],[11,4],[3,5],[13,6],[7,5],[10,3]];
+    for(var i=0;i<flowers.length;i++){
+      var fx=flowers[i][0],fy=flowers[i][1];
+      set(fx,fy,255,255,240);set(fx-1,fy,255,220,70);set(fx+1,fy,255,220,70);set(fx,fy-1,255,255,255);
     }
   });
 }
@@ -4580,14 +4590,15 @@ function getBlock(wx,wy,wz){if(wy<0)return B_STONE;if(wy>=CHUNK_HEIGHT)return B_
 
 var BLOCK_DROPS={};
 BLOCK_DROPS[B_LEAF]=[{id:ITEM_FIBER,qty:1,chance:0.6}];BLOCK_DROPS[B_WOOD]=[{id:ITEM_RESIN,qty:1,chance:0.4}];BLOCK_DROPS[B_COAL]=[{id:B_COAL,qty:1,chance:1.0}];BLOCK_DROPS[B_IRON]=[{id:ITEM_IRON,qty:1,chance:1.0}];
-BLOCK_DROPS[B_BERRY_BUSH]=[{id:ITEM_BERRY,qty:2,chance:0.7},{id:ITEM_BERRY_TOXIC,qty:1,chance:0.3},{id:ITEM_BERRY_SEED,qty:1,chance:0.4}];
+BLOCK_DROPS[B_BERRY_BUSH]=[{id:ITEM_BERRY,qty:1,chance:0.4},{id:ITEM_FIBER,qty:1,chance:0.8}];
+BLOCK_DROPS[B_BERRY_EMPTY]=[{id:ITEM_FIBER,qty:1,chance:0.9}];
 BLOCK_DROPS[B_MUSHROOM_BLOCK]=[{id:ITEM_MUSHROOM,qty:1,chance:0.65},{id:ITEM_MUSHROOM_TOXIC,qty:1,chance:0.35},{id:ITEM_MUSHROOM_SPORE,qty:1,chance:0.5}];
 BLOCK_DROPS[B_HERB_BLOCK]=[{id:ITEM_HERB,qty:1,chance:0.85},{id:ITEM_HERB,qty:1,chance:0.3}];
 BLOCK_DROPS[B_NETTLES]=[{id:ITEM_FIBER,qty:2,chance:0.9}];
 BLOCK_DROPS[B_STUMP]=[{id:B_WOOD,qty:1,chance:0.6},{id:ITEM_TREE_SEED,qty:1,chance:0.35}];
 BLOCK_DROPS[B_SAPLING]=[{id:ITEM_TREE_SEED,qty:1,chance:0.8}];
 var NO_SELF_DROP={};NO_SELF_DROP[B_COAL]=true;NO_SELF_DROP[B_IRON]=true;NO_SELF_DROP[B_WATER]=true;NO_SELF_DROP[B_AIR]=true;
-NO_SELF_DROP[B_LEAF]=true;NO_SELF_DROP[B_BERRY_BUSH]=true;NO_SELF_DROP[B_MUSHROOM_BLOCK]=true;NO_SELF_DROP[B_HERB_BLOCK]=true;NO_SELF_DROP[B_NETTLES]=true;NO_SELF_DROP[B_SAPLING]=true;
+NO_SELF_DROP[B_LEAF]=true;NO_SELF_DROP[B_BERRY_BUSH]=true;NO_SELF_DROP[B_BERRY_EMPTY]=true;NO_SELF_DROP[B_MUSHROOM_BLOCK]=true;NO_SELF_DROP[B_HERB_BLOCK]=true;NO_SELF_DROP[B_NETTLES]=true;NO_SELF_DROP[B_SAPLING]=true;
 
 // ════════════════════════════════════════════════════════
 //  ARBRES QUI TOMBENT — entités physiques
@@ -4710,8 +4721,8 @@ function onBlockBreak(blockType,wx,wy,wz){
   else if(!NO_SELF_DROP[blockType]){if(typeof spawnWorldDrop==='function')spawnWorldDrop(dropId,1,wx+0.5,wy+0.6,wz+0.5);else{giveItem(dropId,1);showPopup('+1 '+BNAMES[dropId],pos);}}
   var drops=BLOCK_DROPS[blockType];if(drops)for(var i=0;i<drops.length;i++){var d=drops[i];if(Math.random()<(d.chance||1)){if(typeof spawnWorldDrop==='function')spawnWorldDrop(d.id,d.qty,wx+0.35+Math.random()*0.3,wy+0.7,wz+0.35+Math.random()*0.3);else{giveItem(d.id,d.qty);showPopup('+'+d.qty+' '+BNAMES[d.id],pos);}}}
   // Programmer la repousse des plantes sauvages
-  if(blockType===B_BERRY_BUSH||blockType===B_MUSHROOM_BLOCK||blockType===B_HERB_BLOCK||blockType===B_NETTLES){
-    schedulePlantRegrowth(wx,wy,wz,blockType);
+  if(blockType===B_BERRY_BUSH||blockType===B_BERRY_EMPTY||blockType===B_MUSHROOM_BLOCK||blockType===B_HERB_BLOCK||blockType===B_NETTLES){
+    schedulePlantRegrowth(wx,wy,wz,blockType===B_BERRY_EMPTY?B_BERRY_BUSH:blockType);
   }
   if(blockType===B_WOOD){
     // Vérifier si c'est la base du tronc (bloc sol en dessous)
@@ -4808,7 +4819,7 @@ function tickWaterFlow(){
 }
 function rebuildC(cx,cz){var key=ckey(cx,cz),old=chunkMeshes.get(key);if(old)scene.remove(old);chunkMeshes.delete(key);buildMesh(cx,cz);}
 
-function isTransp(b){return b===B_AIR||b===B_WATER||b===B_LEAF||b===B_BERRY_BUSH||b===B_MUSHROOM_BLOCK||b===B_HERB_BLOCK||b===B_NETTLES||b===B_SAPLING;}
+function isTransp(b){return b===B_AIR||b===B_WATER||b===B_LEAF||b===B_BERRY_BUSH||b===B_BERRY_EMPTY||b===B_MUSHROOM_BLOCK||b===B_HERB_BLOCK||b===B_NETTLES||b===B_SAPLING;}
 
 function buildMesh(cx,cz){
   var key=ckey(cx,cz);if(chunkMeshes.has(key))return;
@@ -4875,10 +4886,10 @@ function buildMesh(cx,cz){
   // Plantes (buisson de baies + champignon) — billboard en croix
   for(var lx=0;lx<CS;lx++)for(var y=0;y<maxY;y++)for(var lz=0;lz<CS;lz++){
     var bid=getD(lx,y,lz);
-    if(bid!==B_BERRY_BUSH&&bid!==B_HERB_BLOCK&&bid!==B_NETTLES&&bid!==B_SAPLING)continue;
+    if(bid!==B_BERRY_BUSH&&bid!==B_BERRY_EMPTY&&bid!==B_HERB_BLOCK&&bid!==B_NETTLES&&bid!==B_SAPLING)continue;
     var wpx=ox+lx,wpz=oz+lz;
     // Hauteur selon le type : buisson = 0.8 bloc, champignon = 0.7 bloc
-    var ph=bid===B_BERRY_BUSH?1.0:bid===B_NETTLES?0.95:bid===B_HERB_BLOCK?0.7:0.75;
+    var ph=(bid===B_BERRY_BUSH||bid===B_BERRY_EMPTY)?1.0:bid===B_NETTLES?0.95:bid===B_HERB_BLOCK?0.85:0.75;
     // 2 quads croisés = forme X vue de dessus (comme les herbes de Minecraft)
     var crosses=[
       // quad A : diagonale /
@@ -4911,7 +4922,7 @@ function buildMesh(cx,cz){
     for(var wi=0;wi<WLD.length;wi++){var wd=WLD[wi];if(getW(lx+wd.dx,y,lz+wd.dz)!==B_AIR)continue;var nab=getW(lx+wd.dx,y+1,lz+wd.dz)===B_WATER,tF=nab?y+1.0:y+WATER_TOP,wq3=wC;wP.push(wx6+wd.bx[0],y,wz6+wd.bz[0],wx6+wd.bx[1],y,wz6+wd.bz[1],wx6+wd.bx[2],tF,wz6+wd.bz[2],wx6+wd.bx[3],topY,wz6+wd.bz[3]);wU.push(0,1,1,1,1,0,0,0);for(var wb3=0;wb3<4;wb3++)wB.push(0.72);wI.push(wq3,wq3+1,wq3+2,wq3,wq3+2,wq3+3);wC+=4;}
   }
   var group=new THREE.Group();group.userData.cx=cx;group.userData.cz=cz;group.userData.minY=0;group.userData.maxY=maxY;
-  for(var bk in bkts){var b=bkts[bk];if(!b.cnt)continue;var geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(b.pos,3));geo.setAttribute('uv',new THREE.Float32BufferAttribute(b.uv,2));geo.setAttribute('brightness',new THREE.Float32BufferAttribute(b.br,1));geo.index=new Uint16Array(b.idx);var tex=TEX[b.id]?TEX[b.id][b.face]:null;var isPlant=(b.id===B_LEAF||b.id===B_BERRY_BUSH||b.id===B_HERB_BLOCK||b.id===B_NETTLES||b.id===B_SAPLING);group.add(new THREE.Mesh(geo,isPlant?new THREE.MeshBasicMaterial({map:tex,transparent:true,opacity:1}):new THREE.MeshBasicMaterial({map:tex})));}
+  for(var bk in bkts){var b=bkts[bk];if(!b.cnt)continue;var geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(b.pos,3));geo.setAttribute('uv',new THREE.Float32BufferAttribute(b.uv,2));geo.setAttribute('brightness',new THREE.Float32BufferAttribute(b.br,1));geo.index=new Uint16Array(b.idx);var tex=TEX[b.id]?TEX[b.id][b.face]:null;var isPlant=(b.id===B_LEAF||b.id===B_BERRY_BUSH||b.id===B_BERRY_EMPTY||b.id===B_HERB_BLOCK||b.id===B_NETTLES||b.id===B_SAPLING);group.add(new THREE.Mesh(geo,isPlant?new THREE.MeshBasicMaterial({map:tex,transparent:true,opacity:1}):new THREE.MeshBasicMaterial({map:tex})));}
   if(wC>0){var wgeo=new THREE.BufferGeometry();wgeo.setAttribute('position',new THREE.Float32BufferAttribute(wP,3));wgeo.setAttribute('uv',new THREE.Float32BufferAttribute(wU,2));wgeo.setAttribute('brightness',new THREE.Float32BufferAttribute(wB,1));wgeo.index=new Uint16Array(wI);group.add(new THREE.Mesh(wgeo,new THREE.MeshBasicMaterial({color:0x1a6eb5,transparent:true,opacity:0.72})));}
     var mushCap=new THREE.MeshBasicMaterial({color:0xc44a28});
   var mushStem=new THREE.MeshBasicMaterial({color:0xf0e6c8});
@@ -5242,7 +5253,7 @@ BNAMES[ITEM_COOKED_CHICKEN]='Poulet rôti';BNAMES[ITEM_COOKED_FISH]='Poisson gri
 BNAMES[ITEM_BERRY]='Baies';BNAMES[ITEM_BERRY_TOXIC]='Baies toxiques';
 BNAMES[ITEM_MUSHROOM]='Champignon';BNAMES[ITEM_MUSHROOM_TOXIC]='Champignon toxique';
 BNAMES[ITEM_BERRY_SEED]='Graine de baie';BNAMES[ITEM_MUSHROOM_SPORE]='Spore de champignon';
-BNAMES[B_BERRY_BUSH]='Buisson de baies';BNAMES[B_MUSHROOM_BLOCK]='Champignon';
+BNAMES[B_BERRY_BUSH]='Buisson de baies';BNAMES[B_BERRY_EMPTY]='Buisson (vide)';BNAMES[B_MUSHROOM_BLOCK]='Champignon';
 FDEF[ITEM_RABBIT_MEAT]={t:'#e8a070',s:'#c07848',b:'#a05830'};
 FDEF[ITEM_VENISON]={t:'#c04030',s:'#902010',b:'#701000'};
 FDEF[ITEM_CHICKEN_RAW]={t:'#f0d080',s:'#d0a050',b:'#b07830'};
@@ -5261,6 +5272,7 @@ FDEF[ITEM_MUSHROOM_TOXIC]={t:'#50a820',s:'#308000',b:'#205000'};
 FDEF[ITEM_BERRY_SEED]={t:'#80a040',s:'#608020',b:'#406010'};
 FDEF[ITEM_MUSHROOM_SPORE]={t:'#c0b080',s:'#a09060',b:'#806840'};
 FDEF[B_BERRY_BUSH]={t:'#d03070',s:'#3a8030',b:'#206010'};
+FDEF[B_BERRY_EMPTY]={t:'#2a6018',s:'#3a8030',b:'#1a4010'};
 FDEF[B_MUSHROOM_BLOCK]={t:'#e0a860',s:'#f8f0e0',b:'#c09060'};
 
 // ── Recettes ───────────────────────────────────────────────
@@ -7975,7 +7987,7 @@ function pebbleGroundY(x,z,fallback){
   for(var y=start;y>=0;y--){
     var b=getBlock(wx,y,wz);
     if(!b||b===B_AIR||b===B_WATER||b===B_LEAF)continue;
-    if(b===B_BERRY_BUSH||b===B_HERB_BLOCK||b===B_NETTLES||b===B_MUSHROOM_BLOCK||b===B_SAPLING)return y;
+    if(b===B_BERRY_BUSH||b===B_BERRY_EMPTY||b===B_HERB_BLOCK||b===B_NETTLES||b===B_MUSHROOM_BLOCK||b===B_SAPLING)return y;
     return y;
   }
   if(typeof getH==='function')return getH(wx,wz);
@@ -7997,7 +8009,7 @@ function spawnPebblesInChunk(cx,cz){
     for(var y=CH-1;y>=0;y--){
       var b=data[lx+CS*(y+CH*lz)];
       if(!b||b===B_AIR||b===B_WATER||b===B_LEAF)continue;
-      if(b===B_BERRY_BUSH||b===B_HERB_BLOCK||b===B_NETTLES||b===B_MUSHROOM_BLOCK||b===B_SAPLING){sy=y;break;}
+      if(b===B_BERRY_BUSH||b===B_BERRY_EMPTY||b===B_HERB_BLOCK||b===B_NETTLES||b===B_MUSHROOM_BLOCK||b===B_SAPLING){sy=y;break;}
       sy=y;break;
     }
     if(sy<0||sy<=SEA_LEVEL)continue;
@@ -8019,6 +8031,16 @@ function pickupPebble(pb){
   _pebbles.splice(i,1);
   var btn=document.getElementById('pebble-float-btn');
   if(btn){btn.style.display='none';btn._pebble=null;}
+}
+function harvestBerryBush(x,y,z){
+  if(getBlock(x,y,z)!==B_BERRY_BUSH)return false;
+  setBlock(x,y,z,B_BERRY_EMPTY);
+  var n=1+(Math.random()<0.5?1:0);
+  if(Math.random()<0.22)giveItem(ITEM_BERRY_TOXIC,1);
+  else giveItem(ITEM_BERRY,n);
+  showPopup('Baies cueillies',new THREE.Vector3(x+0.5,y+1.2,z+0.5));
+  _regrowQueue.push({type:'berryRipe',wx:x,wy:y,wz:z,timer:80+Math.random()*100});
+  return true;
 }
 function pickupMushroomAt(x,y,z){
   if(getBlock(x,y,z)!==B_MUSHROOM_BLOCK)return false;
@@ -8047,9 +8069,10 @@ function updatePebbles(){
   var ipx=Math.floor(px),ipy=Math.floor(py),ipz=Math.floor(pz);
   for(var dx=-2;dx<=2;dx++)for(var dz=-2;dz<=2;dz++)for(var dy=-1;dy<=2;dy++){
     var mx=ipx+dx,my=ipy+dy,mz=ipz+dz;
-    if(getBlock(mx,my,mz)!==B_MUSHROOM_BLOCK)continue;
+    var gb=getBlock(mx,my,mz);
+    if(gb!==B_MUSHROOM_BLOCK&&gb!==B_BERRY_BUSH)continue;
     var d2=(mx+0.5-px)*(mx+0.5-px)+(mz+0.5-pz)*(mz+0.5-pz)+(my-py)*(my-py);
-    if(d2<bestD){bestD=d2;best={x:mx,y:my,z:mz};kind='mush';}
+    if(d2<bestD){bestD=d2;best={x:mx,y:my,z:mz};kind=gb===B_BERRY_BUSH?'berry':'mush';}
   }
   if(!btn)return;
   var blocked=invOpen||lootModalOpen||(document.getElementById('chest-modal')&&document.getElementById('chest-modal').classList.contains('open'));
@@ -8058,8 +8081,9 @@ function updatePebbles(){
   btn._pebble=kind==='pebble'?best:null;
   btn._mush=kind==='mush'?best:null;
   btn._ammo=kind==='ammo'?best:null;
-  btn.innerHTML=kind==='mush'?'&#x1F344; Ramasser':kind==='ammo'?(best.id===ITEM_ARROW?'&#x1F3F9; Ramasser':'&#x1FAA8; Ramasser'):'&#x1FAA8; Ramasser';
-  var wp=new THREE.Vector3(kind==='mush'?best.x+0.5:best.x,(kind==='mush'?best.y:best.y)+0.35,kind==='mush'?best.z+0.5:best.z);
+  btn._berry=kind==='berry'?best:null;
+  btn.innerHTML=kind==='berry'?'&#x1F347; Cueillir':kind==='mush'?'&#x1F344; Ramasser':kind==='ammo'?(best.id===ITEM_ARROW?'&#x1F3F9; Ramasser':'&#x1FAA8; Ramasser'):'&#x1FAA8; Ramasser';
+  var wp=new THREE.Vector3((kind==='mush'||kind==='berry')?best.x+0.5:best.x,((kind==='mush'||kind==='berry')?best.y:best.y)+0.35,(kind==='mush'||kind==='berry')?best.z+0.5:best.z);
   var sv=wp.clone().project(camera);
   btn.style.display='block';
   if(sv.z<1){
@@ -8141,6 +8165,10 @@ function updateRegrowth(dt){
       if(getBlock(rw.wx,rw.wy,rw.wz)===B_AIR){
         setBlock(rw.wx,rw.wy,rw.wz,rw.block);
         rebuildC(Math.floor(rw.wx/CHUNK_SIZE),Math.floor(rw.wz/CHUNK_SIZE));
+      }
+    } else if(rw.type==='berryRipe'){
+      if(getBlock(rw.wx,rw.wy,rw.wz)===B_BERRY_EMPTY){
+        setBlock(rw.wx,rw.wy,rw.wz,B_BERRY_BUSH);
       }
     } else if(rw.type==='sapling'){
       // Pousse d'arbre plantée par le joueur
@@ -8983,6 +9011,7 @@ document.getElementById('loot-float-btn').addEventListener('pointerdown',functio
   function go(e){
     e.stopPropagation(); if(e.cancelable)e.preventDefault();
     var n=Date.now(); if(n-lock<450)return; lock=n;
+    if(btn._kind==='berry'&&btn._berry){if(typeof harvestBerryBush==='function')harvestBerryBush(btn._berry.x,btn._berry.y,btn._berry.z);btn.style.display='none';return;}
     if(btn._kind==='mush'&&btn._mush){if(typeof pickupMushroomAt==='function')pickupMushroomAt(btn._mush.x,btn._mush.y,btn._mush.z);btn.style.display='none';return;}
     if(btn._kind==='ammo'&&btn._ammo){
       var am=btn._ammo,ix=_spentAmmo.indexOf(am);
@@ -9002,7 +9031,7 @@ document.getElementById('loot-modal').addEventListener('pointerdown',function(e)
 
 // ── Breaking ───────────────────────────────────────────────
 var BREAK_TIMES={};BREAK_TIMES[B_GRASS]=0.75;BREAK_TIMES[B_DIRT]=0.75;BREAK_TIMES[B_STONE]=7.5;BREAK_TIMES[B_SAND]=0.75;BREAK_TIMES[B_WOOD]=3.0;BREAK_TIMES[B_LEAF]=0.3;BREAK_TIMES[B_WATER]=Infinity;BREAK_TIMES[B_SNOW]=0.15;BREAK_TIMES[B_GRAVEL]=0.9;BREAK_TIMES[B_COAL]=7.5;BREAK_TIMES[B_IRON]=7.5;BREAK_TIMES[B_TORCH]=0.1;BREAK_TIMES[B_FENCE]=2.0;BREAK_TIMES[B_DOOR]=2.0;BREAK_TIMES[B_STAIRS]=2.0;BREAK_TIMES[B_CAMPFIRE]=1.0;BREAK_TIMES[B_CHEST]=2.0;BREAK_TIMES[B_GRILL]=1.5;BREAK_TIMES[B_TENT]=1.5;BREAK_TIMES[B_BED]=1.2;
-BREAK_TIMES[B_BERRY_BUSH]=0.4;BREAK_TIMES[B_MUSHROOM_BLOCK]=0.3;BREAK_TIMES[B_HERB_BLOCK]=0.2;BREAK_TIMES[B_NETTLES]=0.2;BREAK_TIMES[B_STUMP]=2.5;BREAK_TIMES[B_SAPLING]=0.3;
+BREAK_TIMES[B_BERRY_BUSH]=0.4;BREAK_TIMES[B_BERRY_EMPTY]=0.4;BREAK_TIMES[B_MUSHROOM_BLOCK]=0.3;BREAK_TIMES[B_HERB_BLOCK]=0.2;BREAK_TIMES[B_NETTLES]=0.2;BREAK_TIMES[B_STUMP]=2.5;BREAK_TIMES[B_SAPLING]=0.3;
 var TOOL_HACHE=[B_WOOD,B_LEAF,B_FENCE,B_DOOR,B_STAIRS],TOOL_PIOCHE=[B_STONE,B_COAL,B_IRON,B_TORCH];
 function getToolMultiplier(itemId,blockType){if(!itemId)return 1.0;var isH=TOOL_HACHE.indexOf(blockType)>=0,isP=TOOL_PIOCHE.indexOf(blockType)>=0;if(itemId===ITEM_AXE_WOOD)return isH?2.0:1.2;if(itemId===ITEM_AXE_STONE)return isH?4.0:1.5;if(itemId===ITEM_AXE_IRON)return isH?8.0:2.0;if(itemId===ITEM_PICK_WOOD)return isP?2.0:1.2;if(itemId===ITEM_PICK_STONE)return isP?4.0:1.5;if(itemId===ITEM_PICK_IRON)return isP?8.0:2.0;if(itemId===ITEM_SPEAR||itemId===ITEM_CLUB||itemId===ITEM_BOW)return 1.3;return 1.0;}
 var breaking={active:false,bx:null,by:null,bz:null,progress:0,resetTimer:0,savedBx:null,savedBy:null,savedBz:null};
@@ -9080,7 +9109,7 @@ function updateBreaking(dt){
 }
 
 // ── Physics ────────────────────────────────────────────────
-function isCamoBlock(b){return b===B_BERRY_BUSH||b===B_HERB_BLOCK||b===B_NETTLES;}
+function isCamoBlock(b){return b===B_BERRY_BUSH||b===B_BERRY_EMPTY||b===B_HERB_BLOCK||b===B_NETTLES;}
 var _crouching=false,_crouchToggled=false,_mobileCrouch=false,_crouchY=0;
 function playerInBush(){
   var x=Math.floor(player.pos.x),z=Math.floor(player.pos.z);
@@ -9167,7 +9196,7 @@ function updateStealthHud(){
   var ns=n>=12?'noise-3':n>=5?'noise-2':n>=1.2?'noise-1':'noise-0';
   if(noi.className.indexOf(ns)<0)noi.className='stealth-ico '+ns;
 }
-function isSolid(x,y,z){var b=getBlock(Math.floor(x),Math.floor(y),Math.floor(z));return b&&b!==B_WATER&&b!==B_LEAF&&b!==B_AIR&&b!==B_BERRY_BUSH&&b!==B_HERB_BLOCK&&b!==B_SAPLING&&b!==B_NETTLES&&b!==B_MUSHROOM_BLOCK;}
+function isSolid(x,y,z){var b=getBlock(Math.floor(x),Math.floor(y),Math.floor(z));return b&&b!==B_WATER&&b!==B_LEAF&&b!==B_AIR&&b!==B_BERRY_BUSH&&b!==B_BERRY_EMPTY&&b!==B_HERB_BLOCK&&b!==B_SAPLING&&b!==B_NETTLES&&b!==B_MUSHROOM_BLOCK;}
 function isInWater(x,y,z){return getBlock(Math.floor(x),Math.floor(y),Math.floor(z))===B_WATER;}
 
 function waterTopY(x,z){
@@ -10351,7 +10380,7 @@ function updateSlingProjectiles(dt){
     // Collision avec blocs
     var bx=Math.floor(px),by=Math.floor(py),bz=Math.floor(pz);
     var bl=getBlock(bx,by,bz);
-    if(bl&&bl!==B_AIR&&bl!==B_WATER&&bl!==B_LEAF&&bl!==B_BERRY_BUSH&&bl!==B_HERB_BLOCK&&bl!==B_NETTLES&&bl!==B_MUSHROOM_BLOCK&&bl!==B_SAPLING){
+    if(bl&&bl!==B_AIR&&bl!==B_WATER&&bl!==B_LEAF&&bl!==B_BERRY_BUSH&&bl!==B_BERRY_EMPTY&&bl!==B_HERB_BLOCK&&bl!==B_NETTLES&&bl!==B_MUSHROOM_BLOCK&&bl!==B_SAPLING){
       if(_ac)_noise(0.1,0.25,{type:'bandpass',freq:600},_sfxGain);
       dropSpentAmmo(p,px-p.vx*0.04,py-p.vy*0.04,pz-p.vz*0.04);
       p.done=true;
