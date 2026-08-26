@@ -7960,8 +7960,18 @@ function makePebbleMesh(){
   return g;
 }
 function pebbleGroundY(x,z,fallback){
-  var h=(typeof getH==='function')?getH(Math.floor(x),Math.floor(z)):Math.floor(fallback||0);
-  return h+1;
+  var wx=Math.floor(x),wz=Math.floor(z);
+  var start=70;
+  if(typeof getH==='function')start=getH(wx,wz)+6;
+  if(typeof CHUNK_HEIGHT==='number'&&start>CHUNK_HEIGHT-1)start=CHUNK_HEIGHT-1;
+  for(var y=start;y>=0;y--){
+    var b=getBlock(wx,y,wz);
+    if(!b||b===B_AIR||b===B_WATER||b===B_LEAF)continue;
+    if(b===B_BERRY_BUSH||b===B_HERB_BLOCK||b===B_NETTLES||b===B_MUSHROOM_BLOCK||b===B_SAPLING)return y;
+    return y;
+  }
+  if(typeof getH==='function')return getH(wx,wz);
+  return Math.floor(fallback||0);
 }
 function spawnPebblesInChunk(cx,cz){
   var key=ckey(cx,cz);
@@ -7969,19 +7979,26 @@ function spawnPebblesInChunk(cx,cz){
   _pebbleSpawned[key]=1;
   var ox=cx*CHUNK_SIZE,oz=cz*CHUNK_SIZE;
   if(getIsland(ox+8,oz+8)===0)return;
+  var data=chunks.get(key);if(!data)return;
+  var CS=CHUNK_SIZE,CH=CHUNK_HEIGHT;
   var n=hash(cx,cz,SEED+4100)>0.28?0:(1+Math.floor(hash(cx,cz,SEED+4101)*3));
   if(hash(cx,cz,SEED+4102)>0.72)n+=1+Math.floor(hash(cx,cz,SEED+4103)*2);
   for(var i=0;i<n;i++){
     var lx=2+Math.floor(hash(cx,i,SEED+4110)*12),lz=2+Math.floor(hash(cz,i,SEED+4111)*12);
+    var sy=-1;
+    for(var y=CH-1;y>=0;y--){
+      var b=data[lx+CS*(y+CH*lz)];
+      if(!b||b===B_AIR||b===B_WATER||b===B_LEAF)continue;
+      if(b===B_BERRY_BUSH||b===B_HERB_BLOCK||b===B_NETTLES||b===B_MUSHROOM_BLOCK||b===B_SAPLING){sy=y;break;}
+      sy=y;break;
+    }
+    if(sy<0||sy<=SEA_LEVEL)continue;
     var wx=ox+lx+0.5,wz=oz+lz+0.5;
-    var wy=pebbleGroundY(wx,wz);
-    if(wy<=SEA_LEVEL+0.05)continue;
-    if(isLake(Math.floor(wx),Math.floor(wz)))continue;
     var g=makePebbleMesh();
-    g.position.set(wx,wy,wz);
+    g.position.set(wx,sy,wz);
     g.rotation.y=hash(cx,i,SEED+4113)*6;
     scene.add(g);
-    _pebbles.push({mesh:g,x:wx,y:wy,z:wz});
+    _pebbles.push({mesh:g,x:wx,y:sy,z:wz});
   }
 }
 function pickupPebble(pb){
