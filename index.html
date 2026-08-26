@@ -4168,7 +4168,19 @@ function genChunk(cx,cz){
     addVillages(3,1,ISLE_C.cx,ISLE_C.cz,40,110,80);
   }
   for(var vi2=0;vi2<genChunk._villages.length;vi2++){var vill=genChunk._villages[vi2],villCx=Math.floor(vill.x/CS),villCz=Math.floor(vill.z/CS);if(Math.abs(cx-villCx)<=2&&Math.abs(cz-villCz)<=2)genVillage(data,idx,cx,cz,villCx,villCz,vill.x,vill.h,vill.z);}
-  for(var lx3=0;lx3<CS;lx3+=4)for(var lz3=0;lz3<CS;lz3+=4){var rwx=ox+lx3,rwz=oz+lz3;if(getIsland(rwx,rwz)!==1)continue;if(hash(rwx*0.3,rwz*0.3,SEED+9999)>0.965){var rh=getH(rwx,rwz);if(rh>SEA_LEVEL+1&&rh<SEA_LEVEL+35)genRuin(data,idx,lx3,rh,lz3,cx,cz);}}
+  if(getIsland(ox+8,oz+8)===1&&hash(cx*1.7,cz*2.3,SEED+9999)>0.9978){
+    var tooNearVill=false;
+    if(genChunk._villages){
+      for(var rv=0;rv<genChunk._villages.length;rv++){
+        var rdx=genChunk._villages[rv].x-(ox+8),rdz=genChunk._villages[rv].z-(oz+8);
+        if(rdx*rdx+rdz*rdz<90*90){tooNearVill=true;break;}
+      }
+    }
+    if(!tooNearVill){
+      var rh=getH(ox+8,oz+8);
+      if(rh>SEA_LEVEL+2&&rh<SEA_LEVEL+30)genRuin(data,idx,6,rh,6,cx,cz);
+    }
+  }
   // Appliquer les blocs modifiés (sauvegarde) sur ce chunk
   if(_modifiedBlocks){
     var cs2=CHUNK_SIZE,ch2=CHUNK_HEIGHT;
