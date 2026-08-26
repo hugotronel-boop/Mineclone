@@ -2156,6 +2156,12 @@ display: none !important;
   45%{transform:rotate(18deg) translateY(22px);}
   100%{transform:rotate(0);}
 }
+#water-overlay{
+  position:fixed;inset:0;pointer-events:none;z-index:103;
+  background:radial-gradient(ellipse at center,rgba(30,110,170,0.18) 0%,rgba(8,50,110,0.55) 100%);
+  opacity:0;transition:opacity .18s linear;
+}
+#water-overlay.on{opacity:1;}
 #dmg-vignette{
   position:fixed;inset:0;pointer-events:none;z-index:104;
   background:radial-gradient(ellipse at center,transparent 40%,rgba(160,0,0,0.55) 100%);
@@ -2260,6 +2266,7 @@ display: none !important;
   </div>
   <div id="fog-floor"></div>
   <div id="cold-vignette"></div>
+  <div id="water-overlay"></div>
   <div id="dmg-vignette"></div>
   <div id="tool-vm"><canvas id="tool-vm-cv" width="64" height="64"></canvas></div>
   <div id="fb-toasts"></div>
@@ -2882,6 +2889,7 @@ var PERF={
   unloadPad: isMobile?1:2
 };
 var CHUNK_SIZE=16,CHUNK_HEIGHT=128,RENDER_DIST=isMobile?2:4;
+var _wasInWater=false;
 var GRAVITY=-25,JUMP_FORCE=7.1,MOVE_SPEED=5,SEA_LEVEL=20;
 var gameMode='survival';
 var SPRINT_SPEED=MOVE_SPEED*1.7,_sprintDrainTimer=0,_actionDrainTimer=0,_heldTorchTimer=0;
@@ -3291,17 +3299,32 @@ function makeLeafTex(){
   ctx2.drawImage(cv,0,0,32,32);
   return new THREE.CanvasTexture(cv2);
 }
-function makeWaterTex(){
-  var cv=cv32(),ctx=cv.getContext('2d');
-  for(var y=0;y<32;y++)for(var x=0;x<32;x++){
-    var wave=Math.sin(x*0.45+y*0.35)*0.5+0.5,n=ntex(x,y,15)*0.28;
-    var r=18+wave*22+n*10,g=92+wave*50+n*18,b=168+wave*50+n*20;
-    pxi(ctx,x,y,r,g,b);
+var _waterShared=null,_waterFrame=0,_waterAnimT=0;
+function paintWaterFrame(ctx,frame){
+  var w=ctx.canvas.width,h=ctx.canvas.height,img=ctx.createImageData(w,h),d=img.data,t=frame*0.45;
+  for(var y=0;y<h;y++)for(var x=0;x<w;x++){
+    var a=Math.sin(x*0.5+t)+Math.sin(y*0.37+t*1.2)+Math.sin((x+y)*0.22+t*0.7);
+    var n=(a/3)*0.5+0.5;
+    var i=(y*w+x)*4;
+    d[i]=12+n*48;d[i+1]=95+n*85;d[i+2]=175+n*70;d[i+3]=175+n*50;
+    if(((x+y+frame)&15)===0){d[i]=210;d[i+1]=240;d[i+2]=255;d[i+3]=140;}
   }
-  ctx.fillStyle='rgba(220,245,255,0.28)';
-  ctx.fillRect(4,5,8,1);ctx.fillRect(18,11,10,1);ctx.fillRect(8,20,7,1);ctx.fillRect(22,26,6,1);
-  ctx.fillStyle='rgba(255,255,255,0.18)';ctx.fillRect(6,6,4,1);ctx.fillRect(20,12,5,1);
-  return new THREE.CanvasTexture(cv);
+  ctx.putImageData(img,0,0);
+}
+function makeWaterTex(){
+  if(_waterShared)return _waterShared;
+  var cv=cv32();
+  paintWaterFrame(cv.getContext('2d'),0);
+  _waterShared=new THREE.CanvasTexture(cv);
+  return _waterShared;
+}
+function updateWaterAnim(dt){
+  _waterAnimT+=dt;
+  if(_waterAnimT<(isMobile?0.16:0.1))return;
+  _waterAnimT=0;
+  if(!_waterShared||!_waterShared._cv)return;
+  paintWaterFrame(_waterShared._cv.getContext('2d'),_waterFrame++);
+  _waterShared._dirty=true;
 }
 function makeSnowTex(){
   var cv=cv32(),ctx=cv.getContext('2d');
@@ -4924,7 +4947,7 @@ function buildMesh(cx,cz){
   }
   var group=new THREE.Group();group.userData.cx=cx;group.userData.cz=cz;group.userData.minY=0;group.userData.maxY=maxY;
   for(var bk in bkts){var b=bkts[bk];if(!b.cnt)continue;var geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(b.pos,3));geo.setAttribute('uv',new THREE.Float32BufferAttribute(b.uv,2));geo.setAttribute('brightness',new THREE.Float32BufferAttribute(b.br,1));geo.index=new Uint16Array(b.idx);var tex=TEX[b.id]?TEX[b.id][b.face]:null;var isPlant=(b.id===B_LEAF||b.id===B_BERRY_BUSH||b.id===B_BERRY_EMPTY||b.id===B_HERB_BLOCK||b.id===B_NETTLES||b.id===B_SAPLING);group.add(new THREE.Mesh(geo,isPlant?new THREE.MeshBasicMaterial({map:tex,transparent:true,opacity:1}):new THREE.MeshBasicMaterial({map:tex})));}
-  if(wC>0){var wgeo=new THREE.BufferGeometry();wgeo.setAttribute('position',new THREE.Float32BufferAttribute(wP,3));wgeo.setAttribute('uv',new THREE.Float32BufferAttribute(wU,2));wgeo.setAttribute('brightness',new THREE.Float32BufferAttribute(wB,1));wgeo.index=new Uint16Array(wI);group.add(new THREE.Mesh(wgeo,new THREE.MeshBasicMaterial({color:0x1a6eb5,transparent:true,opacity:0.72})));}
+  if(wC>0){var wgeo=new THREE.BufferGeometry();wgeo.setAttribute('position',new THREE.Float32BufferAttribute(wP,3));wgeo.setAttribute('uv',new THREE.Float32BufferAttribute(wU,2));wgeo.setAttribute('brightness',new THREE.Float32BufferAttribute(wB,1));wgeo.index=new Uint16Array(wI);group.add(new THREE.Mesh(wgeo,new THREE.MeshBasicMaterial({map:TEX[B_WATER]?TEX[B_WATER].top:null,color:0x3aa0e8,transparent:true,opacity:0.72})));}
     var mushCap=new THREE.MeshBasicMaterial({color:0xc44a28});
   var mushStem=new THREE.MeshBasicMaterial({color:0xf0e6c8});
   var mushSpot=new THREE.MeshBasicMaterial({color:0xf7edd8});
@@ -9204,7 +9227,7 @@ function waterTopY(x,z){
   var ix=Math.floor(x),iz=Math.floor(z);
   var y0=Math.min(CHUNK_HEIGHT-2,SEA_LEVEL+12);
   for(var y=y0;y>=1;y--){
-    if(getBlock(ix,y,iz)===B_WATER&&getBlock(ix,y+1,iz)!==B_WATER)return y+0.58;
+    if(getBlock(ix,y,iz)===B_WATER&&getBlock(ix,y+1,iz)!==B_WATER)return y+0.875;
   }
   return null;
 }
@@ -9382,8 +9405,31 @@ function movePlayer(dt){
     if(!isSolid(player.pos.x,player.pos.y,nz3)&&!isSolid(player.pos.x,player.pos.y+0.5,nz3))player.pos.z=nz3;else player.vel.z=0;
     return;
   }
-  if(inW){var SS=currentSpeed*0.55;player.vel.x=dir.x*SS;player.vel.z=dir.z*SS;player.vel.y+=GRAVITY*0.18*dt;if(player.vel.y<-2.5)player.vel.y=-2.5;if(jp){player.vel.y=Math.min(player.vel.y+12*dt,2.5);}player.vel.y*=Math.pow(0.85,dt*20);if(jp){var canClimb=false;var cd=[[1,0],[-1,0],[0,1],[0,-1]];for(var ci2=0;ci2<cd.length;ci2++){if(isSolid(player.pos.x+cd[ci2][0]*0.6,player.pos.y-1.4,player.pos.z+cd[ci2][1]*0.6)&&!isSolid(player.pos.x+cd[ci2][0]*0.6,player.pos.y+0.3,player.pos.z+cd[ci2][1]*0.6)){canClimb=true;break;}}if(canClimb)player.vel.y=JUMP_FORCE;}}
-  else{player.vel.x=dir.x*currentSpeed;player.vel.z=dir.z*currentSpeed;player.vel.y+=GRAVITY*dt;if(player.onGround)player.coyoteTime=0.12;else player.coyoteTime=Math.max(0,player.coyoteTime-dt);if(jp&&(player.onGround||player.coyoteTime>0)){player.vel.y=JUMP_FORCE;player.onGround=false;player.coyoteTime=0;drainStamina(0.5);emitNoise(10,'jump');}if(player.jumpBuffer>0&&player.onGround){player.vel.y=JUMP_FORCE;player.onGround=false;player.jumpBuffer=0;drainStamina(0.5);emitNoise(10,'jump');}}
+  if(inW){
+    var sprintW=keys['ShiftLeft']||keys['ShiftRight']||(typeof _sprintDrainTimer==='number'&&_sprintDrainTimer>0);
+    var SS=currentSpeed*(sprintW?0.72:0.48);
+    player.vel.x=dir.x*SS;player.vel.z=dir.z*SS;
+    player.vel.y+=GRAVITY*0.1*dt;
+    if(player.vel.y<-3.2)player.vel.y=-3.2;
+    if(jp){
+      player.vel.y=Math.min(player.vel.y+20*dt,3.4);
+      var wt=typeof waterTopY==='function'?waterTopY(player.pos.x,player.pos.z):null;
+      if(wt!==null&&player.pos.y>wt-0.4&&player.pos.y<wt+1.0)player.vel.y=JUMP_FORCE*0.95;
+      var canClimb=false,cd=[[1,0],[-1,0],[0,1],[0,-1]];
+      for(var ci2=0;ci2<cd.length;ci2++){
+        if(isSolid(player.pos.x+cd[ci2][0]*0.6,player.pos.y-1.4,player.pos.z+cd[ci2][1]*0.6)&&!isSolid(player.pos.x+cd[ci2][0]*0.6,player.pos.y+0.3,player.pos.z+cd[ci2][1]*0.6)){canClimb=true;break;}
+      }
+      if(canClimb)player.vel.y=JUMP_FORCE;
+    }
+    player.vel.y*=Math.pow(0.86,dt*20);
+    if(!_wasInWater){
+      _wasInWater=true;
+      if(typeof fbSpawnParticles==='function'&&!isMobile)fbSpawnParticles(player.pos.x,player.pos.y-0.4,player.pos.z,'sand',6,{spread:1.4,up:1.2});
+      if(_ac)_noise(0.12,0.12,{type:'lowpass',freq:900});
+    }
+  } else {
+    _wasInWater=false;
+    player.vel.x=dir.x*currentSpeed;player.vel.z=dir.z*currentSpeed;player.vel.y+=GRAVITY*dt;if(player.onGround)player.coyoteTime=0.12;else player.coyoteTime=Math.max(0,player.coyoteTime-dt);if(jp&&(player.onGround||player.coyoteTime>0)){player.vel.y=JUMP_FORCE;player.onGround=false;player.coyoteTime=0;drainStamina(0.5);emitNoise(10,'jump');}if(player.jumpBuffer>0&&player.onGround){player.vel.y=JUMP_FORCE;player.onGround=false;player.jumpBuffer=0;drainStamina(0.5);emitNoise(10,'jump');}}
   var nx=player.pos.x+player.vel.x*dt,ny=player.pos.y+player.vel.y*dt,nz=player.pos.z+player.vel.z*dt;
   var canX=true,canZ=true,yF=player.pos.y-1.62,yW=player.pos.y-0.9-_crouchY*0.4,yH=player.pos.y-0.1-_crouchY;
   for(var pi=0;pi<pts.length;pi++)if(isSolid(nx+pts[pi][0],yF,player.pos.z+pts[pi][1])||isSolid(nx+pts[pi][0],yW,player.pos.z+pts[pi][1])||isSolid(nx+pts[pi][0],yH,player.pos.z+pts[pi][1])){canX=false;break;}
@@ -11743,6 +11789,10 @@ function animate(now){
   var dt=Math.min((now-lastTime)/1000,0.05);lastTime=now;
   fpsBuf.push(1/dt);if(fpsBuf.length>20)fpsBuf.shift();
   if(now-lastFPSt>500){document.getElementById('fps').textContent=Math.round(fpsBuf.reduce(function(a,b){return a+b;},0)/fpsBuf.length);lastFPSt=now;}
+  if(typeof updateWaterAnim==='function')updateWaterAnim(dt);
+  var eyeInW=typeof isInWater==='function'&&isInWater(player.pos.x,player.pos.y-0.15,player.pos.z);
+  var wo=document.getElementById('water-overlay');
+  if(wo){if(eyeInW)wo.classList.add('on');else wo.classList.remove('on');}
   if(!isMobile || !animate._hudT || (now-(animate._hudT||0))>180){animate._hudT=now;document.getElementById('pos').textContent=Math.floor(player.pos.x)+','+Math.floor(player.pos.y)+','+Math.floor(player.pos.z);}
   if(_sleeping){
     updateSleep(dt);
