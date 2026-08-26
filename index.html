@@ -6545,21 +6545,11 @@ function tryInteractBlock(bx,by,bz){
   if(b===B_TENT){trySleepAt(bx,by,bz,'tent');return true;}
   if(b===B_BED){trySleepAt(bx,by,bz,'bed');return true;}
   if(b===B_CHEST){
-    // Coffre placé par le joueur → stockage personnel
-    // Coffre de monde (dans _openedChests ou loot) → loot
     var ck=_chestKey(bx,by,bz);
-    if(_openedChests.has(ck)){
-      // Coffre de monde déjà ouvert → vide
-      showPopup('📦 Coffre vide.',new THREE.Vector3(bx+0.5,by+2,bz+0.5));
-    } else if(_playerChests[ck]!==undefined||!_openedChests.has(ck)){
-      // Tenter d'abord comme coffre joueur
-      // Un coffre est "joueur" s'il a été placé par setBlock (dans _modifiedBlocks)
-      var isPlayerChest=_modifiedBlocks&&(_modifiedBlocks[ck]===B_CHEST);
-      if(isPlayerChest||_playerChests[ck]){
-        openPlayerChest(bx,by,bz);
-      } else {
-        openWorldChest(bx,by,bz);
-      }
+    if(_playerChests[ck]||(_modifiedBlocks&&_modifiedBlocks[ck]===B_CHEST)||_openedChests.has(ck)){
+      openPlayerChest(bx,by,bz);
+    } else {
+      openWorldChest(bx,by,bz);
     }
     return true;
   }
@@ -9143,7 +9133,8 @@ function saveGame(manual){
       mode:'survival',
       // Seed
       seed:SEED,
-      chests:serializeChests()
+      chests:serializeChests(),
+      openedChests:(function(){var a=[];if(_openedChests)_openedChests.forEach(function(k){a.push(k);});return a;})()
     };
     _ls.set(SAVE_KEY,JSON.stringify(save));
     if(manual)showSaveIndicator('💾 Sauvegardé!');
@@ -9242,6 +9233,12 @@ function loadGame(){
     }
 
     if(save.chests)deserializeChests(save.chests);
+    if(save.openedChests&&_openedChests){
+      save.openedChests.forEach(function(k){_openedChests.add(k);});
+    }
+    if(save.chests){
+      for(var ck in save.chests){if(_openedChests)_openedChests.add(ck);}
+    }
     return true;
   }catch(e){console.warn('Load failed:',e);return false;}
 }
@@ -9837,16 +9834,17 @@ function chestSlotClick(idx){
 function serializeChests(){
   var out={};
   for(var k in _playerChests){
-    var slots=_playerChests[k];
-    var hasItems=slots.some(function(s){return s.id>0;});
-    if(hasItems)out[k]=slots.map(function(s){return{i:s.id,q:s.qty};});
+    var slots=_playerChests[k]||[];
+    out[k]=slots.map(function(s){return{i:s.id||0,q:s.qty||0};});
   }
   return out;
 }
 function deserializeChests(data){
   if(!data)return;
   for(var k in data){
-    _playerChests[k]=data[k].map(function(s){return{id:s.i||0,qty:s.q||0};});
+    var slots=data[k].map(function(s){return{id:s.i||0,qty:s.q||0};});
+    while(slots.length<21)slots.push({id:0,qty:0});
+    _playerChests[k]=slots;
   }
 }
 
@@ -11117,7 +11115,6 @@ renderer.render(scene,camera);
       var cxx=cpx+cdx,cyy=cpy+cdy,czz=cpz+cdz;
       if(getBlock(cxx,cyy,czz)!==B_CHEST)continue;
       var ck2=_chestKey(cxx,cyy,czz);
-      if(_openedChests&&_openedChests.has(ck2)&&!(_playerChests&&_playerChests[ck2]))continue;
       var cd=cdx*cdx+cdz*cdz+cdy*cdy;
       if(cd<bestCd){bestCd=cd;bestC={x:cxx,y:cyy,z:czz};}
     }
