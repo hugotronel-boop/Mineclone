@@ -2163,7 +2163,9 @@ display: none !important;
 }
 #water-overlay{
   position:fixed;inset:0;pointer-events:none;z-index:103;
-  background:radial-gradient(ellipse at center,rgba(30,110,170,0.18) 0%,rgba(8,50,110,0.55) 100%);
+  background:
+    radial-gradient(ellipse at 50% 0%,rgba(90,180,220,0.18) 0%,transparent 42%),
+    linear-gradient(180deg,rgba(12,70,120,0.28) 0%,rgba(6,40,85,0.62) 100%);
   opacity:0;transition:opacity .18s linear;
 }
 #water-overlay.on{opacity:1;}
@@ -4976,12 +4978,54 @@ function buildMesh(cx,cz){
     }
   }
   // Eau
-  var WATER_TOP=0.88;
+  var WATER_TOP=0.875;
+  function waterNb(lx,ly,lz){
+    if(ly<0)return B_STONE;if(ly>=CH)return B_AIR;
+    if(lx>=0&&lx<CS&&lz>=0&&lz<CS)return data[lx+CS*(ly+CH*lz)];
+    var ncx=Math.floor((ox+lx)/CS),ncz=Math.floor((oz+lz)/CS);
+    if(!chunks.get(ckey(ncx,ncz)))return B_WATER;
+    return getBlock(ox+lx,ly,oz+lz);
+  }
+  for(var y=0;y<maxY;y++){
+    var wvis=new Uint8Array(CS*CS);
+    for(var lz=0;lz<CS;lz++)for(var lx=0;lx<CS;lx++){
+      if(wvis[lx+lz*CS])continue;
+      if(getD(lx,y,lz)!==B_WATER)continue;
+      if(waterNb(lx,y+1,lz)===B_WATER)continue;
+      var ww=1;
+      while(lx+ww<CS&&!wvis[lx+ww+lz*CS]&&getD(lx+ww,y,lz)===B_WATER&&waterNb(lx+ww,y+1,lz)!==B_WATER)ww++;
+      var wd=1,wok=true;
+      while(lz+wd<CS&&wok){
+        for(var tx=0;tx<ww;tx++){
+          if(wvis[lx+tx+(lz+wd)*CS]||getD(lx+tx,y,lz+wd)!==B_WATER||waterNb(lx+tx,y+1,lz+wd)===B_WATER){wok=false;break;}
+        }
+        if(wok)wd++;
+      }
+      for(var dz=0;dz<wd;dz++)for(var dx=0;dx<ww;dx++)wvis[lx+dx+(lz+dz)*CS]=1;
+      var x0=ox+lx,z0=oz+lz,x1=x0+ww,z1=z0+wd,ty=y+WATER_TOP,wq=wC;
+      wP.push(x0,ty,z1, x1,ty,z1, x1,ty,z0, x0,ty,z0);
+      wU.push(x0,z1, x1,z1, x1,z0, x0,z0);
+      for(var wb=0;wb<4;wb++)wB.push(1.0);
+      wI.push(wq,wq+1,wq+2, wq,wq+2,wq+3);
+      wI.push(wq,wq+3,wq+2, wq,wq+2,wq+1);
+      wC+=4;
+    }
+  }
+  var WLD=[{dx:0,dz:1,bx:[0,1,1,0],bz:[1,1,1,1]},{dx:0,dz:-1,bx:[1,0,0,1],bz:[0,0,0,0]},{dx:1,dz:0,bx:[1,1,1,1],bz:[1,0,0,1]},{dx:-1,dz:0,bx:[0,0,0,0],bz:[0,1,1,0]}];
   for(var lx=0;lx<CS;lx++)for(var y=0;y<maxY;y++)for(var lz=0;lz<CS;lz++){
-    if(getD(lx,y,lz)!==B_WATER)continue;var wx6=ox+lx,wz6=oz+lz,hwa=getW(lx,y+1,lz)===B_WATER,topY=hwa?y+1.0:y+WATER_TOP;
-    if(!hwa){var wq=wC;wP.push(wx6,topY,wz6+1,wx6+1,topY,wz6+1,wx6+1,topY,wz6,wx6,topY,wz6);wU.push(0,0,1,0,1,1,0,1);for(var wb=0;wb<4;wb++)wB.push(1.0);wI.push(wq,wq+1,wq+2,wq,wq+2,wq+3);wC+=4;}
-    var WLD=[{dx:0,dz:1,bx:[0,1,1,0],bz:[1,1,1,1]},{dx:0,dz:-1,bx:[1,0,0,1],bz:[0,0,0,0]},{dx:1,dz:0,bx:[1,1,1,1],bz:[1,0,0,1]},{dx:-1,dz:0,bx:[0,0,0,0],bz:[0,1,1,0]}];
-    for(var wi=0;wi<WLD.length;wi++){var wd=WLD[wi];if(getW(lx+wd.dx,y,lz+wd.dz)!==B_AIR)continue;var nab=getW(lx+wd.dx,y+1,lz+wd.dz)===B_WATER,tF=nab?y+1.0:y+WATER_TOP,wq3=wC;wP.push(wx6+wd.bx[0],y,wz6+wd.bz[0],wx6+wd.bx[1],y,wz6+wd.bz[1],wx6+wd.bx[2],tF,wz6+wd.bz[2],wx6+wd.bx[3],topY,wz6+wd.bz[3]);wU.push(0,1,1,1,1,0,0,0);for(var wb3=0;wb3<4;wb3++)wB.push(0.72);wI.push(wq3,wq3+1,wq3+2,wq3,wq3+2,wq3+3);wC+=4;}
+    if(getD(lx,y,lz)!==B_WATER)continue;
+    var wx6=ox+lx,wz6=oz+lz,topY=(waterNb(lx,y+1,lz)===B_WATER)?y+1.0:y+WATER_TOP;
+    for(var wi=0;wi<WLD.length;wi++){
+      var wd=WLD[wi];
+      if(waterNb(lx+wd.dx,y,lz+wd.dz)!==B_AIR)continue;
+      var nab=waterNb(lx+wd.dx,y+1,lz+wd.dz)===B_WATER,tF=nab?y+1.0:y+WATER_TOP,wq3=wC;
+      wP.push(wx6+wd.bx[0],y,wz6+wd.bz[0], wx6+wd.bx[1],y,wz6+wd.bz[1], wx6+wd.bx[2],tF,wz6+wd.bz[2], wx6+wd.bx[3],topY,wz6+wd.bz[3]);
+      wU.push(0,1, 1,1, 1,0, 0,0);
+      for(var wb3=0;wb3<4;wb3++)wB.push(0.85);
+      wI.push(wq3,wq3+1,wq3+2, wq3,wq3+2,wq3+3);
+      wI.push(wq3,wq3+3,wq3+2, wq3,wq3+2,wq3+1);
+      wC+=4;
+    }
   }
   var group=new THREE.Group();group.userData.cx=cx;group.userData.cz=cz;group.userData.minY=0;group.userData.maxY=maxY;
   for(var bk in bkts){var b=bkts[bk];if(!b.cnt)continue;var geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(b.pos,3));geo.setAttribute('uv',new THREE.Float32BufferAttribute(b.uv,2));geo.setAttribute('brightness',new THREE.Float32BufferAttribute(b.br,1));geo.index=new Uint16Array(b.idx);var tex=TEX[b.id]?TEX[b.id][b.face]:null;var isPlant=(b.id===B_LEAF||b.id===B_BERRY_BUSH||b.id===B_BERRY_EMPTY||b.id===B_HERB_BLOCK||b.id===B_NETTLES||b.id===B_SAPLING);group.add(new THREE.Mesh(geo,isPlant?new THREE.MeshBasicMaterial({map:tex,transparent:true,opacity:1}):new THREE.MeshBasicMaterial({map:tex})));}
@@ -11933,6 +11977,11 @@ function animate(now){
   renderer._fogNear=RENDER_DIST*CHUNK_SIZE*0.6*fogMult;
   renderer._fogFar=RENDER_DIST*CHUNK_SIZE*1.2*fogMult;
   renderer._fogColor=skyRGB;
+  if(typeof isInWater==='function'&&isInWater(player.pos.x,player.pos.y-0.15,player.pos.z)){
+    renderer._fogNear=1.5;
+    renderer._fogFar=14;
+    renderer._fogColor=[0.07,0.32,0.55];
+  }
 
   // Torches (boost amplifié dans le brouillard — flamme qui perce)
   var torchBoost=0,px0=Math.floor(player.pos.x),py0=Math.floor(player.pos.y),pz0=Math.floor(player.pos.z);
