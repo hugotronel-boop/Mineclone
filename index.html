@@ -7889,6 +7889,12 @@ function updateAnimals(dt){
     // ── Distances effectives (nuit = plus dangereux) ────────
     var nightMult=isNight?1.8:1.0;
     var effectiveAggro=def.aggro?(def.aggro*nightMult):0;
+    if(typeof playerCamouflaged==='function'&&playerCamouflaged()){
+      effectiveAggro*=0.28;
+      if(a.aiState==='observe'||a.aiState==='alert'){
+        if(dist>effectiveAggro*1.15)a.aiState='wander';
+      }
+    }
 
     // Météo : pluie → passifs cherchent couvert (bougent moins)
     var weatherSpeedMult=1.0;
@@ -8679,7 +8685,13 @@ function updateBreaking(dt){
 }
 
 // ── Physics ────────────────────────────────────────────────
-function isSolid(x,y,z){var b=getBlock(Math.floor(x),Math.floor(y),Math.floor(z));return b&&b!==B_WATER&&b!==B_LEAF&&b!==B_AIR;}
+function isCamoBlock(b){return b===B_BERRY_BUSH||b===B_HERB_BLOCK;}
+function playerCamouflaged(){
+  var x=Math.floor(player.pos.x),z=Math.floor(player.pos.z);
+  var y0=Math.floor(player.pos.y),y1=Math.floor(player.pos.y-0.85);
+  return isCamoBlock(getBlock(x,y0,z))||isCamoBlock(getBlock(x,y1,z));
+}
+function isSolid(x,y,z){var b=getBlock(Math.floor(x),Math.floor(y),Math.floor(z));return b&&b!==B_WATER&&b!==B_LEAF&&b!==B_AIR&&b!==B_BERRY_BUSH&&b!==B_HERB_BLOCK&&b!==B_SAPLING;}
 function isInWater(x,y,z){return getBlock(Math.floor(x),Math.floor(y),Math.floor(z))===B_WATER;}
 
 function waterTopY(x,z){
