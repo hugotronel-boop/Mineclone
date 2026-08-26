@@ -4904,11 +4904,13 @@ function drainStamina(amount){
 // Régénération endurance au repos
 var _staminaRegenTimer=0;
 function regenStamina(dt){
-  if(false)return;
   if(player.stamina>=player.maxStamina)return;
-  // Regen seulement si on est au sol et qu'on ne sprint pas
   _staminaRegenTimer+=dt;
-  if(_staminaRegenTimer>=1.5){_staminaRegenTimer=0;player.stamina=Math.min(player.maxStamina,player.stamina+1);updateBars();}
+  if(_staminaRegenTimer>=0.4){
+    _staminaRegenTimer=0;
+    player.stamina=Math.min(player.maxStamina,player.stamina+1);
+    updateBars();
+  }
 }
 // ── Paramètres ──────────────────────────────────────────────
 var _ls={get:function(k,d){try{var v=localStorage.getItem(k);return v!==null?v:d;}catch(e){return d;}},set:function(k,v){try{localStorage.setItem(k,v);}catch(e){}}};
@@ -6861,8 +6863,10 @@ function updateSurvival(dt){
     if(!updateSurvival._nt)updateSurvival._nt=0;updateSurvival._nt+=dt;
     if(updateSurvival._nt>=1.5){updateSurvival._nt=0;hurtPlayer(1,'Brûlé par des orties!');showPopup('🌿 Aïe! Orties!',player.pos.clone().add(new THREE.Vector3(0,1.5,0)));}
   } else{if(!updateSurvival._nt)updateSurvival._nt=0;else updateSurvival._nt=0;}
-  var canRegen=!isRunning&&player.food>3&&player.thirst>3&&!isCold&&player_poisoned<=0&&player_sick<=0;
-  if(canRegen)regenStamina(dt);
+  var mining=breaking&&breaking.progress>0;
+  var idle=!player._moving&&!isRunning&&!mining;
+  if(idle)regenStamina(dt);
+  else _staminaRegenTimer=0;
 }
 document.getElementById('respawn-btn').addEventListener('pointerdown',function(){doRespawn();});
 function spawnPlayer(){_initPlayerShadow();
@@ -8828,6 +8832,7 @@ function movePlayer(dt){
   if(keys['KeyW']||keys['ArrowUp'])dir.add(fwd);if(keys['KeyS']||keys['ArrowDown'])dir.sub(fwd);if(keys['KeyA']||keys['ArrowLeft'])dir.sub(right);if(keys['KeyD']||keys['ArrowRight'])dir.add(right);
   if(joystick.active&&(Math.abs(joystick.dx)>0.05||Math.abs(joystick.dy)>0.05)){dir.addScaledVector(fwd,-joystick.dy);dir.addScaledVector(right,joystick.dx);}else if(_jLocked){dir.addScaledVector(fwd,-_jLockedDy);dir.addScaledVector(right,_jLockedDx);}
   if(dir.lengthSq()>0.001)dir.normalize();
+  player._moving=dir.lengthSq()>0.001;
   if(_mobileSprint&&true&&player.stamina<=2)setMobileSprint(false);
   var wantSprint=((keys['ShiftLeft']||keys['ShiftRight'])||_mobileSprint)&&dir.lengthSq()>0.001&&(false||player.stamina>2);
   var foodRatio=false?1.0:player.stamina/player.maxStamina,speedFactor=foodRatio>0.7?1.0:foodRatio>0.35?0.75:foodRatio>0.07?0.50:0.30;
