@@ -149,6 +149,37 @@ left: 50%;
 top: 50%;
 transform: translate(-50%,-50%);
 }
+#ammo-hud {
+position: fixed;
+top: calc(96px + env(safe-area-inset-top, 0px));
+left: 8px;
+z-index: 26;
+display: flex;
+flex-direction: column;
+gap: 6px;
+pointer-events: none;
+}
+.ammo-ico {
+width: 38px;
+height: 38px;
+border-radius: 10px;
+background: rgba(0,0,0,0.5);
+border: 1px solid rgba(255,255,255,0.22);
+display: none;
+align-items: center;
+justify-content: center;
+position: relative;
+box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+.ammo-ico canvas { width: 28px; height: 28px; image-rendering: pixelated; }
+.ammo-ico b {
+position: absolute;
+right: 2px;
+bottom: 0;
+font: 800 11px/1 sans-serif;
+color: #fff;
+text-shadow: 0 1px 2px #000;
+}
 .vis-open { border-color: rgba(255,80,80,0.55); }
 .vis-open .eye { border-color: #fff; }
 .vis-half { border-color: rgba(255,200,80,0.55); }
@@ -2280,6 +2311,10 @@ display: none !important;
     <div id="stealth-eye" class="stealth-ico vis-open"><span class="eye"><span class="pupil"></span></span></div>
     <div id="stealth-noise" class="stealth-ico noise-0"><span class="noise-waves"><i></i><i></i><i></i></span></div>
   </div>
+  <div id="ammo-hud">
+    <div id="ammo-pouch" class="ammo-ico" style="display:none"><canvas width="32" height="32"></canvas><b>0</b></div>
+    <div id="ammo-quiver" class="ammo-ico" style="display:none"><canvas width="32" height="32"></canvas><b>0</b></div>
+  </div>
   <div id="info">
     <span id="fps">60</span> FPS<br>
     <span id="pos"></span><br>
@@ -2613,7 +2648,7 @@ display: none !important;
     <div id="overlay-content">
       <h1>MINECLONE</h1>
       <div id="overlay-tagline">Survivre. Ou mourir.</div>
-      <div id="overlay-build">v46</div>
+      <div id="overlay-build">v47</div>
       <button type="button" id="continueBtn" onclick="window.continueGame&&window.continueGame()">Continuer</button>
       <button type="button" id="startBtn">Nouvelle partie</button>
       <button type="button" id="btn-settings-open" onclick="if(typeof openSettings==='function')openSettings();">Parametres</button>
@@ -6603,26 +6638,27 @@ function pourLooseIntoPouch(pouchId){
 }
 function giveItem(id,qty,silent){
   if(!id||!(qty>0))return false;
+  if(id===ITEM_PEBBLE_POUCH){grantBag('pouch');return true;}
+  if(id===ITEM_QUIVER){grantBag('quiver');return true;}
   if(!silent&&typeof _audioInitialized!=='undefined'&&_audioInitialized)playSoundPickup();
   var bag=hasBag();
   var left=qty;
-  var pouchId=(id===ITEM_ARROW)?ITEM_QUIVER:(id===ITEM_PEBBLE)?ITEM_PEBBLE_POUCH:0;
+  if(id===ITEM_PEBBLE&&_hasPouch){
+    var add=Math.min(PEBBLE_POUCH_MAX-_pouchAmmo,left);
+    if(add>0){_pouchAmmo+=add;left-=add;}
+    if(left<=0){if(typeof updateAmmoHud==='function')updateAmmoHud();syncHotbar();return true;}
+    if(_pouchAmmo>=PEBBLE_POUCH_MAX&&left>0){
+      /* overflow to loose */
+    }
+  }
+  if(id===ITEM_ARROW&&_hasQuiver){
+    var addA=Math.min(QUIVER_MAX-_quiverAmmo,left);
+    if(addA>0){_quiverAmmo+=addA;left-=addA;}
+    if(left<=0){if(typeof updateAmmoHud==='function')updateAmmoHud();syncHotbar();return true;}
+  }
+  var pouchId=(id===ITEM_ARROW||id===ITEM_PEBBLE)?1:0;
   var hasPouch=false;
   if(pouchId){
-    var mx=id===ITEM_ARROW?QUIVER_MAX:PEBBLE_POUCH_MAX;
-    for(var pi=0;pi<INV.length&&left>0;pi++){
-      if(INV[pi]&&INV[pi].id===pouchId){
-        hasPouch=true;
-        var a=INV[pi].ammo||0, add=Math.min(mx-a,left);
-        if(add>0){INV[pi].ammo=a+add;left-=add;}
-      }
-    }
-    if(left<=0){syncHotbar();if(typeof buildInvUI==='function'&&invOpen)buildInvUI();return true;}
-    if(hasPouch){
-      showPopup(id===ITEM_ARROW?'Carquois plein !':'Pochette pleine !',player.pos.clone().add(new THREE.Vector3(0,1.6,0)));
-      syncHotbar();
-      return left;
-    }
     var have=0;
     for(var ci=0;ci<INV.length;ci++)if(INV[ci]&&INV[ci].id===id)have+=INV[ci].qty||0;
     var room=Math.max(0,5-have);
@@ -6664,7 +6700,7 @@ function giveItem(id,qty,silent){
 }
 
 // Synchronise les icônes de la hotbar (INV 0-6)
-function syncHotbar(){if(typeof refreshPlaceBtn==='function')refreshPlaceBtn();
+function syncHotbar(){if(typeof updateAmmoHud==='function')updateAmmoHud();if(typeof refreshPlaceBtn==='function')refreshPlaceBtn();
   if(typeof fbUpdateToolVM==='function')fbUpdateToolVM();
   for(var h=0;h<7;h++){
     var itemId=INV[h].id;
@@ -8584,6 +8620,97 @@ function trySpawnAnimalsInChunk(cx,cz){
   }
 }
 var _pebbles=[],_pebbleSpawned={};
+var _hasPouch=false,_pouchAmmo=0,_hasQuiver=false,_quiverAmmo=0;
+function pourLooseAmmo(){
+  if(_hasPouch){
+    for(var i=0;i<INV.length&&_pouchAmmo<PEBBLE_POUCH_MAX;i++){
+      if(!INV[i]||INV[i].id!==ITEM_PEBBLE||!INV[i].qty)continue;
+      var add=Math.min(PEBBLE_POUCH_MAX-_pouchAmmo,INV[i].qty);
+      _pouchAmmo+=add;INV[i].qty-=add;if(INV[i].qty<=0)INV[i]={id:0,qty:0};
+    }
+  }
+  if(_hasQuiver){
+    for(var j=0;j<INV.length&&_quiverAmmo<QUIVER_MAX;j++){
+      if(!INV[j]||INV[j].id!==ITEM_ARROW||!INV[j].qty)continue;
+      var add2=Math.min(QUIVER_MAX-_quiverAmmo,INV[j].qty);
+      _quiverAmmo+=add2;INV[j].qty-=add2;if(INV[j].qty<=0)INV[j]={id:0,qty:0};
+    }
+  }
+}
+function migrateBagsFromInv(){
+  for(var i=0;i<INV.length;i++){
+    var it=INV[i];if(!it)continue;
+    if(it.id===ITEM_PEBBLE_POUCH){
+      _hasPouch=true;_pouchAmmo=Math.min(PEBBLE_POUCH_MAX,_pouchAmmo+(it.ammo||0));
+      INV[i]={id:0,qty:0,ammo:0};
+    } else if(it.id===ITEM_QUIVER){
+      _hasQuiver=true;_quiverAmmo=Math.min(QUIVER_MAX,_quiverAmmo+(it.ammo||0));
+      INV[i]={id:0,qty:0,ammo:0};
+    }
+  }
+  pourLooseAmmo();
+  if(typeof updateAmmoHud==='function')updateAmmoHud();
+}
+function grantBag(kind){
+  if(kind==='pouch'){
+    if(_hasPouch)showPopup('Pochette déjà équipée',player.pos.clone().add(new THREE.Vector3(0,1.5,0)));
+    else { _hasPouch=true; showPopup('Pochette équipée — stockage extra',player.pos.clone().add(new THREE.Vector3(0,1.5,0))); }
+  } else {
+    if(_hasQuiver)showPopup('Carquois déjà équipé',player.pos.clone().add(new THREE.Vector3(0,1.5,0)));
+    else { _hasQuiver=true; showPopup('Carquois équipé — stockage extra',player.pos.clone().add(new THREE.Vector3(0,1.5,0))); }
+  }
+  pourLooseAmmo();
+  if(typeof updateAmmoHud==='function')updateAmmoHud();
+  if(typeof syncHotbar==='function')syncHotbar();
+  if(typeof saveGame==='function')saveGame(false);
+}
+function hasPebbleAmmo(){
+  if(_hasPouch&&_pouchAmmo>0)return true;
+  for(var i=0;i<INV.length;i++)if(INV[i]&&INV[i].id===ITEM_PEBBLE&&INV[i].qty>0)return true;
+  return false;
+}
+function hasArrowAmmo(){
+  if(_hasQuiver&&_quiverAmmo>0)return true;
+  for(var i=0;i<INV.length;i++)if(INV[i]&&INV[i].id===ITEM_ARROW&&INV[i].qty>0)return true;
+  return false;
+}
+function consumePebbleAmmo(){
+  if(_hasPouch&&_pouchAmmo>0){_pouchAmmo--;if(typeof updateAmmoHud==='function')updateAmmoHud();return true;}
+  for(var i=0;i<INV.length;i++){
+    if(INV[i]&&INV[i].id===ITEM_PEBBLE&&INV[i].qty>0){
+      INV[i].qty--;if(INV[i].qty<=0)INV[i]={id:0,qty:0};
+      return true;
+    }
+  }
+  return false;
+}
+function consumeArrowAmmo(){
+  if(_hasQuiver&&_quiverAmmo>0){_quiverAmmo--;if(typeof updateAmmoHud==='function')updateAmmoHud();return true;}
+  for(var i=0;i<INV.length;i++){
+    if(INV[i]&&INV[i].id===ITEM_ARROW&&INV[i].qty>0){
+      INV[i].qty--;if(INV[i].qty<=0)INV[i]={id:0,qty:0};
+      return true;
+    }
+  }
+  return false;
+}
+function updateAmmoHud(){
+  var p=document.getElementById('ammo-pouch'),q=document.getElementById('ammo-quiver');
+  if(p){
+    p.style.display=_hasPouch?'flex':'none';
+    var b=p.querySelector('b');if(b)b.textContent=String(_pouchAmmo);
+    var cv=p.querySelector('canvas');
+    if(cv&&_hasPouch&&typeof paintItemToCanvas==='function')paintItemToCanvas(cv,ITEM_PEBBLE_POUCH,32);
+    p.style.opacity=_pouchAmmo>0?'1':'0.45';
+  }
+  if(q){
+    q.style.display=_hasQuiver?'flex':'none';
+    var b2=q.querySelector('b');if(b2)b2.textContent=String(_quiverAmmo);
+    var cv2=q.querySelector('canvas');
+    if(cv2&&_hasQuiver&&typeof paintItemToCanvas==='function')paintItemToCanvas(cv2,ITEM_QUIVER,32);
+    q.style.opacity=_quiverAmmo>0?'1':'0.45';
+  }
+}
 function makePebbleMesh(){
   var g=new THREE.Group();
   var a=new THREE.MeshBasicMaterial({color:0x8a8680});
@@ -10078,7 +10205,7 @@ function punchRaft(){
 function performUseAction(){
   if(_mountedRaft){dismountRaft();return true;}
   var slot=INV[selectedSlot],id=slot&&slot.id;
-  if(id===ITEM_SLING||id===ITEM_BOW||id===ITEM_PEBBLE||id===ITEM_PEBBLE_POUCH)return false;
+  if(id===ITEM_SLING||id===ITEM_BOW||id===ITEM_PEBBLE)return false;
   if(id&&tryUseItem())return true;
   if(typeof tryRaftInteract==='function'&&tryRaftInteract())return true;
   var a=attackAnimalRaycast();
@@ -10334,11 +10461,11 @@ camZone.addEventListener('touchend',endCam,{passive:false});camZone.addEventList
 var _mobileActionUsed=false,placeTimer=null;
 document.addEventListener('mousedown',function(e){if(!gameStarted)return;if(invOpen||lootModalOpen)return;if(_mobileActionUsed){_mobileActionUsed=false;return;}if(e.button===0){performBreakAction();}if(e.button===2){if(!mouseLocked){_mouseRightDown=true;_lastMouseX=e.clientX;_lastMouseY=e.clientY;
     var _curSlotNL=INV[selectedSlot];
-    if(_curSlotNL&&(_curSlotNL.id===ITEM_SLING||_curSlotNL.id===ITEM_PEBBLE||_curSlotNL.id===ITEM_PEBBLE_POUCH)){slingStartCharge();return;}
+    if(_curSlotNL&&(_curSlotNL.id===ITEM_SLING||_curSlotNL.id===ITEM_PEBBLE)){slingStartCharge();return;}
     if(_curSlotNL&&_curSlotNL.id===ITEM_BOW){bowStartCharge();return;}
   }else{
     var _curSlot=INV[selectedSlot];
-    if(_curSlot&&(_curSlot.id===ITEM_SLING||_curSlot.id===ITEM_PEBBLE||_curSlot.id===ITEM_PEBBLE_POUCH)){slingStartCharge();return;}
+    if(_curSlot&&(_curSlot.id===ITEM_SLING||_curSlot.id===ITEM_PEBBLE)){slingStartCharge();return;}
     if(_curSlot&&_curSlot.id===ITEM_BOW){bowStartCharge();return;}
     performUseAction();}}});
 document.addEventListener('mouseup',function(e){if(e.button===0)stopBreaking();if(e.button===2){_mouseRightDown=false;if(_slingActive)slingRelease();else if(_bowActive)bowRelease();}});
@@ -10354,7 +10481,7 @@ document.getElementById('btn-break').addEventListener('pointercancel',function(e
 document.getElementById('btn-place').addEventListener('pointerdown',function(e){
   e.stopPropagation();_mobileActionUsed=true;
   var _cs=INV[selectedSlot];
-  if(_cs&&(_cs.id===ITEM_SLING||_cs.id===ITEM_PEBBLE||_cs.id===ITEM_PEBBLE_POUCH)){slingStartCharge();return;}
+  if(_cs&&(_cs.id===ITEM_SLING||_cs.id===ITEM_PEBBLE)){slingStartCharge();return;}
   if(_cs&&_cs.id===ITEM_BOW){bowStartCharge();return;}
   performUseAction();
   placeTimer=setInterval(function(){
@@ -10706,6 +10833,7 @@ function saveGame(manual){
       worldSpawn:_worldSpawn.x!==null?{x:_worldSpawn.x,y:_worldSpawn.y,z:_worldSpawn.z}:null,
       // Inventaire
       inv:INV.map(function(s){return{i:s.id,q:s.qty,a:s.ammo||0};}),
+      bags:{pouch:_hasPouch?1:0,pouchAmmo:_pouchAmmo,quiver:_hasQuiver?1:0,quiverAmmo:_quiverAmmo},
       equip:{
         left:{i:EQUIP.left.id,q:EQUIP.left.qty},
         chest:{i:EQUIP.chest.id,q:EQUIP.chest.qty,d:EQUIP.chest.durability||0},
@@ -10801,6 +10929,11 @@ function loadGame(){
         INV[i]={id:save.inv[i].i||0,qty:save.inv[i].q||0,ammo:save.inv[i].a||0};
       }
     }
+    if(save.bags){
+      _hasPouch=!!save.bags.pouch;_pouchAmmo=save.bags.pouchAmmo||0;
+      _hasQuiver=!!save.bags.quiver;_quiverAmmo=save.bags.quiverAmmo||0;
+    }
+    migrateBagsFromInv();
     // Restaurer équipement
     if(save.equip){
       if(save.equip.left)EQUIP.left={id:save.equip.left.i||0,qty:save.equip.left.q||0};
@@ -11009,35 +11142,33 @@ var _slingAmmo=null;      // Pierre en main ?
 
 // Détecter si le joueur a des pierres dans l'inventaire
 function _findStoneAmmo(){
-  for(var i=0;i<INV.length;i++){if(INV[i].id===ITEM_PEBBLE_POUCH&&(INV[i].ammo||0)>0)return i;}
-  for(var i=0;i<INV.length;i++){if(INV[i].id===ITEM_PEBBLE&&INV[i].qty>0)return i;}
+  if(hasPebbleAmmo())return 0;
   for(var i=0;i<INV.length;i++){if(INV[i].id===B_STONE||INV[i].id===B_GRAVEL)return i;}
   return -1;
 }
 function _consumeSlingAmmo(){
-  var i=_findStoneAmmo();if(i<0)return false;
-  var it=INV[i];
-  if(it.id===ITEM_PEBBLE_POUCH){it.ammo=(it.ammo||1)-1;return true;}
-  it.qty--;if(it.qty<=0)INV[i]={id:0,qty:0};return true;
+  if(consumePebbleAmmo())return true;
+  for(var si=0;si<INV.length;si++){
+    if(INV[si]&&(INV[si].id===B_STONE||INV[si].id===B_GRAVEL)&&INV[si].qty>0){
+      INV[si].qty--;if(INV[si].qty<=0)INV[si]={id:0,qty:0};return true;
+    }
+  }
+  return false;
 }
 
 // Commencer à tendre
 function _handPebbleReady(){
-  var slot=INV[selectedSlot];if(!slot)return false;
-  if(slot.id===ITEM_PEBBLE&&slot.qty>0)return true;
-  if(slot.id===ITEM_PEBBLE_POUCH&&(slot.ammo||0)>0)return true;
-  return false;
+  var slot=INV[selectedSlot];
+  if(slot&&slot.id===ITEM_PEBBLE&&slot.qty>0)return true;
+  return hasPebbleAmmo();
 }
 function _consumeHandPebble(){
-  var slot=INV[selectedSlot];if(!slot)return false;
-  if(slot.id===ITEM_PEBBLE_POUCH&&(slot.ammo||0)>0){slot.ammo--;return true;}
-  if(slot.id===ITEM_PEBBLE&&slot.qty>0){slot.qty--;if(slot.qty<=0)INV[selectedSlot]={id:0,qty:0};return true;}
-  return false;
+  return consumePebbleAmmo();
 }
 function slingStartCharge(){
   var slot=INV[selectedSlot];
   _handThrow=false;
-  if(slot&&(slot.id===ITEM_PEBBLE||slot.id===ITEM_PEBBLE_POUCH)){
+  if(slot&&slot.id===ITEM_PEBBLE){
     if(!_handPebbleReady()){
       showPopup('Pas de cailloux !',player.pos.clone().add(new THREE.Vector3(0,1.5,0)));
       return false;
@@ -11092,15 +11223,11 @@ function slingRelease(){
 var _bowActive=false,_bowCharge=0,_bowMaxTime=1.4;
 
 function _findArrow(){
-  for(var i=0;i<INV.length;i++){if(INV[i].id===ITEM_QUIVER&&(INV[i].ammo||0)>0)return i;}
-  for(var i=0;i<INV.length;i++){if(INV[i].id===ITEM_ARROW&&INV[i].qty>0)return i;}
+  if(hasArrowAmmo())return 0;
   return -1;
 }
 function _consumeArrow(){
-  var i=_findArrow();if(i<0)return false;
-  var it=INV[i];
-  if(it.id===ITEM_QUIVER){it.ammo=(it.ammo||1)-1;return true;}
-  it.qty--;if(it.qty<=0)INV[i]={id:0,qty:0};return true;
+  return consumeArrowAmmo();
 }
 
 function bowStartCharge(){
