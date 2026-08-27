@@ -3106,7 +3106,7 @@ var B_WATER_COLLECTOR=128,B_WATER_COLLECTOR_FULL=129;
 var ITEM_WATER_COLLECTOR=91;
 var ITEM_PEBBLE=92,ITEM_PEBBLE_POUCH=93,ITEM_QUIVER=94;
 var PEBBLE_POUCH_MAX=20,QUIVER_MAX=10;
-var B_BERRY_BUSH=120,B_MUSHROOM_BLOCK=121,B_HERB_BLOCK=122,B_NETTLES=123,B_BERRY_EMPTY=130;
+var B_BERRY_BUSH=120,B_MUSHROOM_BLOCK=121,B_HERB_BLOCK=122,B_NETTLES=123,B_BERRY_EMPTY=130,B_DOOR_TOP=131;
 var B_STUMP=124;       // souche d'arbre après coupe
 var B_SAPLING=125;     // pousse d'arbre (plantable)
 var B_FISHING_ROD=126; // (item, pas bloc)
@@ -4764,6 +4764,21 @@ function updateFallingTrees(dt){
 }
 
 function onBlockBreak(blockType,wx,wy,wz){
+  if(blockType===B_DOOR_TOP){
+    if(getBlock(wx,wy-1,wz)===B_DOOR)setBlock(wx,wy-1,wz,B_AIR);
+    return;
+  }
+  if(blockType===B_FENCE){
+    var fcx=Math.floor(wx/CHUNK_SIZE),fcz=Math.floor(wz/CHUNK_SIZE);
+    setTimeout(function(){rebuildC(fcx-1,fcz);rebuildC(fcx+1,fcz);rebuildC(fcx,fcz-1);rebuildC(fcx,fcz+1);},0);
+  }
+  if(blockType===B_DOOR){
+    delete _doorState[doorKey(wx,wy,wz)];
+    if(getBlock(wx,wy+1,wz)===B_DOOR_TOP){
+      var cx=Math.floor(wx/CHUNK_SIZE),cz=Math.floor(wz/CHUNK_SIZE),data=chunks.get(ckey(cx,cz));
+      if(data){var lx=((wx%CHUNK_SIZE)+CHUNK_SIZE)%CHUNK_SIZE,lz=((wz%CHUNK_SIZE)+CHUNK_SIZE)%CHUNK_SIZE;data[lx+CHUNK_SIZE*((wy+1)+CHUNK_HEIGHT*lz)]=B_AIR;trackBlockChange(wx,wy+1,wz,B_AIR);}
+    }
+  }
   var pos=new THREE.Vector3(wx+0.5,wy+1.5,wz+0.5);
   // Mapping bloc → item récupérable (pour les blocs craftés/posés)
   var BLOCK_TO_ITEM={};
@@ -4883,7 +4898,7 @@ function tickWaterFlow(){
 }
 function rebuildC(cx,cz){var key=ckey(cx,cz),old=chunkMeshes.get(key);if(old)scene.remove(old);chunkMeshes.delete(key);buildMesh(cx,cz);}
 
-function isTransp(b){return b===B_AIR||b===B_WATER||b===B_LEAF||b===B_BERRY_BUSH||b===B_BERRY_EMPTY||b===B_MUSHROOM_BLOCK||b===B_HERB_BLOCK||b===B_NETTLES||b===B_SAPLING;}
+function isTransp(b){return b===B_AIR||b===B_WATER||b===B_LEAF||b===B_BERRY_BUSH||b===B_BERRY_EMPTY||b===B_MUSHROOM_BLOCK||b===B_HERB_BLOCK||b===B_NETTLES||b===B_SAPLING||b===B_FENCE||b===B_DOOR||b===B_DOOR_TOP;}
 
 function buildMesh(cx,cz){
   var key=ckey(cx,cz);if(chunkMeshes.has(key))return;
@@ -4899,7 +4914,7 @@ function buildMesh(cx,cz){
     var ny2=faceDir===0?y+1:y-1,faceName=faceDir===0?'top':'bot',br=faceDir===0?1.0:0.45;
     var visited=new Uint8Array(CS*CS);
     for(var lx=0;lx<CS;lx++)for(var lz=0;lz<CS;lz++){
-      var idx2=lx+CS*lz;if(visited[idx2])continue;var bid=getD(lx,y,lz);if(!bid||bid===B_WATER||bid===B_LEAF||bid===B_MUSHROOM_BLOCK||bid===B_BERRY_BUSH||bid===B_BERRY_EMPTY||bid===B_HERB_BLOCK||bid===B_NETTLES||bid===B_SAPLING)continue;
+      var idx2=lx+CS*lz;if(visited[idx2])continue;var bid=getD(lx,y,lz);if(!bid||bid===B_WATER||bid===B_LEAF||bid===B_MUSHROOM_BLOCK||bid===B_BERRY_BUSH||bid===B_BERRY_EMPTY||bid===B_HERB_BLOCK||bid===B_NETTLES||bid===B_SAPLING||bid===B_FENCE||bid===B_DOOR||bid===B_DOOR_TOP)continue;
       if(!isTransp(getW(lx,ny2,lz))){visited[idx2]=1;continue;}
       var w=1,h=1;
       while(lz+w<CS&&getD(lx,y,lz+w)===bid&&isTransp(getW(lx,ny2,lz+w))&&!visited[lx+CS*(lz+w)])w++;
@@ -4914,7 +4929,7 @@ function buildMesh(cx,cz){
   for(var lx=0;lx<CS;lx++)for(var faceDir=0;faceDir<2;faceDir++){
     var nx=faceDir===0?lx+1:lx-1;var visited2=new Uint8Array(CS*maxY);
     for(var y=0;y<maxY;y++)for(var lz=0;lz<CS;lz++){
-      var idx3=y*CS+lz;if(visited2[idx3])continue;var bid=getD(lx,y,lz);if(!bid||bid===B_WATER||bid===B_LEAF||bid===B_MUSHROOM_BLOCK||bid===B_BERRY_BUSH||bid===B_BERRY_EMPTY||bid===B_HERB_BLOCK||bid===B_NETTLES||bid===B_SAPLING)continue;
+      var idx3=y*CS+lz;if(visited2[idx3])continue;var bid=getD(lx,y,lz);if(!bid||bid===B_WATER||bid===B_LEAF||bid===B_MUSHROOM_BLOCK||bid===B_BERRY_BUSH||bid===B_BERRY_EMPTY||bid===B_HERB_BLOCK||bid===B_NETTLES||bid===B_SAPLING||bid===B_FENCE||bid===B_DOOR||bid===B_DOOR_TOP)continue;
       if(!isTransp(getW(nx,y,lz))){visited2[idx3]=1;continue;}
       var w=1,h=1;
       while(lz+w<CS&&getD(lx,y,lz+w)===bid&&isTransp(getW(nx,y,lz+w))&&!visited2[y*CS+(lz+w)])w++;
@@ -4929,7 +4944,7 @@ function buildMesh(cx,cz){
   for(var lz=0;lz<CS;lz++)for(var faceDir=0;faceDir<2;faceDir++){
     var nz=faceDir===0?lz+1:lz-1;var visited3=new Uint8Array(CS*maxY);
     for(var y=0;y<maxY;y++)for(var lx=0;lx<CS;lx++){
-      var idx4=y*CS+lx;if(visited3[idx4])continue;var bid=getD(lx,y,lz);if(!bid||bid===B_WATER||bid===B_LEAF||bid===B_MUSHROOM_BLOCK||bid===B_BERRY_BUSH||bid===B_BERRY_EMPTY||bid===B_HERB_BLOCK||bid===B_NETTLES||bid===B_SAPLING)continue;
+      var idx4=y*CS+lx;if(visited3[idx4])continue;var bid=getD(lx,y,lz);if(!bid||bid===B_WATER||bid===B_LEAF||bid===B_MUSHROOM_BLOCK||bid===B_BERRY_BUSH||bid===B_BERRY_EMPTY||bid===B_HERB_BLOCK||bid===B_NETTLES||bid===B_SAPLING||bid===B_FENCE||bid===B_DOOR||bid===B_DOOR_TOP)continue;
       if(!isTransp(getW(lx,y,nz))){visited3[idx4]=1;continue;}
       var w=1,h=1;
       while(lx+w<CS&&getD(lx+w,y,lz)===bid&&isTransp(getW(lx+w,y,nz))&&!visited3[y*CS+(lx+w)])w++;
@@ -5030,6 +5045,52 @@ function buildMesh(cx,cz){
   var group=new THREE.Group();group.userData.cx=cx;group.userData.cz=cz;group.userData.minY=0;group.userData.maxY=maxY;
   for(var bk in bkts){var b=bkts[bk];if(!b.cnt)continue;var geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(b.pos,3));geo.setAttribute('uv',new THREE.Float32BufferAttribute(b.uv,2));geo.setAttribute('brightness',new THREE.Float32BufferAttribute(b.br,1));geo.index=new Uint16Array(b.idx);var tex=TEX[b.id]?TEX[b.id][b.face]:null;var isPlant=(b.id===B_LEAF||b.id===B_BERRY_BUSH||b.id===B_BERRY_EMPTY||b.id===B_HERB_BLOCK||b.id===B_NETTLES||b.id===B_SAPLING);group.add(new THREE.Mesh(geo,isPlant?new THREE.MeshBasicMaterial({map:tex,transparent:true,opacity:1}):new THREE.MeshBasicMaterial({map:tex})));}
   if(wC>0){var wgeo=new THREE.BufferGeometry();wgeo.setAttribute('position',new THREE.Float32BufferAttribute(wP,3));wgeo.setAttribute('uv',new THREE.Float32BufferAttribute(wU,2));wgeo.setAttribute('brightness',new THREE.Float32BufferAttribute(wB,1));wgeo.index=new Uint16Array(wI);group.add(new THREE.Mesh(wgeo,new THREE.MeshBasicMaterial({map:TEX[B_WATER]?TEX[B_WATER].top:null,transparent:true,opacity:0.88})));}
+    var woodMat=new THREE.MeshBasicMaterial({color:0x8B5E1A});
+  var woodDark=new THREE.MeshBasicMaterial({color:0x6a4418});
+  var woodKnob=new THREE.MeshBasicMaterial({color:0xd4b44a});
+  function wbox(mat,sx,sy,sz,px,py,pz){
+    var m=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),mat);
+    m.position.set(px,py,pz);return m;
+  }
+  for(var flx=0;flx<CS;flx++)for(var fy=0;fy<maxY;fy++)for(var flz=0;flz<CS;flz++){
+    if(getD(flx,fy,flz)!==B_FENCE)continue;
+    var fg=new THREE.Group();
+    fg.add(wbox(woodMat,0.25,1.0,0.25,0,0.5,0));
+    var nC=fenceConnects(getW(flx,fy,flz-1)),sC=fenceConnects(getW(flx,fy,flz+1));
+    var wC2=fenceConnects(getW(flx-1,fy,flz)),eC=fenceConnects(getW(flx+1,fy,flz));
+    if(nC){fg.add(wbox(woodDark,0.125,0.2,0.375,0,0.4375,-0.3125));fg.add(wbox(woodDark,0.125,0.2,0.375,0,0.8125,-0.3125));}
+    if(sC){fg.add(wbox(woodDark,0.125,0.2,0.375,0,0.4375,0.3125));fg.add(wbox(woodDark,0.125,0.2,0.375,0,0.8125,0.3125));}
+    if(wC2){fg.add(wbox(woodDark,0.375,0.2,0.125,-0.3125,0.4375,0));fg.add(wbox(woodDark,0.375,0.2,0.125,-0.3125,0.8125,0));}
+    if(eC){fg.add(wbox(woodDark,0.375,0.2,0.125,0.3125,0.4375,0));fg.add(wbox(woodDark,0.375,0.2,0.125,0.3125,0.8125,0));}
+    fg.position.set(ox+flx+0.5,fy,oz+flz+0.5);
+    group.add(fg);
+  }
+  for(var dlx=0;dlx<CS;dlx++)for(var dy=0;dy<maxY;dy++)for(var dlz=0;dlz<CS;dlz++){
+    if(getD(dlx,dy,dlz)!==B_DOOR)continue;
+    var dwx=ox+dlx,dwz=oz+dlz;
+    var st=_doorState[doorKey(dwx,dy,dwz)]||{dir:0,open:false};
+    var dir=st.dir||0,open=!!st.open,T=0.2;
+    var dg=new THREE.Group();
+    function addPanel(cx,cz,sx,sz){
+      dg.add(wbox(woodMat,sx,1.98,sz,cx,1,cz));
+      dg.add(wbox(woodDark,Math.max(0.04,sx*0.35),1.6,Math.max(0.04,sz*0.12),cx+(sx>sz?0:0.04),1,cz+(sz>sx?0:0.04)));
+      var kx=cx+(sx>sz?0.38:sx*0.7),kz=cz+(sz>sx?0.38:sz*0.7);
+      dg.add(wbox(woodKnob,0.08,0.08,0.08,kx,0.95,kz));
+    }
+    if(!open){
+      if(dir===0)addPanel(0,0.5-T/2,1,T);
+      else if(dir===1)addPanel(-0.5+T/2,0,T,1);
+      else if(dir===2)addPanel(0,-0.5+T/2,1,T);
+      else addPanel(0.5-T/2,0,T,1);
+    } else {
+      if(dir===0)addPanel(-0.5+T/2,0,T,1);
+      else if(dir===1)addPanel(0,-0.5+T/2,1,T);
+      else if(dir===2)addPanel(0.5-T/2,0,T,1);
+      else addPanel(0,0.5-T/2,1,T);
+    }
+    dg.position.set(dwx+0.5,dy,dwz+0.5);
+    group.add(dg);
+  }
     var mushCap=new THREE.MeshBasicMaterial({color:0xc44a28});
   var mushStem=new THREE.MeshBasicMaterial({color:0xf0e6c8});
   var mushSpot=new THREE.MeshBasicMaterial({color:0xf7edd8});
@@ -6994,8 +7055,20 @@ function updateCollectors(dt){
     }
   }
 }
+function toggleDoor(bx,by,bz){
+  if(getBlock(bx,by,bz)===B_DOOR_TOP)by--;
+  if(getBlock(bx,by,bz)!==B_DOOR)return false;
+  var k=doorKey(bx,by,bz);
+  if(!_doorState[k])_doorState[k]={dir:0,open:false};
+  _doorState[k].open=!_doorState[k].open;
+  rebuildC(Math.floor(bx/CHUNK_SIZE),Math.floor(bz/CHUNK_SIZE));
+  if(_ac){_beep(_doorState[k].open?420:280,0.08,'square',0.08);}
+  showPopup(_doorState[k].open?'Porte ouverte':'Porte fermée',new THREE.Vector3(bx+0.5,by+1.6,bz+0.5));
+  return true;
+}
 function tryInteractBlock(bx,by,bz){
   var b=getBlock(bx,by,bz);
+  if(b===B_DOOR||b===B_DOOR_TOP){toggleDoor(bx,by,bz);return true;}
   if(b===B_GRILL||b===B_CAMPFIRE){
     var cookMap={};cookMap[ITEM_STEAK]=ITEM_COOKED_MEAT;cookMap[ITEM_RABBIT_MEAT]=ITEM_COOKED_RABBIT;cookMap[ITEM_VENISON]=ITEM_COOKED_VENISON;cookMap[ITEM_CHICKEN_RAW]=ITEM_COOKED_CHICKEN;cookMap[ITEM_FISH_RAW]=ITEM_COOKED_FISH;
     var slot=INV[selectedSlot];
@@ -9160,7 +9233,7 @@ document.getElementById('loot-float-btn').addEventListener('pointerdown',functio
 document.getElementById('loot-modal').addEventListener('pointerdown',function(e){if(e.target===this){closeLootModal();activeLoot=null;}});
 
 // ── Breaking ───────────────────────────────────────────────
-var BREAK_TIMES={};BREAK_TIMES[B_GRASS]=0.75;BREAK_TIMES[B_DIRT]=0.75;BREAK_TIMES[B_STONE]=7.5;BREAK_TIMES[B_SAND]=0.75;BREAK_TIMES[B_WOOD]=3.0;BREAK_TIMES[B_LEAF]=0.3;BREAK_TIMES[B_WATER]=Infinity;BREAK_TIMES[B_SNOW]=0.15;BREAK_TIMES[B_GRAVEL]=0.9;BREAK_TIMES[B_COAL]=7.5;BREAK_TIMES[B_IRON]=7.5;BREAK_TIMES[B_TORCH]=0.1;BREAK_TIMES[B_FENCE]=2.0;BREAK_TIMES[B_DOOR]=2.0;BREAK_TIMES[B_STAIRS]=2.0;BREAK_TIMES[B_CAMPFIRE]=1.0;BREAK_TIMES[B_CHEST]=2.0;BREAK_TIMES[B_GRILL]=1.5;BREAK_TIMES[B_TENT]=1.5;BREAK_TIMES[B_BED]=1.2;
+var BREAK_TIMES={};BREAK_TIMES[B_GRASS]=0.75;BREAK_TIMES[B_DIRT]=0.75;BREAK_TIMES[B_STONE]=7.5;BREAK_TIMES[B_SAND]=0.75;BREAK_TIMES[B_WOOD]=3.0;BREAK_TIMES[B_LEAF]=0.3;BREAK_TIMES[B_WATER]=Infinity;BREAK_TIMES[B_SNOW]=0.15;BREAK_TIMES[B_GRAVEL]=0.9;BREAK_TIMES[B_COAL]=7.5;BREAK_TIMES[B_IRON]=7.5;BREAK_TIMES[B_TORCH]=0.1;BREAK_TIMES[B_FENCE]=2.0;BREAK_TIMES[B_DOOR]=2.0;BREAK_TIMES[B_DOOR_TOP]=2.0;BREAK_TIMES[B_STAIRS]=2.0;BREAK_TIMES[B_CAMPFIRE]=1.0;BREAK_TIMES[B_CHEST]=2.0;BREAK_TIMES[B_GRILL]=1.5;BREAK_TIMES[B_TENT]=1.5;BREAK_TIMES[B_BED]=1.2;
 BREAK_TIMES[B_BERRY_BUSH]=0.4;BREAK_TIMES[B_BERRY_EMPTY]=0.4;BREAK_TIMES[B_MUSHROOM_BLOCK]=0.3;BREAK_TIMES[B_HERB_BLOCK]=0.2;BREAK_TIMES[B_NETTLES]=0.2;BREAK_TIMES[B_STUMP]=2.5;BREAK_TIMES[B_SAPLING]=0.3;
 var TOOL_HACHE=[B_WOOD,B_LEAF,B_FENCE,B_DOOR,B_STAIRS],TOOL_PIOCHE=[B_STONE,B_COAL,B_IRON,B_TORCH];
 function getToolMultiplier(itemId,blockType){if(!itemId)return 1.0;var isH=TOOL_HACHE.indexOf(blockType)>=0,isP=TOOL_PIOCHE.indexOf(blockType)>=0;if(itemId===ITEM_AXE_WOOD)return isH?2.0:1.2;if(itemId===ITEM_AXE_STONE)return isH?4.0:1.5;if(itemId===ITEM_AXE_IRON)return isH?8.0:2.0;if(itemId===ITEM_PICK_WOOD)return isP?2.0:1.2;if(itemId===ITEM_PICK_STONE)return isP?4.0:1.5;if(itemId===ITEM_PICK_IRON)return isP?8.0:2.0;if(itemId===ITEM_SPEAR||itemId===ITEM_CLUB||itemId===ITEM_BOW)return 1.3;return 1.0;}
@@ -9326,7 +9399,24 @@ function updateStealthHud(){
   var ns=n>=12?'noise-3':n>=5?'noise-2':n>=1.2?'noise-1':'noise-0';
   if(noi.className.indexOf(ns)<0)noi.className='stealth-ico '+ns;
 }
-function isSolid(x,y,z){var b=getBlock(Math.floor(x),Math.floor(y),Math.floor(z));return b&&b!==B_WATER&&b!==B_LEAF&&b!==B_AIR&&b!==B_BERRY_BUSH&&b!==B_BERRY_EMPTY&&b!==B_HERB_BLOCK&&b!==B_SAPLING&&b!==B_NETTLES&&b!==B_MUSHROOM_BLOCK;}
+var _doorState={};
+function doorKey(x,y,z){return x+','+y+','+z;}
+function isDoorOpen(x,y,z){
+  if(getBlock(x,y,z)===B_DOOR_TOP)y--;
+  var st=_doorState[doorKey(x,y,z)];
+  return !!(st&&st.open);
+}
+function fenceConnects(b){
+  if(b===B_FENCE||b===B_DOOR||b===B_DOOR_TOP)return true;
+  if(!b||b===B_AIR||b===B_WATER||b===B_TORCH)return false;
+  if(b===B_LEAF||b===B_BERRY_BUSH||b===B_BERRY_EMPTY||b===B_HERB_BLOCK||b===B_NETTLES||b===B_SAPLING||b===B_MUSHROOM_BLOCK)return false;
+  return true;
+}
+function isSolid(x,y,z){
+  var b=getBlock(Math.floor(x),Math.floor(y),Math.floor(z));
+  if(b===B_DOOR||b===B_DOOR_TOP)return !isDoorOpen(Math.floor(x),Math.floor(y),Math.floor(z));
+  return b&&b!==B_WATER&&b!==B_LEAF&&b!==B_AIR&&b!==B_BERRY_BUSH&&b!==B_BERRY_EMPTY&&b!==B_HERB_BLOCK&&b!==B_SAPLING&&b!==B_NETTLES&&b!==B_MUSHROOM_BLOCK;
+}
 function isInWater(x,y,z){return getBlock(Math.floor(x),Math.floor(y),Math.floor(z))===B_WATER;}
 
 function waterTopY(x,z){
@@ -9566,7 +9656,27 @@ function doPlace(px2,py2,pz2){var it=INV[selectedSlot];if(!it||!it.id)return;var
   if(itemId===ITEM_TREE_SEED){
     var belowP=getBlock(px2,py2-1,pz2);
     if(belowP!==B_GRASS&&belowP!==B_DIRT){showPopup('Plante sur de la terre!',player.pos.clone().add(new THREE.Vector3(0,1,0)));return;}
-  }var ppx=Math.floor(player.pos.x),ppz=Math.floor(player.pos.z),ppy1=Math.floor(player.pos.y-1.7),ppy2=Math.floor(player.pos.y);if(px2===ppx&&pz2===ppz&&(py2===ppy1||py2===ppy2))return;setBlock(px2,py2,pz2,blockId);it.qty--;if(it.qty<=0){it.id=0;it.qty=0;}syncHotbar();if(true)drainStamina(0.5);
+  }var ppx=Math.floor(player.pos.x),ppz=Math.floor(player.pos.z),ppy1=Math.floor(player.pos.y-1.7),ppy2=Math.floor(player.pos.y);if(px2===ppx&&pz2===ppz&&(py2===ppy1||py2===ppy2))return;
+  if(blockId===B_FENCE){
+    setBlock(px2,py2,pz2,B_FENCE);
+    it.qty--;if(it.qty<=0){it.id=0;it.qty=0;}syncHotbar();
+    var fcx=Math.floor(px2/CHUNK_SIZE),fcz=Math.floor(pz2/CHUNK_SIZE);
+    rebuildC(fcx-1,fcz);rebuildC(fcx+1,fcz);rebuildC(fcx,fcz-1);rebuildC(fcx,fcz+1);
+    if(typeof fbPlace==='function')fbPlace(px2,py2,pz2,B_FENCE);
+    return;
+  }
+  if(blockId===B_DOOR){
+    if(getBlock(px2,py2+1,pz2)&&getBlock(px2,py2+1,pz2)!==B_AIR){showPopup('Pas assez de place!',player.pos.clone().add(new THREE.Vector3(0,1.2,0)));return;}
+    var dxp=player.pos.x-(px2+0.5),dzp=player.pos.z-(pz2+0.5);
+    var ddir=Math.abs(dxp)>Math.abs(dzp)?(dxp>0?3:1):(dzp>0?0:2);
+    setBlock(px2,py2,pz2,B_DOOR);
+    setBlock(px2,py2+1,pz2,B_DOOR_TOP);
+    _doorState[doorKey(px2,py2,pz2)]={dir:ddir,open:false};
+    it.qty--;if(it.qty<=0){it.id=0;it.qty=0;}syncHotbar();
+    if(typeof fbPlace==='function')fbPlace(px2,py2,pz2,B_DOOR);
+    return;
+  }
+  setBlock(px2,py2,pz2,blockId);it.qty--;if(it.qty<=0){it.id=0;it.qty=0;}syncHotbar();if(true)drainStamina(0.5);
   if(typeof fbPlace==='function')fbPlace(px2,py2,pz2,blockId);
   if(typeof fbUpdateToolVM==='function')fbUpdateToolVM();
   if(itemId===ITEM_TREE_SEED){scheduleSaplingGrowth(px2,py2,pz2);showPopup('🌱 Graine plantée! (~5 min)',player.pos.clone().add(new THREE.Vector3(0,1,0)));}
@@ -9936,6 +10046,7 @@ function saveGame(manual){
       // Seed
       seed:SEED,
       chests:serializeChests(),
+      doors:_doorState||{},
       openedChests:(function(){var a=[];if(_openedChests)_openedChests.forEach(function(k){a.push(k);});return a;})()
     };
     _ls.set(SAVE_KEY,JSON.stringify(save));
@@ -10036,6 +10147,7 @@ function loadGame(){
     }
 
     if(save.chests)deserializeChests(save.chests);
+    if(save.doors)_doorState=save.doors;
     if(save.openedChests&&_openedChests){
       save.openedChests.forEach(function(k){_openedChests.add(k);});
     }
