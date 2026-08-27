@@ -247,8 +247,9 @@ font-weight: bold;
   position: fixed; inset: 0;
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
-  z-index: 100;
-  overflow: hidden;
+  z-index: 100000;
+  overflow: auto;
+  pointer-events: auto;
   font-family: 'Courier New', monospace;
   background:
     radial-gradient(ellipse at 50% 110%, rgba(20,40,10,0.95) 0%, transparent 70%),
@@ -272,6 +273,7 @@ font-weight: bold;
   text-transform: uppercase;
   text-shadow: 0 2px 12px #000;
 }
+#overlay-build{color:#6a7a58;font-size:10px;letter-spacing:2px;margin:-4px 0 8px;}
 #overlay-tagline {
   color: rgba(180,210,130,0.9);
   font-size: 13px;
@@ -281,6 +283,9 @@ font-weight: bold;
 }
 #startBtn, #continueBtn, #btn-settings-open, #deleteSaveMenuBtn {
   display: block;
+  position: relative;
+  z-index: 2;
+  pointer-events: auto !important;
   width: min(320px, 86vw);
   min-height: 52px;
   padding: 14px 24px;
@@ -2572,8 +2577,9 @@ display: none !important;
     <div id="overlay-content">
       <h1>MINECLONE</h1>
       <div id="overlay-tagline">Survivre. Ou mourir.</div>
+      <div id="overlay-build">v27</div>
       <button type="button" id="continueBtn" onclick="window.continueGame&&window.continueGame()">Continuer</button>
-      <button type="button" id="startBtn" onclick="window.startGame&&window.startGame()">Nouvelle partie</button>
+      <button type="button" id="startBtn">Nouvelle partie</button>
       <button type="button" id="btn-settings-open" onclick="if(typeof openSettings==='function')openSettings();">Parametres</button>
       <button type="button" id="deleteSaveMenuBtn">Supprimer la sauvegarde</button>
     </div>
@@ -9767,7 +9773,7 @@ function refreshMenuButtons(){
   var db=document.getElementById('deleteSaveMenuBtn');
   var set=document.getElementById('btn-settings-open');
   if(cb)cb.style.display=hasSv?'block':'none';
-  if(sb){sb.style.display=hasSv?'none':'block';sb.textContent='Nouvelle partie';}
+  if(sb){sb.style.display='block';sb.textContent=hasSv?'Nouvelle partie (ecrase la sauvegarde)':'Nouvelle partie';}
   if(set)set.style.display='block';
   if(db)db.style.display=hasSv?'block':'none';
 }
@@ -9896,10 +9902,16 @@ window.addEventListener("load",function(){refreshMenuButtons();});
 })();
 
 function hideOverlayAndBoot(loadSave){
-  if(gameStarted)return;
+  if(gameStarted){
+    var ov0=document.getElementById('overlay');
+    if(ov0)ov0.style.display='none';
+    return;
+  }
   var ov=document.getElementById('overlay');
-  if(ov) ov.style.display='none';
+  if(ov){ov.style.display='none';ov.style.pointerEvents='none';}
+  if(document.body)document.body.classList.add('ingame');
   gameStarted=true;
+  try{
   applySettings();
   if(!loadSave){
     SEED=(SETTINGS.seed&&SETTINGS.seed>0)?SETTINGS.seed:(Math.random()*999999)|0;
@@ -9923,11 +9935,33 @@ function hideOverlayAndBoot(loadSave){
   revealFog(player.pos.x,player.pos.z,_fogRevealRadius);
   var hb=document.getElementById('btn-settings-hud');if(hb)hb.classList.add('visible');
   weather.duration=weatherDuration();
-  document.getElementById('survival-bars').style.display='flex';
-  if(!isMobile)document.getElementById('tracking-hint').style.display='block';
+  var sb=document.getElementById('survival-bars');if(sb)sb.style.display='flex';
+  if(!isMobile){var th=document.getElementById('tracking-hint');if(th)th.style.display='block';}
+  }catch(err){
+    gameStarted=false;
+    if(ov){ov.style.display='flex';ov.style.pointerEvents='auto';}
+    if(document.body)document.body.classList.remove('ingame');
+    throw err;
+  }
 }
-window.startGame=function(){ hideOverlayAndBoot(false); };
-window.continueGame=function(){ hideOverlayAndBoot(true); };
+window.startGame=function(e){
+  try{
+    if(e&&e.preventDefault){e.preventDefault();e.stopPropagation();}
+    hideOverlayAndBoot(false);
+  }catch(err){
+    try{alert('Erreur lancement: '+err.message);}catch(e2){}
+    console.error(err);
+  }
+};
+window.continueGame=function(e){
+  try{
+    if(e&&e.preventDefault){e.preventDefault();e.stopPropagation();}
+    hideOverlayAndBoot(true);
+  }catch(err){
+    try{alert('Erreur chargement: '+err.message);}catch(e2){}
+    console.error(err);
+  }
+};
 function bindMenuBtn(id,fn){
   var el=document.getElementById(id); if(!el)return;
   var lock=0;
@@ -9936,8 +9970,19 @@ function bindMenuBtn(id,fn){
   el.addEventListener('click',go);
   el.addEventListener('pointerup',go);
 }
-bindMenuBtn('startBtn', window.startGame);
-bindMenuBtn('continueBtn', window.continueGame);
+bindMenuBtn('startBtn', function(e){ window.startGame(e); });
+bindMenuBtn('continueBtn', function(e){ window.continueGame(e); });
+(function(){
+  function wire(){
+    var b=document.getElementById('startBtn');
+    if(!b||b._wired)return;
+    b._wired=1;
+    b.addEventListener('click', window.startGame);
+    b.addEventListener('touchend', window.startGame, {passive:false});
+  }
+  wire();
+  window.addEventListener('load', wire);
+})();
 document.getElementById('canvas').addEventListener('click',function(){if(!gameStarted||invOpen||isMobile)return;if(mouseLocked)return;document.getElementById('canvas').requestPointerLock();});
 document.addEventListener('pointerlockerror',function(){setTracking(true);});
 var _sb=document.getElementById('saveBtn');
