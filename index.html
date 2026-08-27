@@ -3281,6 +3281,8 @@ function makeLeafTex(){
   }
   return mcTexFrom(img);
 }
+var _waterShared=null,_waterAnimT=0,_waterFrame=0;
+var _wGrid=new Float32Array(256),_wGridN=new Float32Array(256),_wGrid2=new Float32Array(256),_wGrid3=new Float32Array(256);
 function tickMinecraftWater(){
   var i,j,k,f,l;
   for(i=0;i<16;i++){
@@ -3410,6 +3412,7 @@ function makeTorchSideTex(){
   }
   return mcTexFrom(img);
 }
+var _oakPlankTex=null,_oakDoorTex=null;
 function makeOakPlankTex(){
   if(_oakPlankTex)return _oakPlankTex;
   var cv=document.createElement('canvas');cv.width=cv.height=16;
