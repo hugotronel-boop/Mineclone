@@ -2613,7 +2613,7 @@ display: none !important;
     <div id="overlay-content">
       <h1>MINECLONE</h1>
       <div id="overlay-tagline">Survivre. Ou mourir.</div>
-      <div id="overlay-build">v41</div>
+      <div id="overlay-build">v42</div>
       <button type="button" id="continueBtn" onclick="window.continueGame&&window.continueGame()">Continuer</button>
       <button type="button" id="startBtn">Nouvelle partie</button>
       <button type="button" id="btn-settings-open" onclick="if(typeof openSettings==='function')openSettings();">Parametres</button>
@@ -5668,7 +5668,7 @@ function killPlayer(cause){
   _deathMarker=null;
   document.getElementById('death-cause').textContent=cause||'Vous avez succombé.';
   var dp=document.getElementById('death-pos');
-  if(dp)dp.textContent='Tu réapparais là où tu es arrivé — inventaire conservé';
+  if(dp)dp.textContent=(_spawnPoint&&_spawnPoint.x!==null)?'Tu réapparais à ton lit / tente — inventaire conservé':'Tu réapparais au camp de départ — inventaire conservé';
   var dlm=document.getElementById('death-loot-msg');
   if(dlm)dlm.textContent='';
   document.getElementById('death-screen').style.display='flex';
@@ -7296,6 +7296,14 @@ function finishSleepRest(){
   player.vel.set(0,0,0);
   if(typeof updateBars==='function')updateBars();
   despawnDistantHostiles();
+  if(_sleepBed){
+    _spawnPoint.x=_sleepBed.x+0.5;_spawnPoint.y=_sleepBed.y+1.7;_spawnPoint.z=_sleepBed.z+0.5;
+    _spawnPoint.bx=_sleepBed.x;_spawnPoint.by=_sleepBed.y;_spawnPoint.bz=_sleepBed.z;
+    _spawnPoint.kind=_sleepKind||'bed';
+    if(typeof saveGame==='function')saveGame(false);
+    showPopup(_sleepKind==='tent'?'⛺ Spawn enregistré à la tente':'🛏 Spawn enregistré au lit',
+      new THREE.Vector3(_sleepBed.x+0.5,_sleepBed.y+2,_sleepBed.z+0.5));
+  }
 }
 
 function trySleepAt(bx,by,bz,kind){
@@ -7311,7 +7319,6 @@ function trySleepAt(bx,by,bz,kind){
   }
   _sleepKind=kind||'bed';
   _sleepBed={x:bx,y:by,z:bz};
-  _spawnPoint.x=bx+0.5;_spawnPoint.y=by+1;_spawnPoint.z=bz+0.5;
   _sleepSaved={x:player.pos.x,y:player.pos.y,z:player.pos.z,pitch:player.pitch};
   // S'allonger sur le lit / dans la tente
   player.pos.set(bx+0.5,by+1.12,bz+0.5);
@@ -7686,7 +7693,26 @@ function updateSurvival(dt){
   else _staminaRegenTimer=0;
 }
 document.getElementById('respawn-btn').addEventListener('pointerdown',function(){doRespawn();});
+function spawnAtBedOrWorld(){
+  if(_spawnPoint&&_spawnPoint.x!==null&&_spawnPoint.z!==null){
+    var sx=_spawnPoint.x,sz=_spawnPoint.z;
+    genChunk(Math.floor(sx/CHUNK_SIZE),Math.floor(sz/CHUNK_SIZE));
+    var bx=_spawnPoint.bx!==undefined?_spawnPoint.bx:Math.floor(sx);
+    var by=_spawnPoint.by!==undefined?_spawnPoint.by:Math.floor((_spawnPoint.y||0)-1);
+    var bz=_spawnPoint.bz!==undefined?_spawnPoint.bz:Math.floor(sz);
+    var bb=getBlock(bx,by,bz);
+    if(bb!==B_BED&&bb!==B_TENT){
+      _spawnPoint={x:null,y:null,z:null};
+      return false;
+    }
+    var sh=(_spawnPoint.y!==undefined&&_spawnPoint.y!==null)?_spawnPoint.y:(by+1.7);
+    player.pos.set(sx,sh,sz);player.vel.set(0,0,0);
+    return true;
+  }
+  return false;
+}
 function spawnPlayer(){_initPlayerShadow();
+  if(spawnAtBedOrWorld())return;
   if(_worldSpawn&&_worldSpawn.x!==null){
     genChunk(Math.floor(_worldSpawn.x/CHUNK_SIZE),Math.floor(_worldSpawn.z/CHUNK_SIZE));
     player.pos.set(_worldSpawn.x,_worldSpawn.y,_worldSpawn.z);player.vel.set(0,0,0);return;
@@ -10661,7 +10687,7 @@ function saveGame(manual){
       stamina:player.stamina,temp:player.temp,
       // Cycle jour/nuit
       dayTime:Math.round(dayTime),
-      spawn:_spawnPoint.x!==null?{x:_spawnPoint.x,y:_spawnPoint.y||null,z:_spawnPoint.z}:null,
+      spawn:_spawnPoint.x!==null?{x:_spawnPoint.x,y:_spawnPoint.y||null,z:_spawnPoint.z,bx:_spawnPoint.bx,by:_spawnPoint.by,bz:_spawnPoint.bz,kind:_spawnPoint.kind}:null,
       worldSpawn:_worldSpawn.x!==null?{x:_worldSpawn.x,y:_worldSpawn.y,z:_worldSpawn.z}:null,
       // Inventaire
       inv:INV.map(function(s){return{i:s.id,q:s.qty,a:s.ammo||0};}),
@@ -10747,7 +10773,7 @@ function loadGame(){
 
     // Restaurer cycle jour/nuit
     if(save.dayTime!==undefined)dayTime=save.dayTime;
-    if(save.spawn&&save.spawn.x!==undefined){_spawnPoint.x=save.spawn.x;_spawnPoint.y=save.spawn.y||null;_spawnPoint.z=save.spawn.z;}
+    if(save.spawn&&save.spawn.x!==undefined){_spawnPoint.x=save.spawn.x;_spawnPoint.y=save.spawn.y||null;_spawnPoint.z=save.spawn.z;_spawnPoint.bx=save.spawn.bx;_spawnPoint.by=save.spawn.by;_spawnPoint.bz=save.spawn.bz;_spawnPoint.kind=save.spawn.kind;}
     if(save.worldSpawn&&save.worldSpawn.x!==undefined){_worldSpawn={x:save.worldSpawn.x,y:save.worldSpawn.y,z:save.worldSpawn.z};}
     else if(_worldSpawn.x===null){_worldSpawn={x:player.pos.x,y:player.pos.y,z:player.pos.z};}
 
