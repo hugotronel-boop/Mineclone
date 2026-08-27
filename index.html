@@ -3454,6 +3454,62 @@ function makeTorchSideTex(){
 TEX[12]={top:makeTorchTex(),side:makeTorchSideTex(),bot:makeTorchSideTex()};
 // ── Textures blocs construits (13-19) ─────────────────────
 
+var _oakPlankTex=null,_oakDoorTex=null;
+function makeOakPlankTex(){
+  if(_oakPlankTex)return _oakPlankTex;
+  var cv=document.createElement('canvas');cv.width=cv.height=16;
+  var ctx=cv.getContext('2d');
+  var img=ctx.createImageData(16,16),d=img.data;
+  function set(x,y,r,g,b){if(x<0||y<0||x>15||y>15)return;var i=(y*16+x)*4;d[i]=r;d[i+1]=g;d[i+2]=b;d[i+3]=255;}
+  var boards=[[198,163,104],[186,148,90],[172,132,76],[192,156,96]];
+  for(var y=0;y<16;y++){
+    var c=boards[y>>2];
+    for(var x=0;x<16;x++){
+      if((y&3)===0){set(x,y,118,82,40);continue;}
+      var n=((x*7+y*3+(y>>2)*13)&7)-3;
+      var r=c[0]+n*4,g=c[1]+n*3,b=c[2]+n*2;
+      if(x===4||x===12){r-=22;g-=16;b-=10;}
+      if(((x+y+(y>>2))&7)===0){r-=10;g-=8;b-=6;}
+      set(x,y,r,g,b);
+    }
+  }
+  ctx.putImageData(img,0,0);
+  var cv2=cv32(),c2=cv2.getContext('2d');c2.imageSmoothingEnabled=false;c2.drawImage(cv,0,0,32,32);
+  _oakPlankTex=new THREE.CanvasTexture(cv2);
+  return _oakPlankTex;
+}
+function makeOakDoorTex(){
+  if(_oakDoorTex)return _oakDoorTex;
+  var cv=document.createElement('canvas');cv.width=cv.height=16;
+  var ctx=cv.getContext('2d');
+  var img=ctx.createImageData(16,16),d=img.data;
+  function set(x,y,r,g,b){if(x<0||y<0||x>15||y>15)return;var i=(y*16+x)*4;d[i]=r;d[i+1]=g;d[i+2]=b;d[i+3]=255;}
+  var oak=[[176,132,74],[158,114,60],[142,98,48],[190,148,88]];
+  for(var y=0;y<16;y++)for(var x=0;x<16;x++){
+    var board=x<5?0:x<11?1:2;
+    var c=oak[board];
+    var n=((x*5+y*2)&5)-2;
+    set(x,y,c[0]+n*3,c[1]+n*2,c[2]+n);
+    if(x===0||x===15||y===0||y===15||x===5||x===10)set(x,y,108,72,32);
+  }
+  var win=[[2,2,4,3],[6,2,4,3],[11,2,3,3],[2,6,4,2],[6,6,4,2],[11,6,3,2]];
+  for(var w=0;w<win.length;w++){
+    var wx=win[w][0],wy=win[w][1],ww=win[w][2],wh=win[w][3];
+    for(var yy=wy;yy<wy+wh;yy++)for(var xx=wx;xx<wx+ww;xx++)set(xx,yy,36,48,62);
+  }
+  for(var y=8;y<16;y++){
+    for(var x=1;x<15;x++){
+      if(x===5||x===10){set(x,y,108,72,32);continue;}
+      var c=oak[x<5?0:x<10?1:2];
+      set(x,y,c[0],c[1],c[2]);
+    }
+  }
+  set(13,10,212,175,55);set(14,10,196,150,40);set(13,11,168,128,36);
+  ctx.putImageData(img,0,0);
+  var cv2=cv32(),c2=cv2.getContext('2d');c2.imageSmoothingEnabled=false;c2.drawImage(cv,0,0,32,32);
+  _oakDoorTex=new THREE.CanvasTexture(cv2);
+  return _oakDoorTex;
+}
 function makeFenceTex(){
   var cv=document.createElement('canvas');cv.width=cv.height=16;var ctx=cv.getContext('2d');
   ctx.fillStyle='#a07838';ctx.fillRect(0,0,16,16);
@@ -3467,7 +3523,9 @@ function makeFenceTex(){
   ctx.fillStyle='rgba(0,0,0,0.15)';ctx.fillRect(4,4,1,3);ctx.fillRect(4,10,1,3);
   return new THREE.CanvasTexture(cv);
 }
-TEX[13]={top:makeFenceTex(),side:makeFenceTex(),bot:makeFenceTex()};
+TEX[13]={top:makeOakPlankTex(),side:makeOakPlankTex(),bot:makeOakPlankTex()};
+TEX[B_DOOR]={top:makeOakDoorTex(),side:makeOakDoorTex(),bot:makeOakPlankTex()};
+TEX[B_DOOR_TOP]={top:makeOakDoorTex(),side:makeOakDoorTex(),bot:makeOakPlankTex()};
 
 function makeDoorTex(){
   var cv=document.createElement('canvas');cv.width=cv.height=16;var ctx=cv.getContext('2d');
@@ -5045,9 +5103,10 @@ function buildMesh(cx,cz){
   var group=new THREE.Group();group.userData.cx=cx;group.userData.cz=cz;group.userData.minY=0;group.userData.maxY=maxY;
   for(var bk in bkts){var b=bkts[bk];if(!b.cnt)continue;var geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(b.pos,3));geo.setAttribute('uv',new THREE.Float32BufferAttribute(b.uv,2));geo.setAttribute('brightness',new THREE.Float32BufferAttribute(b.br,1));geo.index=new Uint16Array(b.idx);var tex=TEX[b.id]?TEX[b.id][b.face]:null;var isPlant=(b.id===B_LEAF||b.id===B_BERRY_BUSH||b.id===B_BERRY_EMPTY||b.id===B_HERB_BLOCK||b.id===B_NETTLES||b.id===B_SAPLING);group.add(new THREE.Mesh(geo,isPlant?new THREE.MeshBasicMaterial({map:tex,transparent:true,opacity:1}):new THREE.MeshBasicMaterial({map:tex})));}
   if(wC>0){var wgeo=new THREE.BufferGeometry();wgeo.setAttribute('position',new THREE.Float32BufferAttribute(wP,3));wgeo.setAttribute('uv',new THREE.Float32BufferAttribute(wU,2));wgeo.setAttribute('brightness',new THREE.Float32BufferAttribute(wB,1));wgeo.index=new Uint16Array(wI);group.add(new THREE.Mesh(wgeo,new THREE.MeshBasicMaterial({map:TEX[B_WATER]?TEX[B_WATER].top:null,transparent:true,opacity:0.88})));}
-    var woodMat=new THREE.MeshBasicMaterial({color:0x8B5E1A});
-  var woodDark=new THREE.MeshBasicMaterial({color:0x6a4418});
-  var woodKnob=new THREE.MeshBasicMaterial({color:0xd4b44a});
+    var woodMat=new THREE.MeshBasicMaterial({map:makeOakPlankTex()});
+  var woodDark=new THREE.MeshBasicMaterial({map:makeOakPlankTex()});
+  var woodKnob=new THREE.MeshBasicMaterial({color:0xd4a017});
+  var doorMat=new THREE.MeshBasicMaterial({map:makeOakDoorTex()});
   function wbox(mat,sx,sy,sz,px,py,pz){
     var m=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),mat);
     m.position.set(px,py,pz);return m;
@@ -5072,10 +5131,9 @@ function buildMesh(cx,cz){
     var dir=st.dir||0,open=!!st.open,T=0.2;
     var dg=new THREE.Group();
     function addPanel(cx,cz,sx,sz){
-      dg.add(wbox(woodMat,sx,1.98,sz,cx,1,cz));
-      dg.add(wbox(woodDark,Math.max(0.04,sx*0.35),1.6,Math.max(0.04,sz*0.12),cx+(sx>sz?0:0.04),1,cz+(sz>sx?0:0.04)));
-      var kx=cx+(sx>sz?0.38:sx*0.7),kz=cz+(sz>sx?0.38:sz*0.7);
-      dg.add(wbox(woodKnob,0.08,0.08,0.08,kx,0.95,kz));
+      dg.add(wbox(doorMat,sx,1.98,sz,cx,1,cz));
+      var kx=cx+(sx>sz?0.38:sx*0.55),kz=cz+(sz>sx?0.38:sz*0.55);
+      dg.add(wbox(woodKnob,0.07,0.07,0.07,kx,0.95,kz));
     }
     if(!open){
       if(dir===0)addPanel(0,0.5-T/2,1,T);
