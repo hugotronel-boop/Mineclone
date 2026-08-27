@@ -2577,7 +2577,7 @@ display: none !important;
     <div id="overlay-content">
       <h1>MINECLONE</h1>
       <div id="overlay-tagline">Survivre. Ou mourir.</div>
-      <div id="overlay-build">v29</div>
+      <div id="overlay-build">v30</div>
       <button type="button" id="continueBtn" onclick="window.continueGame&&window.continueGame()">Continuer</button>
       <button type="button" id="startBtn">Nouvelle partie</button>
       <button type="button" id="btn-settings-open" onclick="if(typeof openSettings==='function')openSettings();">Parametres</button>
@@ -4884,7 +4884,7 @@ function tickWaterFlow(){
 }
 function rebuildC(cx,cz){var key=ckey(cx,cz),old=chunkMeshes.get(key);if(old)scene.remove(old);chunkMeshes.delete(key);buildMesh(cx,cz);}
 
-function isTransp(b){return b===B_AIR||b===B_WATER||b===B_LEAF||b===B_BERRY_BUSH||b===B_BERRY_EMPTY||b===B_MUSHROOM_BLOCK||b===B_HERB_BLOCK||b===B_NETTLES||b===B_SAPLING||b===B_FENCE||b===B_DOOR||b===B_DOOR_TOP||b===B_CHEST||b===B_GRILL||b===B_TENT;}
+function isTransp(b){return b===B_AIR||b===B_WATER||b===B_LEAF||b===B_BERRY_BUSH||b===B_BERRY_EMPTY||b===B_MUSHROOM_BLOCK||b===B_HERB_BLOCK||b===B_NETTLES||b===B_SAPLING||b===B_FENCE||b===B_DOOR||b===B_DOOR_TOP||b===B_CHEST||b===B_GRILL||b===B_TENT||b===B_WATER_COLLECTOR||b===B_WATER_COLLECTOR_FULL;}
 
 function buildMesh(cx,cz){
   var key=ckey(cx,cz);if(chunkMeshes.has(key))return;
@@ -4900,7 +4900,7 @@ function buildMesh(cx,cz){
     var ny2=faceDir===0?y+1:y-1,faceName=faceDir===0?'top':'bot',br=faceDir===0?1.0:0.45;
     var visited=new Uint8Array(CS*CS);
     for(var lx=0;lx<CS;lx++)for(var lz=0;lz<CS;lz++){
-      var idx2=lx+CS*lz;if(visited[idx2])continue;var bid=getD(lx,y,lz);if(!bid||bid===B_WATER||bid===B_LEAF||bid===B_MUSHROOM_BLOCK||bid===B_BERRY_BUSH||bid===B_BERRY_EMPTY||bid===B_HERB_BLOCK||bid===B_NETTLES||bid===B_SAPLING||bid===B_FENCE||bid===B_DOOR||bid===B_DOOR_TOP||bid===B_CHEST||bid===B_GRILL||bid===B_TENT)continue;
+      var idx2=lx+CS*lz;if(visited[idx2])continue;var bid=getD(lx,y,lz);if(!bid||bid===B_WATER||bid===B_LEAF||bid===B_MUSHROOM_BLOCK||bid===B_BERRY_BUSH||bid===B_BERRY_EMPTY||bid===B_HERB_BLOCK||bid===B_NETTLES||bid===B_SAPLING||bid===B_FENCE||bid===B_DOOR||bid===B_DOOR_TOP||bid===B_CHEST||bid===B_GRILL||bid===B_TENT||bid===B_WATER_COLLECTOR||bid===B_WATER_COLLECTOR_FULL)continue;
       if(!isTransp(getW(lx,ny2,lz))){visited[idx2]=1;continue;}
       var w=1,h=1;
       while(lz+w<CS&&getD(lx,y,lz+w)===bid&&isTransp(getW(lx,ny2,lz+w))&&!visited[lx+CS*(lz+w)])w++;
@@ -4915,7 +4915,7 @@ function buildMesh(cx,cz){
   for(var lx=0;lx<CS;lx++)for(var faceDir=0;faceDir<2;faceDir++){
     var nx=faceDir===0?lx+1:lx-1;var visited2=new Uint8Array(CS*maxY);
     for(var y=0;y<maxY;y++)for(var lz=0;lz<CS;lz++){
-      var idx3=y*CS+lz;if(visited2[idx3])continue;var bid=getD(lx,y,lz);if(!bid||bid===B_WATER||bid===B_LEAF||bid===B_MUSHROOM_BLOCK||bid===B_BERRY_BUSH||bid===B_BERRY_EMPTY||bid===B_HERB_BLOCK||bid===B_NETTLES||bid===B_SAPLING||bid===B_FENCE||bid===B_DOOR||bid===B_DOOR_TOP||bid===B_CHEST||bid===B_GRILL||bid===B_TENT)continue;
+      var idx3=y*CS+lz;if(visited2[idx3])continue;var bid=getD(lx,y,lz);if(!bid||bid===B_WATER||bid===B_LEAF||bid===B_MUSHROOM_BLOCK||bid===B_BERRY_BUSH||bid===B_BERRY_EMPTY||bid===B_HERB_BLOCK||bid===B_NETTLES||bid===B_SAPLING||bid===B_FENCE||bid===B_DOOR||bid===B_DOOR_TOP||bid===B_CHEST||bid===B_GRILL||bid===B_TENT||bid===B_WATER_COLLECTOR||bid===B_WATER_COLLECTOR_FULL)continue;
       if(!isTransp(getW(nx,y,lz))){visited2[idx3]=1;continue;}
       var w=1,h=1;
       while(lz+w<CS&&getD(lx,y,lz+w)===bid&&isTransp(getW(nx,y,lz+w))&&!visited2[y*CS+(lz+w)])w++;
@@ -4930,7 +4930,7 @@ function buildMesh(cx,cz){
   for(var lz=0;lz<CS;lz++)for(var faceDir=0;faceDir<2;faceDir++){
     var nz=faceDir===0?lz+1:lz-1;var visited3=new Uint8Array(CS*maxY);
     for(var y=0;y<maxY;y++)for(var lx=0;lx<CS;lx++){
-      var idx4=y*CS+lx;if(visited3[idx4])continue;var bid=getD(lx,y,lz);if(!bid||bid===B_WATER||bid===B_LEAF||bid===B_MUSHROOM_BLOCK||bid===B_BERRY_BUSH||bid===B_BERRY_EMPTY||bid===B_HERB_BLOCK||bid===B_NETTLES||bid===B_SAPLING||bid===B_FENCE||bid===B_DOOR||bid===B_DOOR_TOP||bid===B_CHEST||bid===B_GRILL||bid===B_TENT)continue;
+      var idx4=y*CS+lx;if(visited3[idx4])continue;var bid=getD(lx,y,lz);if(!bid||bid===B_WATER||bid===B_LEAF||bid===B_MUSHROOM_BLOCK||bid===B_BERRY_BUSH||bid===B_BERRY_EMPTY||bid===B_HERB_BLOCK||bid===B_NETTLES||bid===B_SAPLING||bid===B_FENCE||bid===B_DOOR||bid===B_DOOR_TOP||bid===B_CHEST||bid===B_GRILL||bid===B_TENT||bid===B_WATER_COLLECTOR||bid===B_WATER_COLLECTOR_FULL)continue;
       if(!isTransp(getW(lx,y,nz))){visited3[idx4]=1;continue;}
       var w=1,h=1;
       while(lx+w<CS&&getD(lx+w,y,lz)===bid&&isTransp(getW(lx+w,y,nz))&&!visited3[y*CS+(lx+w)])w++;
@@ -5078,15 +5078,10 @@ function buildMesh(cx,cz){
     group.add(dg);
   }
   var u16=1/16;
-  var chestSide=new THREE.MeshBasicMaterial({map:makeChestSideTex()});
-  var chestTop=new THREE.MeshBasicMaterial({map:makeChestTopTex()});
-  var chestLock=new THREE.MeshBasicMaterial({color:0xd4b44a});
   for(var clx=0;clx<CS;clx++)for(var cy=0;cy<maxY;cy++)for(var clz=0;clz<CS;clz++){
     if(getD(clx,cy,clz)!==B_CHEST)continue;
     var cg=new THREE.Group();
-    cg.add(wbox(chestSide,14*u16,10*u16,14*u16,0,5*u16,0));
-    cg.add(wbox(chestTop,14*u16,4*u16,14*u16,0,12*u16,0));
-    cg.add(wbox(chestLock,2*u16,4*u16,1*u16,0,10*u16,7.5*u16));
+    addChestModel(cg);
     cg.position.set(ox+clx+0.5,cy,oz+clz+0.5);
     group.add(cg);
   }
@@ -5132,6 +5127,14 @@ function buildMesh(cx,cz){
     tg.add(wbox(tentC,0.08,0.16,0.02,0,1.18,0.12));
     tg.position.set(ox+tlx+0.5,ty,oz+tlz+0.5);
     group.add(tg);
+  }
+  for(var klx=0;klx<CS;klx++)for(var ky=0;ky<maxY;ky++)for(var klz=0;klz<CS;klz++){
+    var kb=getD(klx,ky,klz);
+    if(kb!==B_WATER_COLLECTOR&&kb!==B_WATER_COLLECTOR_FULL)continue;
+    var kg=new THREE.Group();
+    addCollectorModel(kg, kb===B_WATER_COLLECTOR_FULL);
+    kg.position.set(ox+klx+0.5,ky,oz+klz+0.5);
+    group.add(kg);
   }
     var mushCap=new THREE.MeshBasicMaterial({color:0xc44a28});
   var mushStem=new THREE.MeshBasicMaterial({color:0xf0e6c8});
@@ -5724,9 +5727,9 @@ function drawSprite16(ctx,id){
 
   // ── CONSTRUCTION ────────────────────────────────────
   if(id===ITEM_CHEST||id===B_CHEST){
-    P(2,5,12,10,hw);P(3,6,10,8,hd);P(2,9,12,2,hk);
-    P(7,9,3,3,'#e0c040');P(8,10,1,1,'#fff6a0');
-    P(3,5,10,1,'#e0c080');
+    P(3,14,3,2,hd);P(10,14,3,2,hd);
+    P(2,6,12,8,hw);P(2,5,12,2,'#5c5c64');P(2,10,12,2,'#5c5c64');
+    P(2,2,12,5,hw);P(7,8,3,3,'#e0c040');P(8,9,1,1,'#fff6a0');
     return;
   }
   if(id===ITEM_BED||id===B_BED){
@@ -5886,10 +5889,12 @@ function drawSprite16(ctx,id){
 
   // ── COLLECTEUR D'EAU ────────────────────────────────
   if(id===ITEM_WATER_COLLECTOR||id===B_WATER_COLLECTOR||id===B_WATER_COLLECTOR_FULL){
-    P(3,3,10,11,hw);P(4,2,8,2,hk);P(5,4,6,8,'#4a3018');
-    P(4,12,3,3,hd);P(9,12,3,3,hd);
-    if(id===B_WATER_COLLECTOR_FULL){P(6,6,4,4,'#3a9ae0');P(7,6,2,1,'#80d0ff');}
-    else {P(6,6,4,3,'#1a1008');P(10,3,2,2,'#4aa0d8');P(11,2,1,1,'#a0e0ff');}
+    P(4,8,8,6,hw);P(3,7,10,2,'#5a5a62');P(3,12,10,2,'#5a5a62');
+    P(2,14,3,2,hd);P(11,14,3,2,hd);
+    P(3,4,10,3,hk);P(2,3,12,2,hw);
+    if(id===B_WATER_COLLECTOR_FULL){P(5,4,6,2,'#3aa8e0');P(6,4,3,1,'#8ad4ff');}
+    else P(5,5,6,2,'#1a1008');
+    P(12,9,2,2,'#6a6a72');
     return;
   }
 
@@ -6816,6 +6821,55 @@ function stopChestAnim(remove){
   if(remove&&a.group){try{scene.remove(a.group);}catch(e){}}
   _chestAnim=null;
 }
+
+function vxBox(g,mat,sx,sy,sz,px,py,pz){
+  var m=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),mat);
+  m.position.set(px,py,pz);g.add(m);return m;
+}
+function addChestModel(g){
+  var u=1/16;
+  var wood=new THREE.MeshBasicMaterial({map:typeof makeChestSideTex==='function'?makeChestSideTex():null,color:0x9a6a32});
+  var top=new THREE.MeshBasicMaterial({map:typeof makeChestTopTex==='function'?makeChestTopTex():null,color:0xb87c30});
+  var dark=new THREE.MeshBasicMaterial({color:0x4a2e10});
+  var iron=new THREE.MeshBasicMaterial({color:0x5c5c64});
+  var gold=new THREE.MeshBasicMaterial({color:0xe2c040});
+  vxBox(g,dark,2*u,2*u,2*u, 5*u,u, 5*u);
+  vxBox(g,dark,2*u,2*u,2*u,-5*u,u, 5*u);
+  vxBox(g,dark,2*u,2*u,2*u, 5*u,u,-5*u);
+  vxBox(g,dark,2*u,2*u,2*u,-5*u,u,-5*u);
+  vxBox(g,wood,14*u,8*u,14*u,0,6*u,0);
+  vxBox(g,iron,14.6*u,1.2*u,14.6*u,0,4*u,0);
+  vxBox(g,iron,14.6*u,1.2*u,14.6*u,0,9*u,0);
+  vxBox(g,iron,1.2*u,8*u,14.6*u,0,6*u,0);
+  var lid=vxBox(g,top,14.4*u,5*u,14.4*u,0,12.5*u,0);
+  var lock=vxBox(g,gold,2.2*u,3*u,1.4*u,0,10*u,7.5*u);
+  vxBox(g,iron,2.6*u,1*u,1*u,0,8.2*u,7.3*u);
+  return {lid:lid,lock:lock};
+}
+function addCollectorModel(g,full){
+  var u=1/16;
+  var wood=new THREE.MeshBasicMaterial({color:0x8b5a2b});
+  var woodD=new THREE.MeshBasicMaterial({color:0x5a3814});
+  var iron=new THREE.MeshBasicMaterial({color:0x6a6a72});
+  var dark=new THREE.MeshBasicMaterial({color:0x1a1008});
+  var water=new THREE.MeshBasicMaterial({color:0x3aa8e0,transparent:true,opacity:0.8});
+  var glow=new THREE.MeshBasicMaterial({color:0x8ad4ff,transparent:true,opacity:0.55});
+  vxBox(g,woodD,2*u,6*u,2*u, 4.5*u,3*u, 4.5*u);
+  vxBox(g,woodD,2*u,6*u,2*u,-4.5*u,3*u, 4.5*u);
+  vxBox(g,woodD,2*u,6*u,2*u, 4.5*u,3*u,-4.5*u);
+  vxBox(g,woodD,2*u,6*u,2*u,-4.5*u,3*u,-4.5*u);
+  vxBox(g,wood,10*u,9*u,10*u,0,10*u,0);
+  vxBox(g,iron,10.8*u,1.2*u,10.8*u,0,7*u,0);
+  vxBox(g,iron,10.8*u,1.2*u,10.8*u,0,13*u,0);
+  vxBox(g,woodD,12*u,2*u,12*u,0,15*u,0);
+  vxBox(g,wood,14*u,1.2*u,14*u,0,16.2*u,0);
+  vxBox(g,dark,10*u,0.6*u,10*u,0,15.2*u,0);
+  vxBox(g,iron,1.5*u,2*u,3*u,6.2*u,9*u,0);
+  if(full){
+    vxBox(g,water,9*u,1.2*u,9*u,0,14.6*u,0);
+    vxBox(g,glow,6*u,0.4*u,6*u,0,15.1*u,0);
+  }
+}
 function playChestOpenAnim(bx,by,bz,onDone){
   stopChestAnim(true);
   var saved=getBlock(bx,by,bz);
@@ -6824,22 +6878,10 @@ function playChestOpenAnim(bx,by,bz,onDone){
     rebuildChestCell(bx,by,bz);
   }
   var group=new THREE.Group();
-  group.position.set(bx+0.5,by+0.5,bz+0.5);
-  var sideTex=typeof makeChestSideTex==='function'?makeChestSideTex():null;
-  var topTex=typeof makeChestTopTex==='function'?makeChestTopTex():null;
-  var bodyMat=new THREE.MeshBasicMaterial(sideTex?{map:sideTex}:{color:0xa07030});
-  var lidMat=new THREE.MeshBasicMaterial(topTex?{map:topTex}:{color:0xb87c30});
-  var body=new THREE.Mesh(new THREE.BoxGeometry(1.02,0.58,0.82), bodyMat);
-  body.position.set(0,-0.18,0);
-  var lid=new THREE.Mesh(new THREE.BoxGeometry(1.02,0.22,0.82), lidMat);
-  lid.position.set(0,0.22,0);
-  var lock=new THREE.Mesh(new THREE.BoxGeometry(0.14,0.14,0.08), new THREE.MeshBasicMaterial({color:0xffe060}));
-  lock.position.set(0,0.14,0.42);
-  var band=new THREE.Mesh(new THREE.BoxGeometry(1.04,0.06,0.84), new THREE.MeshBasicMaterial({color:0xd4b44a}));
-  band.position.set(0,-0.02,0);
-  group.add(body);group.add(lid);group.add(lock);group.add(band);
+  group.position.set(bx+0.5,by,bz+0.5);
+  var parts=addChestModel(group);
   scene.add(group);
-  _chestAnim={group:group,lid:lid,lock:lock,t:0,dur:0.5,phase:'open',done:onDone,bx:bx,by:by,bz:bz,savedType:(saved===B_AIR||!saved)?B_CHEST:saved};
+  _chestAnim={group:group,lid:parts.lid,lock:parts.lock,lidY:parts.lid.position.y,lidZ:parts.lid.position.z,lockY:parts.lock.position.y,lockZ:parts.lock.position.z,t:0,dur:0.5,phase:'open',done:onDone,bx:bx,by:by,bz:bz,savedType:(saved===B_AIR||!saved)?B_CHEST:saved};
   if(typeof playSoundUI==='function')playSoundUI('open');
   if(typeof fbShake==='function')fbShake(0.6);
   if(typeof fbSpawnParticles==='function')fbSpawnParticles(bx+0.5,by+0.9,bz+0.5,'ore',8,{spread:1.2,up:0.5});
@@ -6851,12 +6893,12 @@ function playChestCloseAnim(){
 }
 function _chestLidPose(a,openK){
   a.lid.rotation.x=-openK*1.82;
-  a.lid.position.y=0.22+0.26*openK;
-  a.lid.position.z=-0.32*openK;
+  a.lid.position.y=(a.lidY||0.78)+0.22*openK;
+  a.lid.position.z=(a.lidZ||0)-0.28*openK;
   if(a.lock){
     a.lock.rotation.x=-openK*1.82;
-    a.lock.position.y=0.14+0.26*openK;
-    a.lock.position.z=0.42-0.32*openK;
+    a.lock.position.y=(a.lockY||0.625)+0.22*openK;
+    a.lock.position.z=(a.lockZ||0.47)-0.28*openK;
   }
 }
 function updateChestAnim(dt){
