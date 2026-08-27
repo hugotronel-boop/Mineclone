@@ -3199,6 +3199,9 @@ function scale16to32(img16){
   ctx.imageSmoothingEnabled=false;ctx.drawImage(t,0,0,32,32);
   return cv;
 }
+function mcImg(){return document.createElement('canvas').getContext('2d').createImageData(16,16);}
+function mcP(d,x,y,r,g,b,a){if(x<0||y<0||x>15||y>15)return;var i=(y*16+x)*4;d[i]=r;d[i+1]=g;d[i+2]=b;d[i+3]=a==null?255:a;}
+function mcTexFrom(img){return new THREE.CanvasTexture(scale16to32(img));}
 function makeGrassSide(){
   var img=document.createElement('canvas').getContext('2d').createImageData(16,16);
   paintMcDirt16(img.data);
@@ -3222,97 +3225,62 @@ function makeDirtTex(){
 }
 
 function makeStoneTex(bright){
-  var cv=cv32(),ctx=cv.getContext('2d');
-  var b=bright||1.0;
-  for(var y=0;y<32;y++)for(var x=0;x<32;x++){
-    var n=ntex(x,y,5),p=ntex(x*0.4,y*0.4,27);
-    var v=(108+n*42+p*18)*b;
-    if(ntex(x,y,91)>0.84)v*=0.72;
-    pxi(ctx,x,y,v,v*1.01,v*1.04);
+  var img=mcImg(),d=img.data,b=bright||1;
+  var pal=[[127,127,127],[112,112,112],[141,141,141],[98,98,98],[150,150,150],[88,88,88],[120,122,118],[134,134,130]];
+  for(var y=0;y<16;y++)for(var x=0;x<16;x++){
+    var c=pal[(ntex(x,y,5)*8)|0];
+    var n=ntex(x,y,91)>0.86?-20:(ntex(x,y,92)<0.12?12:0);
+    mcP(d,x,y,(c[0]+n)*b,(c[1]+n)*b,(c[2]+n)*b);
   }
-  ctx.fillStyle='rgba(40,42,48,0.45)';
-  for(var i=0;i<10;i++){
-    var x0=(ntex(i,2,33)*26)|0,y0=(ntex(i,3,34)*26)|0,w=3+(ntex(i,4,35)*6)|0;
-    ctx.fillRect(x0,y0,w,1);ctx.fillRect(x0,y0,1,2+(ntex(i,5,36)*5)|0);
-  }
-  ctx.fillStyle='rgba(210,215,220,0.12)';ctx.fillRect(0,0,32,1);ctx.fillRect(0,0,1,32);
-  return new THREE.CanvasTexture(cv);
+  return mcTexFrom(img);
 }
 function makeSandTex(){
-  var cv=cv32(),ctx=cv.getContext('2d');
-  for(var y=0;y<32;y++)for(var x=0;x<32;x++){
-    var n=ntex(x,y,7),n2=ntex(x*2,y*2,17),rip=Math.sin((y+ntex(x,0,8)*4)*0.55)*0.5+0.5;
-    var r=210+n*28+rip*8,g=188+n*24+rip*6,b=118+n*18;
-    if(n2>0.82){r+=18;g+=14;b+=8;}
-    if(n2<0.18){r-=16;g-=14;b-=10;}
-    pxi(ctx,x,y,r,g,b);
+  var img=mcImg(),d=img.data;
+  var pal=[[219,207,160],[210,196,140],[196,180,125],[230,220,175],[180,164,110],[204,188,132],[188,172,118],[224,212,168]];
+  for(var y=0;y<16;y++)for(var x=0;x<16;x++){
+    var c=pal[(ntex(x,y,17)*8)|0];
+    var n=ntex(x,y,18)*10-5;
+    mcP(d,x,y,c[0]+n,c[1]+n,c[2]+n*0.6);
   }
-  return new THREE.CanvasTexture(cv);
+  return mcTexFrom(img);
 }
 function makeWoodTop(){
-  var cv=cv32(),ctx=cv.getContext('2d');
-  var rings=[[196,154,88],[168,118,58],[210,170,102],[148,100,48],[186,140,78],[120,82,40]];
-  for(var y=0;y<32;y++)for(var x=0;x<32;x++){
-    var dx=x-15.5,dy=y-15.5;
-    var d=Math.sqrt(dx*dx+dy*dy*0.92);
-    var sq=Math.max(Math.abs(dx),Math.abs(dy));
-    var dist=d*0.55+sq*0.45;
-    if(sq>14.2){
-      var n=ntex(x,y,9);
-      pxi(ctx,x,y,62+n*18,42+n*12,18+n*8);
-      continue;
-    }
-    var ri=((dist*0.72)+ntex(x,y,8)*0.4)|0;
-    var c=rings[ri%rings.length];
-    var j=ntex(x,y,19)*10-5;
-    pxi(ctx,x,y,c[0]+j,c[1]+j*0.8,c[2]+j*0.5);
+  var img=mcImg(),d=img.data;
+  for(var y=0;y<16;y++)for(var x=0;x<16;x++){
+    var dx=x-7.5,dy=y-7.5,r=Math.sqrt(dx*dx+dy*dy);
+    var ring=((r*1.7)|0)%2;
+    var c=ring? [120,82,40]:[186,140,78];
+    if(r<1.2)c=[148,100,48];
+    if(r>7.2)c=[86,62,32];
+    var n=ntex(x,y,21)*12-6;
+    mcP(d,x,y,c[0]+n,c[1]+n*0.8,c[2]+n*0.5);
   }
-  pxi(ctx,15,15,96,68,32);pxi(ctx,16,15,88,60,28);pxi(ctx,15,16,90,62,30);pxi(ctx,16,16,84,56,26);
-  return new THREE.CanvasTexture(cv);
+  return mcTexFrom(img);
 }
 function makeWoodSide(){
-  var cv=cv32(),ctx=cv.getContext('2d');
-  var pal=[[92,62,28],[72,48,20],[118,80,36],[64,42,16],[104,72,32],[84,56,24],[128,88,40],[58,38,14]];
-  for(var y=0;y<32;y++)for(var x=0;x<32;x++){
-    var wob=(ntex(0,y,11)*1.6)|0;
-    var col=(x+wob+32)%32;
-    var i=(ntex(col,0,12)*7)|0;
-    if((col%5)===0)i=3;
-    if((col%9)===2)i=0;
-    var c=pal[i%pal.length];
-    var n=ntex(x,y,19)*12-6;
-    pxi(ctx,x,y,c[0]+n,c[1]+n*0.7,c[2]+n*0.4);
+  var img=mcImg(),d=img.data;
+  var pal=[[102,81,50],[70,56,35],[120,94,58],[86,68,42],[58,45,28],[110,88,54]];
+  for(var y=0;y<16;y++)for(var x=0;x<16;x++){
+    var col=(x+(ntex(0,y,11)*1.2)|0)&15;
+    var c=pal[(ntex(col,0,12)*5)|0];
+    if((col%4)===0)c=pal[1];
+    if((col%7)===3)c=pal[4];
+    var n=ntex(x,y,23)*8-4;
+    mcP(d,x,y,c[0]+n,c[1]+n,c[2]+n*0.6);
   }
-  for(var k=0;k<3;k++){
-    var cx=6+k*9,cy=8+k*6;
-    pxi(ctx,cx,cy,48,30,12);pxi(ctx,cx+1,cy,52,34,14);pxi(ctx,cx,cy+1,44,28,10);
-  }
-  return new THREE.CanvasTexture(cv);
+  return mcTexFrom(img);
 }
 function makeLeafTex(){
-  var cv=document.createElement('canvas');cv.width=cv.height=16;
-  var ctx=cv.getContext('2d');
-  var img=ctx.createImageData(16,16),d=img.data;
-  var pal=[[48,120,28],[62,142,36],[38,102,22],[78,158,42],[54,132,32],[90,168,48],[44,112,26],[70,150,38]];
+  var img=mcImg(),d=img.data;
+  var pal=[[48,118,28],[62,142,36],[36,96,20],[78,158,44],[28,84,16],[70,148,40]];
   for(var y=0;y<16;y++)for(var x=0;x<16;x++){
-    var i=(y*16+x)*4;
-    var blob=ntex(x*0.55,y*0.55,13);
-    var edge=ntex(x,y,23);
-    var hole=blob<0.34 || (blob<0.48 && edge<0.40) || edge<0.12;
-    if((x+y*3)%11===0 && edge<0.55)hole=true;
-    if(hole){d[i]=d[i+1]=d[i+2]=d[i+3]=0;continue;}
-    var pi=(ntex(x,y,31)*7.9)|0;if(pi>7)pi=7;
-    var c=pal[pi];
-    d[i]=c[0];d[i+1]=c[1];d[i+2]=c[2];d[i+3]=255;
+    var n=ntex(x,y,7),n2=ntex(x*0.5,y*0.5,8);
+    if(n<0.22||n2<0.18){mcP(d,x,y,0,0,0,0);continue;}
+    var c=pal[(n*6)|0];
+    mcP(d,x,y,c[0],c[1],c[2],255);
   }
-  ctx.putImageData(img,0,0);
-  var cv2=cv32(),ctx2=cv2.getContext('2d');
-  ctx2.imageSmoothingEnabled=false;
-  ctx2.drawImage(cv,0,0,32,32);
-  return new THREE.CanvasTexture(cv2);
+  return mcTexFrom(img);
 }
-var _waterShared=null,_waterAnimT=0;
-var _wGrid=new Float32Array(256),_wGridN=new Float32Array(256),_wGrid2=new Float32Array(256),_wGrid3=new Float32Array(256);
 function tickMinecraftWater(){
   var i,j,k,f,l;
   for(i=0;i<16;i++){
@@ -3371,94 +3339,77 @@ function updateWaterAnim(dt){
   _waterShared._dirty=true;
 }
 function makeSnowTex(){
-  var cv=cv32(),ctx=cv.getContext('2d');
-  for(var y=0;y<32;y++)for(var x=0;x<32;x++){
-    var n=ntex(x,y,17);
-    var v=228+n*24;
-    pxi(ctx,x,y,v,v,v+8);
+  var img=mcImg(),d=img.data;
+  var pal=[[250,253,253],[236,244,248],[255,255,255],[220,232,238],[242,248,250]];
+  for(var y=0;y<16;y++)for(var x=0;x<16;x++){
+    var c=pal[(ntex(x,y,19)*5)|0];
+    mcP(d,x,y,c[0],c[1],c[2]);
   }
-  ctx.fillStyle='#ffffff';
-  for(var i=0;i<14;i++)pxi(ctx,(ntex(i,3,18)*31)|0,(ntex(i,4,19)*31)|0,255,255,255);
-  ctx.fillStyle='rgba(180,210,255,0.45)';
-  ctx.fillRect(2,10,3,1);ctx.fillRect(16,6,4,1);ctx.fillRect(10,22,3,1);
-  return new THREE.CanvasTexture(cv);
+  return mcTexFrom(img);
 }
 function makeGravelTex(){
-  var cv=cv32(),ctx=cv.getContext('2d');
-  for(var y=0;y<32;y++)for(var x=0;x<32;x++){
-    var n=ntex(x,y,21),c=ntex(x*0.45,y*0.45,31);
-    var v=118+n*40+c*20;
-    pxi(ctx,x,y,v+8,v,v-8);
+  var img=mcImg(),d=img.data;
+  var pal=[[127,127,127],[110,100,90],[145,140,132],[88,82,76],[160,150,138],[96,90,84],[136,124,110],[118,118,118]];
+  for(var y=0;y<16;y++)for(var x=0;x<16;x++){
+    var c=pal[(ntex(x>>1,y>>1,25)*8)|0];
+    var n=ntex(x,y,26)*16-8;
+    mcP(d,x,y,c[0]+n,c[1]+n,c[2]+n);
   }
-  var cols=['#9a9084','#6a645c','#c0b8a8','#5a5248','#8a8070'];
-  for(var i=0;i<16;i++){
-    ctx.fillStyle=cols[i%cols.length];
-    var rx=(ntex(i,1,40)*28)|0,ry=(ntex(i,2,41)*28)|0,rw=2+(ntex(i,3,42)*3)|0,rh=2+(ntex(i,4,43)*3)|0;
-    ctx.fillRect(rx,ry,rw,rh);
-  }
-  return new THREE.CanvasTexture(cv);
+  return mcTexFrom(img);
 }
 function makeCoalTex(){
-  var cv=cv32(),ctx=cv.getContext('2d');
-  for(var y=0;y<32;y++)for(var x=0;x<32;x++){
-    var n=ntex(x,y,23),v=88+n*40;
-    pxi(ctx,x,y,v,v,v);
+  var img=mcImg(),d=img.data;
+  var pal=[[127,127,127],[112,112,112],[141,141,141],[98,98,98]];
+  for(var y=0;y<16;y++)for(var x=0;x<16;x++){
+    var c=pal[(ntex(x,y,5)*4)|0];
+    mcP(d,x,y,c[0],c[1],c[2]);
   }
-  ctx.fillStyle='#1a1a1a';
-  for(var i=0;i<9;i++){
-    var x0=(ntex(i,2,50)*26)|0,y0=(ntex(i,3,51)*26)|0,w=3+(ntex(i,4,52)*6)|0,h=4+(ntex(i,5,53)*7)|0;
-    ctx.fillRect(x0,y0,w,h);
-    ctx.fillStyle='#0a0a0a';ctx.fillRect(x0+1,y0+1,Math.max(1,w-2),Math.max(1,h-2));
-    ctx.fillStyle='#1a1a1a';
+  var spots=[[3,3,2],[8,2,2],[12,5,3],[4,9,2],[10,11,3],[2,13,2],[13,13,2],[7,7,2]];
+  for(var s=0;s<spots.length;s++){
+    var sx=spots[s][0],sy=spots[s][1],r=spots[s][2];
+    for(var yy=-r;yy<=r;yy++)for(var xx=-r;xx<=r;xx++){
+      if(xx*xx+yy*yy<=r*r)mcP(d,sx+xx,sy+yy,20+((xx+yy)&3)*8,20,22);
+    }
   }
-  ctx.fillStyle='rgba(80,80,80,0.35)';ctx.fillRect(0,14,32,1);ctx.fillRect(15,0,1,14);
-  return new THREE.CanvasTexture(cv);
+  return mcTexFrom(img);
 }
 function makeIronTex(){
-  var cv=cv32(),ctx=cv.getContext('2d');
-  for(var y=0;y<32;y++)for(var x=0;x<32;x++){
-    var n=ntex(x,y,25),v=100+n*46;
-    pxi(ctx,x,y,v,v,v);
+  var img=mcImg(),d=img.data;
+  var pal=[[127,127,127],[112,112,112],[141,141,141],[98,98,98]];
+  for(var y=0;y<16;y++)for(var x=0;x<16;x++){
+    var c=pal[(ntex(x,y,5)*4)|0];
+    mcP(d,x,y,c[0],c[1],c[2]);
   }
-  ctx.fillStyle='rgba(50,50,50,0.4)';ctx.fillRect(0,12,32,1);ctx.fillRect(0,22,32,1);ctx.fillRect(10,0,1,12);
-  var ores=['#d4a06a','#e8c090','#b07840','#f0d0a8'];
-  for(var i=0;i<14;i++){
-    ctx.fillStyle=ores[i%ores.length];
-    ctx.fillRect((ntex(i,6,60)*28)|0,(ntex(i,7,61)*28)|0,2+(ntex(i,8,62)*2)|0,2+(ntex(i,9,63)*2)|0);
+  var spots=[[3,4,2],[9,2,2],[12,6,2],[5,10,2],[11,11,3],[2,13,2],[8,8,2],[14,13,1]];
+  for(var s=0;s<spots.length;s++){
+    var sx=spots[s][0],sy=spots[s][1],r=spots[s][2];
+    for(var yy=-r;yy<=r;yy++)for(var xx=-r;xx<=r;xx++){
+      if(xx*xx+yy*yy<=r*r)mcP(d,sx+xx,sy+yy,216-xx*6,175-yy*4,145);
+    }
   }
-  return new THREE.CanvasTexture(cv);
+  return mcTexFrom(img);
 }
-
-var TEX={};
-// Blocs de base avec textures dédiées
-TEX[B_GRASS]={top:makeGrassTop(),side:makeGrassSide(),bot:makeDirtTex()};
-TEX[B_DIRT]={top:makeDirtTex(),side:makeDirtTex(),bot:makeDirtTex()};
-TEX[B_STONE]={top:makeStoneTex(1.0),side:makeStoneTex(0.85),bot:makeStoneTex(0.7)};
-TEX[B_SAND]={top:makeSandTex(),side:makeSandTex(),bot:makeSandTex()};
-TEX[B_WOOD]={top:makeWoodTop(),side:makeWoodSide(),bot:makeWoodTop()};
-TEX[B_LEAF]={top:makeLeafTex(),side:makeLeafTex(),bot:makeLeafTex()};
-TEX[B_WATER]={top:makeWaterTex(),side:makeWaterTex(),bot:makeWaterTex()};
-TEX[B_SNOW]={top:makeSnowTex(),side:makeSnowTex(),bot:makeSnowTex()};
-TEX[B_GRAVEL]={top:makeGravelTex(),side:makeGravelTex(),bot:makeGravelTex()};
-TEX[B_COAL]={top:makeCoalTex(),side:makeCoalTex(),bot:makeCoalTex()};
-TEX[B_IRON]={top:makeIronTex(),side:makeIronTex(),bot:makeIronTex()};
-
 function makeTorchTex(){
-  var cv=document.createElement('canvas');cv.width=cv.height=16;var ctx=cv.getContext('2d');ctx.clearRect(0,0,16,16);
-  ctx.fillStyle='#7a4a1a';ctx.fillRect(6,4,4,12);ctx.fillStyle='#5a3010';ctx.fillRect(8,4,2,12);
-  ctx.fillStyle='#ffdd00';ctx.fillRect(5,1,6,5);ctx.fillStyle='#ffffff';ctx.fillRect(6,1,4,3);
-  ctx.fillStyle='#ff8800';ctx.fillRect(4,0,8,2);ctx.fillRect(5,2,6,1);return new THREE.CanvasTexture(cv);
+  var img=mcImg(),d=img.data;
+  for(var y=0;y<16;y++)for(var x=0;x<16;x++) mcP(d,x,y,0,0,0,0);
+  for(var y=0;y<7;y++)for(var x=5;x<11;x++){
+    var t=1-y/7;
+    mcP(d,x,y,255, 180+t*60, 40+t*80);
+  }
+  mcP(d,7,1,255,255,220);mcP(d,8,2,255,255,180);
+  return mcTexFrom(img);
 }
 function makeTorchSideTex(){
-  var cv=document.createElement('canvas');cv.width=cv.height=16;var ctx=cv.getContext('2d');ctx.clearRect(0,0,16,16);
-  ctx.fillStyle='#7a4a1a';ctx.fillRect(6,2,4,14);ctx.fillStyle='#5a3010';ctx.fillRect(8,2,2,14);
-  ctx.fillStyle='#ffdd00';ctx.fillRect(5,0,6,4);ctx.fillStyle='#ffffff';ctx.fillRect(6,0,4,2);
-  ctx.fillStyle='#ff8800';ctx.fillRect(4,1,8,2);return new THREE.CanvasTexture(cv);
+  var img=mcImg(),d=img.data;
+  for(var y=0;y<16;y++)for(var x=0;x<16;x++) mcP(d,x,y,0,0,0,0);
+  for(var y=6;y<16;y++)for(var x=6;x<10;x++) mcP(d,x,y,92,62,28);
+  for(var y=6;y<16;y++) mcP(d,6,y,70,48,20),mcP(d,9,y,110,78,40);
+  for(var y=0;y<7;y++)for(var x=5;x<11;x++){
+    var t=1-y/7;
+    mcP(d,x,y,255,160+t*70,30+t*90);
+  }
+  return mcTexFrom(img);
 }
-TEX[12]={top:makeTorchTex(),side:makeTorchSideTex(),bot:makeTorchSideTex()};
-// ── Textures blocs construits (13-19) ─────────────────────
-
-var _oakPlankTex=null,_oakDoorTex=null;
 function makeOakPlankTex(){
   if(_oakPlankTex)return _oakPlankTex;
   var cv=document.createElement('canvas');cv.width=cv.height=16;
@@ -3531,154 +3482,107 @@ TEX[13]={top:makeOakPlankTex(),side:makeOakPlankTex(),bot:makeOakPlankTex()};
 TEX[B_DOOR]={top:makeOakDoorTex(),side:makeOakDoorTex(),bot:makeOakPlankTex()};
 TEX[B_DOOR_TOP]={top:makeOakDoorTex(),side:makeOakDoorTex(),bot:makeOakPlankTex()};
 
-function makeDoorTex(){
-  var cv=document.createElement('canvas');cv.width=cv.height=16;var ctx=cv.getContext('2d');
-  ctx.fillStyle='#c09050';ctx.fillRect(0,0,16,16);
-  // Panneaux
-  ctx.fillStyle='#a07030';ctx.fillRect(1,1,6,6);ctx.fillRect(9,1,6,6);
-  ctx.fillRect(1,9,6,6);ctx.fillRect(9,9,6,6);
-  // Cadre
-  ctx.fillStyle='#805010';ctx.fillRect(0,0,16,2);ctx.fillRect(0,14,16,2);
-  ctx.fillRect(0,0,2,16);ctx.fillRect(14,0,2,16);ctx.fillRect(7,0,2,16);
-  // Poignée
-  ctx.fillStyle='#ffd700';ctx.fillRect(11,7,2,2);
-  return new THREE.CanvasTexture(cv);
-}
-TEX[14]={top:makeDoorTex(),side:makeDoorTex(),bot:makeDoorTex()};
-
-function makeStairsTex(){
-  var cv=document.createElement('canvas');cv.width=cv.height=16;var ctx=cv.getContext('2d');
-  ctx.fillStyle='#a07838';ctx.fillRect(0,0,16,16);
-  // Marches en escalier
-  ctx.fillStyle='#8a6020';
-  ctx.fillRect(0,12,16,4);  // marche 1 (bas)
-  ctx.fillRect(0,8,11,4);   // marche 2
-  ctx.fillRect(0,4,7,4);    // marche 3
-  ctx.fillRect(0,0,3,4);    // marche 4 (haut)
-  // Ombres bords
-  ctx.fillStyle='rgba(0,0,0,0.25)';
-  ctx.fillRect(0,12,16,1);ctx.fillRect(0,8,11,1);ctx.fillRect(0,4,7,1);ctx.fillRect(0,0,3,1);
-  return new THREE.CanvasTexture(cv);
-}
-TEX[15]={top:makeStairsTex(),side:makeStairsTex(),bot:makeStairsTex()};
-
+function makeDoorTex(){return makeOakDoorTex();}
+function makeStairsTex(){return makeOakPlankTex();}
 function makeCampfireTopTex(){
-  var cv=document.createElement('canvas');cv.width=cv.height=16;var ctx=cv.getContext('2d');
-  ctx.fillStyle='#4a2800';ctx.fillRect(0,0,16,16);
-  // Braises rouges/oranges
-  var braises=[[3,3,4],[7,2,3],[11,4,3],[5,8,4],[9,7,3],[2,10,3],[12,9,3],[6,12,4],[10,11,3]];
-  braises.forEach(function(b){ctx.fillStyle='#ff4400';ctx.fillRect(b[0],b[1],b[2],b[2]);ctx.fillStyle='#ff8800';ctx.fillRect(b[0]+1,b[1]+1,1,1);});
-  // Flammes
-  ctx.fillStyle='rgba(255,150,0,0.7)';ctx.fillRect(6,1,4,6);
-  ctx.fillStyle='rgba(255,220,0,0.8)';ctx.fillRect(7,2,2,3);
-  return new THREE.CanvasTexture(cv);
+  var img=mcImg(),d=img.data;
+  for(var y=0;y<16;y++)for(var x=0;x<16;x++) mcP(d,x,y,0,0,0,0);
+  for(var y=4;y<12;y++)for(var x=1;x<15;x++) mcP(d,x,y,70,48,22);
+  for(var y=1;y<15;y++)for(var x=4;x<12;x++) mcP(d,x,y,86,58,28);
+  for(var i=3;i<13;i++){mcP(d,i,7,20,16,14);mcP(d,7,i,20,16,14);}
+  for(var y=5;y<11;y++)for(var x=5;x<11;x++){
+    if(ntex(x,y,40)>0.35)mcP(d,x,y,255,140-(y-5)*8,30);
+  }
+  mcP(d,8,8,255,230,80);
+  return mcTexFrom(img);
 }
 function makeCampfireSideTex(){
-  var cv=document.createElement('canvas');cv.width=cv.height=16;var ctx=cv.getContext('2d');
-  ctx.fillStyle='#5a3800';ctx.fillRect(0,0,16,16);
-  // Bûches croisées
-  ctx.fillStyle='#7a4a18';ctx.fillRect(0,8,16,4);
-  ctx.fillStyle='#6a3a10';ctx.save();ctx.translate(8,8);ctx.rotate(0.5);ctx.fillRect(-8,-2,16,3);ctx.restore();
-  // Pierre autour
-  ctx.fillStyle='#888';ctx.fillRect(0,12,16,4);ctx.fillRect(0,12,2,4);ctx.fillRect(14,12,2,4);
-  // Braises visibles
-  ctx.fillStyle='#ff5500';ctx.fillRect(4,9,2,2);ctx.fillRect(9,9,2,2);ctx.fillRect(6,10,3,1);
-  return new THREE.CanvasTexture(cv);
+  var img=mcImg(),d=img.data;
+  for(var y=0;y<16;y++)for(var x=0;x<16;x++) mcP(d,x,y,0,0,0,0);
+  for(var y=8;y<16;y++)for(var x=2;x<14;x++){
+    var c=((x+y)&1)?[92,62,28]:[70,48,20];
+    mcP(d,x,y,c[0],c[1],c[2]);
+  }
+  for(var y=2;y<10;y++)for(var x=5;x<11;x++){
+    var t=(10-y)/8;
+    mcP(d,x,y,255,120+t*100,20+t*80, 200);
+  }
+  return mcTexFrom(img);
 }
-TEX[16]={top:makeCampfireTopTex(),side:makeCampfireSideTex(),bot:makeCampfireSideTex()};
-
 function makeChestTopTex(){
-  var cv=document.createElement('canvas');cv.width=cv.height=16;var ctx=cv.getContext('2d');
-  ctx.fillStyle='#a07030';ctx.fillRect(0,0,16,16);
-  // Couvercle bombé
-  ctx.fillStyle='#8a5818';ctx.fillRect(1,1,14,14);
-  // Cerclage métal
-  ctx.fillStyle='#c0a040';ctx.fillRect(1,7,14,2);ctx.fillRect(7,1,2,14);
-  // Serrure
-  ctx.fillStyle='#ffd700';ctx.fillRect(6,6,4,4);ctx.fillStyle='#c0a000';ctx.fillRect(7,7,2,2);
-  return new THREE.CanvasTexture(cv);
+  var img=mcImg(),d=img.data;
+  for(var y=0;y<16;y++)for(var x=0;x<16;x++){
+    var edge=x===0||y===0||x===15||y===15||x===1||y===1||x===14||y===14;
+    if(edge)mcP(d,x,y,64,40,16);
+    else mcP(d,x,y,196,140,58);
+  }
+  for(var x=6;x<10;x++)for(var y=6;y<10;y++) mcP(d,x,y,212,175,55);
+  mcP(d,7,8,80,60,20);mcP(d,8,8,80,60,20);
+  return mcTexFrom(img);
 }
 function makeChestSideTex(){
-  var cv=document.createElement('canvas');cv.width=cv.height=16;var ctx=cv.getContext('2d');
-  ctx.fillStyle='#a07030';ctx.fillRect(0,0,16,16);
-  ctx.fillStyle='#8a5818';ctx.fillRect(1,1,14,14);
-  // Ligne de séparation couvercle/corps
-  ctx.fillStyle='#c0a040';ctx.fillRect(0,8,16,2);
-  // Cerclage vertical
-  ctx.fillStyle='#c0a040';ctx.fillRect(0,0,2,16);ctx.fillRect(14,0,2,16);
-  // Grain bois
-  for(var i=0;i<3;i++){ctx.fillStyle='rgba(0,0,0,0.06)';ctx.fillRect(3+i*4,1,1,14);}
-  return new THREE.CanvasTexture(cv);
+  var img=mcImg(),d=img.data;
+  for(var y=0;y<16;y++)for(var x=0;x<16;x++){
+    var edge=x===0||y===0||x===15||y===15;
+    if(edge)mcP(d,x,y,64,40,16);
+    else {
+      var band=y===6||y===7;
+      if(band)mcP(d,x,y,120,78,28);else mcP(d,x,y,186,132,52);
+    }
+  }
+  for(var y=5;y<10;y++)for(var x=6;x<10;x++) mcP(d,x,y,212,175,55);
+  mcP(d,7,7,80,60,20);mcP(d,8,7,80,60,20);
+  return mcTexFrom(img);
 }
-TEX[17]={top:makeChestTopTex(),side:makeChestSideTex(),bot:makeChestSideTex()};
-
 function makeGrillTex(){
-  var cv=document.createElement('canvas');cv.width=cv.height=16;var ctx=cv.getContext('2d');
-  ctx.fillStyle='#333333';ctx.fillRect(0,0,16,16);
-  // Grille métal : barreaux horizontaux et verticaux
-  ctx.fillStyle='#666666';
-  for(var i=0;i<4;i++){ctx.fillRect(0,i*4+1,16,2);}
-  for(var j=0;j<4;j++){ctx.fillRect(j*4+1,0,2,16);}
-  // Reflets métal
-  ctx.fillStyle='#888888';
-  for(var k=0;k<4;k++){ctx.fillRect(k*4+1,0,1,16);ctx.fillRect(0,k*4+1,16,1);}
-  // Braises sous la grille
-  ctx.fillStyle='rgba(255,80,0,0.3)';ctx.fillRect(2,2,3,3);ctx.fillRect(8,6,3,3);ctx.fillRect(5,10,3,3);
-  return new THREE.CanvasTexture(cv);
+  var img=mcImg(),d=img.data;
+  var pal=[[127,127,127],[112,112,112],[90,90,90],[150,150,150]];
+  for(var y=0;y<16;y++)for(var x=0;x<16;x++){
+    var c=pal[(ntex(x,y,5)*4)|0];
+    mcP(d,x,y,c[0],c[1],c[2]);
+  }
+  for(var x=0;x<16;x++){mcP(d,x,0,40,40,40);mcP(d,x,15,40,40,40);mcP(d,0,x,40,40,40);mcP(d,15,x,40,40,40);}
+  for(var y=3;y<13;y+=2)for(var x=3;x<13;x++) mcP(d,x,y,28,28,30);
+  return mcTexFrom(img);
 }
-TEX[18]={top:makeGrillTex(),side:makeGrillTex(),bot:makeGrillTex()};
-
 function makeTentTopTex(){
-  var cv=document.createElement('canvas');cv.width=cv.height=16;var ctx=cv.getContext('2d');
-  ctx.fillStyle='#8B6914';ctx.fillRect(0,0,16,16);
-  // Tissu avec coutures
-  ctx.fillStyle='#7a5a10';
-  ctx.fillRect(0,7,16,2);ctx.fillRect(7,0,2,16); // coutures croisées
-  // Texture toile
-  for(var i=0;i<8;i++)for(var j=0;j<8;j++){if((i+j)%2===0){ctx.fillStyle='rgba(0,0,0,0.06)';ctx.fillRect(i*2,j*2,2,2);}}
-  // Piquet central
-  ctx.fillStyle='#5a3800';ctx.fillRect(7,7,2,2);
-  return new THREE.CanvasTexture(cv);
+  var img=mcImg(),d=img.data;
+  for(var y=0;y<16;y++)for(var x=0;x<16;x++){
+    var c=((x>>2)+(y>>2))&1? [62,122,48]:[78,148,58];
+    mcP(d,x,y,c[0],c[1],c[2]);
+  }
+  return mcTexFrom(img);
 }
 function makeTentSideTex(){
-  var cv=document.createElement('canvas');cv.width=cv.height=16;var ctx=cv.getContext('2d');
-  ctx.fillStyle='#8B6914';ctx.fillRect(0,0,16,16);
-  // Forme de tente : triangle
-  ctx.fillStyle='#7a5a10';
-  ctx.beginPath();ctx.moveTo(8,0);ctx.lineTo(16,16);ctx.lineTo(0,16);ctx.closePath();ctx.fill();
-  ctx.fillStyle='#6a4a08';ctx.fillRect(5,8,6,8); // entrée sombre
-  // Coutures
-  ctx.strokeStyle='#5a3a00';ctx.lineWidth=1;
-  ctx.beginPath();ctx.moveTo(8,0);ctx.lineTo(0,16);ctx.stroke();
-  ctx.beginPath();ctx.moveTo(8,0);ctx.lineTo(16,16);ctx.stroke();
-  // Hachures tissu
-  for(var i=0;i<16;i+=3){ctx.fillStyle='rgba(0,0,0,0.04)';ctx.fillRect(0,i,16,1);}
-  return new THREE.CanvasTexture(cv);
+  var img=mcImg(),d=img.data;
+  for(var y=0;y<16;y++)for(var x=0;x<16;x++){
+    var c=((x>>2)+(y>>2))&1? [62,122,48]:[78,148,58];
+    if(x>=6&&x<=9&&y>=8)c=[40,28,16];
+    mcP(d,x,y,c[0],c[1],c[2]);
+  }
+  return mcTexFrom(img);
 }
-TEX[19]={top:makeTentTopTex(),side:makeTentSideTex(),bot:makeTentTopTex()};
-
 function makeBedTopTex(){
-  var cv=document.createElement('canvas');cv.width=cv.height=16;var ctx=cv.getContext('2d');
-  ctx.fillStyle='#6B2008';ctx.fillRect(0,0,16,16);
-  ctx.fillStyle='#e8e0d4';ctx.fillRect(1,1,14,7);
-  ctx.fillStyle='#f4f0e8';ctx.fillRect(2,2,12,4);
-  ctx.fillStyle='#d8d0c4';ctx.fillRect(2,5,12,1);
-  ctx.fillStyle='#cc4444';ctx.fillRect(1,8,14,7);
-  ctx.fillStyle='#aa3030';ctx.fillRect(1,8,14,1);
-  ctx.fillStyle='#e06060';ctx.fillRect(3,10,10,1);
-  ctx.fillStyle='#4a1800';
-  ctx.fillRect(0,0,2,2);ctx.fillRect(14,0,2,2);ctx.fillRect(0,14,2,2);ctx.fillRect(14,14,2,2);
-  return new THREE.CanvasTexture(cv);
+  var img=mcImg(),d=img.data;
+  for(var y=0;y<16;y++)for(var x=0;x<16;x++){
+    if(y<4) mcP(d,x,y, 235,235,230);
+    else {
+      var n=ntex(x,y,50)*12-6;
+      mcP(d,x,y,180+n,32,32);
+    }
+    if(x===0||x===15||y===0||y===15) mcP(d,x,y,92,62,28);
+  }
+  return mcTexFrom(img);
 }
 function makeBedSideTex(){
-  var cv=document.createElement('canvas');cv.width=cv.height=16;var ctx=cv.getContext('2d');
-  ctx.fillStyle='#6B2008';ctx.fillRect(0,0,16,16);
-  ctx.fillStyle='#e8e0d4';ctx.fillRect(0,2,16,5);
-  ctx.fillStyle='#cc4444';ctx.fillRect(0,7,16,4);
-  ctx.fillStyle='#4a1800';ctx.fillRect(1,12,3,4);ctx.fillRect(12,12,3,4);
-  return new THREE.CanvasTexture(cv);
+  var img=mcImg(),d=img.data;
+  for(var y=0;y<16;y++)for(var x=0;x<16;x++){
+    if(y<6) mcP(d,x,y,180,32,32);
+    else mcP(d,x,y, 158,114,60);
+    if(x===0||x===15||y===0||y===15) mcP(d,x,y,92,62,28);
+  }
+  return mcTexFrom(img);
 }
-TEX[B_BED]={top:makeBedTopTex(),side:makeBedSideTex(),bot:makeBedSideTex()};
 function makeCollectorTex(full){
   var cv=document.createElement('canvas');cv.width=cv.height=16;var ctx=cv.getContext('2d');
   ctx.fillStyle='#3a2410';ctx.fillRect(0,0,16,16);
@@ -3836,47 +3740,19 @@ function makeNettleTex(){
 TEX[123]={top:makeNettleTex(),side:makeNettleTex(),bot:makeNettleTex()};
 
 // ── Souche (B_STUMP = 124)
-function makeStumpTopTex(){
-  var cv=document.createElement('canvas');cv.width=cv.height=16;var ctx=cv.getContext('2d');
-  ctx.fillStyle='#5a3808';ctx.fillRect(0,0,16,16);
-  // Cernes concentriques
-  var rings=[[7,7,6,'#3a2005'],[7,7,4,'#5a3808'],[7,7,2,'#3a2005']];
-  rings.forEach(function(r){ctx.strokeStyle=r[3];ctx.lineWidth=1;ctx.beginPath();ctx.arc(r[0],r[1],r[2],0,Math.PI*2);ctx.stroke();});
-  // Rayon central
-  ctx.fillStyle='#4a2c06';ctx.fillRect(7,0,2,16);ctx.fillRect(0,7,16,2);
-  // Mousse légère
-  ctx.fillStyle='rgba(60,120,20,0.4)';ctx.fillRect(0,0,5,3);ctx.fillRect(11,13,5,3);ctx.fillRect(13,2,3,4);
-  return new THREE.CanvasTexture(cv);
-}
-function makeStumpSideTex(){
-  var cv=document.createElement('canvas');cv.width=cv.height=16;var ctx=cv.getContext('2d');
-  // Écorce rugueuse
-  ctx.fillStyle='#6a4010';ctx.fillRect(0,0,16,16);
-  for(var i=0;i<6;i++){ctx.fillStyle='rgba(0,0,0,0.15)';ctx.fillRect(i*3,0,1,16);}
-  ctx.fillStyle='#4a2c06';ctx.fillRect(0,0,2,16);ctx.fillRect(14,0,2,16);
-  // Mousse à la base
-  ctx.fillStyle='#508030';ctx.fillRect(0,13,16,3);
-  ctx.fillStyle='#70a040';ctx.fillRect(1,12,14,2);
-  return new THREE.CanvasTexture(cv);
-}
-TEX[124]={top:makeStumpTopTex(),side:makeStumpSideTex(),bot:makeStumpSideTex()};
-
-// ── Pousse d'arbre (B_SAPLING = 125)
+function makeStumpTopTex(){return makeWoodTop();}
+function makeStumpSideTex(){return makeWoodSide();}
 function makeSaplingTex(){
-  var cv=document.createElement('canvas');cv.width=cv.height=16;var ctx=cv.getContext('2d');
-  ctx.clearRect(0,0,16,16);
-  // Tige mince
-  ctx.fillStyle='#5a8020';ctx.fillRect(7,6,2,10);
-  // Petites feuilles
-  ctx.fillStyle='#50c820';ctx.fillRect(4,2,8,5);
-  ctx.fillStyle='#3aaa10';ctx.fillRect(5,1,6,3);
-  ctx.fillStyle='#70d840';ctx.fillRect(6,2,4,2);
-  // Bourgeons
-  ctx.fillStyle='#88ee30';ctx.fillRect(5,3,2,2);ctx.fillRect(9,3,2,2);
-  return new THREE.CanvasTexture(cv);
+  var img=mcImg(),d=img.data;
+  for(var y=0;y<16;y++)for(var x=0;x<16;x++) mcP(d,x,y,0,0,0,0);
+  for(var y=10;y<16;y++){mcP(d,7,y,92,62,28);mcP(d,8,y,110,78,40);}
+  var leaves=[[7,2],[8,2],[6,3],[7,3],[8,3],[9,3],[5,4],[6,4],[7,4],[8,4],[9,4],[10,4],[6,5],[7,5],[8,5],[9,5],[7,6],[8,6],[5,6],[10,6],[6,7],[9,7],[7,8],[8,8]];
+  for(var i=0;i<leaves.length;i++){
+    var c=i%3? [48,140,32]:[32,110,22];
+    mcP(d,leaves[i][0],leaves[i][1],c[0],c[1],c[2]);
+  }
+  return mcTexFrom(img);
 }
-TEX[125]={top:makeSaplingTex(),side:makeSaplingTex(),bot:makeSaplingTex()};
-
 function drawIcon(blockId,canvasId){
   var cv=document.getElementById(canvasId);if(!cv)return;
   paintItemToCanvas(cv,blockId,34);
