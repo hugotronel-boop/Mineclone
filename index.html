@@ -9520,9 +9520,12 @@ function performBreakAction(){
   startBreaking();
   return false;
 }
-function refreshPlaceBtn(){
+function refreshPlaceBtn(look){
   var btn=document.getElementById('btn-place');if(!btn)return;
   if(_mountedRaft){btn.textContent='⛵';btn.title='Descendre du radeau';return;}
+  var hit=look&&look.bx!=null?getBlock(look.bx,look.by,look.bz):0;
+  if(hit===B_CHEST){btn.textContent='📦';btn.title='Ouvrir le coffre';return;}
+  if(hit===B_DOOR||hit===B_DOOR_TOP){btn.textContent='🚪';btn.title='Ouvrir / fermer';return;}
   var id=INV[selectedSlot]&&INV[selectedSlot].id;
   if(!id){btn.textContent='✋';btn.title='Utiliser';return;}
   if(id===ITEM_BOAT){btn.textContent='🪵';btn.title='Poser le radeau';}
@@ -12117,7 +12120,7 @@ function animate(now){
   document.getElementById('daytime-hud').textContent=pIcon[phase]+' '+minLeft+'min';
   document.getElementById('weather-hud').textContent=true?getWeatherIcon():'';
   document.getElementById('mode-hud').textContent=false?'✈️ Créatif':'⚔️ Survie';
-  if(!invOpen)raycast();
+  if(!invOpen){var _look=raycast();if(typeof refreshPlaceBtn==='function')refreshPlaceBtn(_look);}
   
 renderer.render(scene,camera);
 
@@ -12179,31 +12182,7 @@ renderer.render(scene,camera);
   if(nearestDying&&!lootModalOpen){var _wp=new THREE.Vector3(nearestDying.mesh.position.x,nearestDying.mesh.position.y+1.8,nearestDying.mesh.position.z),_sv=_wp.clone().project(camera);if(_sv.z<1){floatBtn.style.display='block';floatBtn.style.left=(_sv.x*0.5+0.5)*window.innerWidth+'px';floatBtn.style.top=((-_sv.y*0.5+0.5)*window.innerHeight)+'px';floatBtn._animal=nearestDying;}else floatBtn.style.display='none';}else floatBtn.style.display='none';
 
   var cfBtn=document.getElementById('chest-float-btn');
-  var chestUi=document.getElementById('chest-modal');
-  var chestOpen=chestUi&&chestUi.classList.contains('open');
-  if(cfBtn&&!invOpen&&!lootModalOpen&&!chestOpen){
-    var cpx=Math.floor(player.pos.x),cpy=Math.floor(player.pos.y),cpz=Math.floor(player.pos.z);
-    var bestC=null,bestCd=36;
-    for(var cdx=-4;cdx<=4;cdx++)for(var cdz=-4;cdz<=4;cdz++)for(var cdy=-2;cdy<=3;cdy++){
-      var cxx=cpx+cdx,cyy=cpy+cdy,czz=cpz+cdz;
-      if(getBlock(cxx,cyy,czz)!==B_CHEST)continue;
-      var ck2=_chestKey(cxx,cyy,czz);
-      var cd=cdx*cdx+cdz*cdz+cdy*cdy;
-      if(cd<bestCd){bestCd=cd;bestC={x:cxx,y:cyy,z:czz};}
-    }
-    if(bestC){
-      var cwp=new THREE.Vector3(bestC.x+0.5,bestC.y+1.15,bestC.z+0.5);
-      var csv=cwp.clone().project(camera);
-      cfBtn.style.display='block';
-      if(csv.z<1){
-        cfBtn.style.left=(csv.x*0.5+0.5)*window.innerWidth+'px';
-        cfBtn.style.top=((-csv.y*0.5+0.5)*window.innerHeight)+'px';
-      } else {
-        cfBtn.style.left='50%';cfBtn.style.top='58%';
-      }
-      cfBtn._chest=bestC;
-    } else cfBtn.style.display='none';
-  } else if(cfBtn) cfBtn.style.display='none';
+  if(cfBtn)cfBtn.style.display='none';
 }
 requestAnimationFrame(animate);
 </script>
