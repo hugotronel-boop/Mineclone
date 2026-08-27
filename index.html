@@ -2613,7 +2613,7 @@ display: none !important;
     <div id="overlay-content">
       <h1>MINECLONE</h1>
       <div id="overlay-tagline">Survivre. Ou mourir.</div>
-      <div id="overlay-build">v43</div>
+      <div id="overlay-build">v44</div>
       <button type="button" id="continueBtn" onclick="window.continueGame&&window.continueGame()">Continuer</button>
       <button type="button" id="startBtn">Nouvelle partie</button>
       <button type="button" id="btn-settings-open" onclick="if(typeof openSettings==='function')openSettings();">Parametres</button>
@@ -8619,24 +8619,36 @@ function spawnPebblesInChunk(cx,cz){
   if(getIsland(ox+8,oz+8)===0)return;
   var data=chunks.get(key);if(!data)return;
   var CS=CHUNK_SIZE,CH=CHUNK_HEIGHT;
-  var n=hash(cx,cz,SEED+4100)>0.28?0:(1+Math.floor(hash(cx,cz,SEED+4101)*3));
-  if(hash(cx,cz,SEED+4102)>0.72)n+=1+Math.floor(hash(cx,cz,SEED+4103)*2);
+  var n=4+Math.floor(hash(cx,cz,SEED+4101)*6);
+  if(hash(cx,cz,SEED+4102)>0.45)n+=2+Math.floor(hash(cx,cz,SEED+4103)*4);
   for(var i=0;i<n;i++){
-    var lx=2+Math.floor(hash(cx,i,SEED+4110)*12),lz=2+Math.floor(hash(cz,i,SEED+4111)*12);
-    var sy=-1;
+    var lx=1+Math.floor(hash(cx,i,SEED+4110)*14),lz=1+Math.floor(hash(cz,i,SEED+4111)*14);
+    var sy=-1,ground=0,nearW=false;
     for(var y=CH-1;y>=0;y--){
       var b=data[lx+CS*(y+CH*lz)];
-      if(!b||b===B_AIR||b===B_WATER||b===B_LEAF)continue;
-      if(b===B_BERRY_BUSH||b===B_BERRY_EMPTY||b===B_HERB_BLOCK||b===B_NETTLES||b===B_MUSHROOM_BLOCK||b===B_SAPLING){sy=y;break;}
-      sy=y;break;
+      if(!b||b===B_AIR||b===B_LEAF)continue;
+      if(b===B_WATER){nearW=true;continue;}
+      if(b===B_BERRY_BUSH||b===B_BERRY_EMPTY||b===B_HERB_BLOCK||b===B_NETTLES||b===B_MUSHROOM_BLOCK||b===B_SAPLING){sy=y-1;break;}
+      ground=b;sy=y;break;
     }
-    if(sy<0||sy<=SEA_LEVEL)continue;
-    var wx=ox+lx+0.5,wz=oz+lz+0.5;
+    if(sy<1)continue;
+    if(ground&&ground!==B_GRASS&&ground!==B_DIRT&&ground!==B_SAND&&ground!==B_GRAVEL&&ground!==B_STONE)continue;
+    for(var w=0;w<4&&!nearW;w++){
+      var ax=lx+[1,-1,0,0][w],az=lz+[0,0,1,-1][w];
+      if(ax<0||az<0||ax>=CS||az>=CS)continue;
+      for(var wy=sy;wy<=sy+2;wy++){
+        if(wy>=CH)break;
+        if(data[ax+CS*(wy+CH*az)]===B_WATER){nearW=true;break;}
+      }
+    }
+    if(!nearW&&hash(cx,i,SEED+4120)<0.35&&ground!==B_SAND&&ground!==B_GRAVEL)continue;
+    var wx=ox+lx+0.35+hash(cx,i,SEED+4121)*0.3,wz=oz+lz+0.35+hash(cz,i,SEED+4122)*0.3;
+    var py=sy+1;
     var g=makePebbleMesh();
-    g.position.set(wx,sy,wz);
+    g.position.set(wx,py,wz);
     g.rotation.y=hash(cx,i,SEED+4113)*6;
     scene.add(g);
-    _pebbles.push({mesh:g,x:wx,y:sy,z:wz});
+    _pebbles.push({mesh:g,x:wx,y:py,z:wz});
   }
 }
 function pickupPebble(pb){
@@ -8674,8 +8686,8 @@ function updatePebbles(){
   for(var i=_pebbles.length-1;i>=0;i--){
     var pb=_pebbles[i];
     if(pb.mesh)pb.mesh.position.y=pb.y;
-    var dx=pb.x-px,dz=pb.z-pz,dy=pb.y-py;
-    var d2=dx*dx+dz*dz+dy*dy;
+    var dx=pb.x-px,dz=pb.z-pz;
+    var d2=dx*dx+dz*dz;
     if(d2<bestD){bestD=d2;best=pb;kind='pebble';}
   }
   for(var si=0;si<_spentAmmo.length;si++){
