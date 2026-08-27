@@ -2613,7 +2613,7 @@ display: none !important;
     <div id="overlay-content">
       <h1>MINECLONE</h1>
       <div id="overlay-tagline">Survivre. Ou mourir.</div>
-      <div id="overlay-build">v45</div>
+      <div id="overlay-build">v46</div>
       <button type="button" id="continueBtn" onclick="window.continueGame&&window.continueGame()">Continuer</button>
       <button type="button" id="startBtn">Nouvelle partie</button>
       <button type="button" id="btn-settings-open" onclick="if(typeof openSettings==='function')openSettings();">Parametres</button>
@@ -6025,23 +6025,23 @@ function drawSprite16(ctx,id){
     P(1,14,6,2,hw);P(4,11,6,2,hd);P(7,8,6,2,hw);P(10,5,6,2,hd);P(12,2,4,2,hw);
     return;
   }
-  if(id===ITEM_WALL||id===B_WALL){
+  if(id===ITEM_WALL){
     P(3,1,2,14,hw);P(6,1,2,14,hd);P(9,1,2,14,hw);P(12,1,2,14,hd);
     P(2,5,13,2,'#c2a070');P(2,11,13,2,'#c2a070');
     return;
   }
-  if(id===ITEM_WALL_DOOR||id===B_WALL_NARROW){
+  if(id===ITEM_WALL_DOOR){
     P(3,1,2,14,hw);P(11,1,2,14,hd);
     P(3,1,10,2,'#c2a070');P(4,13,8,2,hw);
     P(5,4,6,9,'#1a1008');
     return;
   }
-  if(id===ITEM_FLOOR||id===B_FLOOR){
+  if(id===ITEM_FLOOR){
     P(1,4,14,2,hw);P(1,7,14,2,hd);P(1,10,14,2,hw);P(1,13,14,2,hd);
     P(3,3,2,12,'#c2a070');
     return;
   }
-  if(id===ITEM_ROOF||id===B_ROOF){
+  if(id===ITEM_ROOF){
     P(1,12,3,3,hk);P(4,9,3,3,hd);P(7,6,3,3,hw);P(10,3,3,3,hd);
     P(2,11,12,2,'#c2a070');
     return;
@@ -6071,9 +6071,10 @@ function drawSprite16(ctx,id){
     return;
   }
   if(id===ITEM_WOOL){
-    P(6,2,4,2,'#fff');P(4,4,8,2,'#f4f0e4');P(3,6,10,5,'#ece6d4');P(5,11,6,2,'#ddd6c4');
-    P(2,7,2,3,'#f8f4ea');P(12,7,2,3,'#f8f4ea');P(5,5,2,2,'#fff');P(9,8,2,2,'#c8c0b0');
-    P(7,3,1,1,'#c8c0b0');P(4,9,1,1,'#fff');P(11,10,1,1,'#d0c8b8');
+    P(6,1,4,2,'#ffffff');P(4,3,8,3,'#f6f2ea');P(2,6,12,6,'#efeae0');P(4,12,8,3,'#ddd6c8');
+    P(1,7,2,4,'#ffffff');P(13,7,2,4,'#ffffff');
+    P(5,4,2,2,'#ffffff');P(9,5,2,2,'#c8c0b4');P(6,8,3,2,'#ffffff');P(10,10,2,2,'#c0b8ac');
+    P(3,10,2,2,'#ffffff');P(8,2,1,1,'#d0c8bc');
     return;
   }
   if(id===ITEM_FIBER){
@@ -6119,8 +6120,8 @@ function drawSprite16(ctx,id){
     return;
   }
   if(id===ITEM_TREE_SEED){
-    P(6,8,4,5,hk);P(7,7,2,2,hd);
-    P(5,4,6,5,'#4caf20');P(6,3,4,3,'#70d040');
+    P(6,8,4,5,'#8a4a18');P(7,7,2,6,'#a05a20');P(6,12,4,2,'#6a3010');
+    P(5,5,6,4,'#3a7a18');P(6,4,4,2,'#4caf20');P(7,3,2,2,'#70d040');
     return;
   }
   if(id===ITEM_BERRY_SEED){
@@ -6235,8 +6236,8 @@ function drawSprite16(ctx,id){
     return;
   }
   if(id===ITEM_HERB||id===B_HERB_BLOCK){
-    P(7,8,2,6,hd);P(4,4,4,5,'#4caf20');P(8,3,4,5,'#70d040');P(6,2,4,4,'#88e050');
-    P(5,6,2,2,'#c05080');
+    P(7,8,2,6,'#3a7a18');P(4,4,4,5,'#4caf20');P(8,3,4,5,'#70d040');P(6,2,4,4,'#88e050');
+    P(5,6,2,2,'#c05080');P(9,5,2,2,'#e070a0');
     return;
   }
   if(id===B_NETTLES){
