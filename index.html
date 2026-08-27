@@ -3478,6 +3478,19 @@ function makeFenceTex(){
   ctx.fillStyle='rgba(0,0,0,0.15)';ctx.fillRect(4,4,1,3);ctx.fillRect(4,10,1,3);
   return new THREE.CanvasTexture(cv);
 }
+var TEX=[];
+TEX[B_GRASS]={top:makeGrassTop(),side:makeGrassSide(),bot:makeDirtTex()};
+TEX[B_DIRT]={top:makeDirtTex(),side:makeDirtTex(),bot:makeDirtTex()};
+TEX[B_STONE]={top:makeStoneTex(1.0),side:makeStoneTex(0.85),bot:makeStoneTex(0.7)};
+TEX[B_SAND]={top:makeSandTex(),side:makeSandTex(),bot:makeSandTex()};
+TEX[B_WOOD]={top:makeWoodTop(),side:makeWoodSide(),bot:makeWoodTop()};
+TEX[B_LEAF]={top:makeLeafTex(),side:makeLeafTex(),bot:makeLeafTex()};
+TEX[B_WATER]={top:makeWaterTex(),side:makeWaterTex(),bot:makeWaterTex()};
+TEX[B_SNOW]={top:makeSnowTex(),side:makeSnowTex(),bot:makeSnowTex()};
+TEX[B_GRAVEL]={top:makeGravelTex(),side:makeGravelTex(),bot:makeGravelTex()};
+TEX[B_COAL]={top:makeCoalTex(),side:makeCoalTex(),bot:makeCoalTex()};
+TEX[B_IRON]={top:makeIronTex(),side:makeIronTex(),bot:makeIronTex()};
+TEX[B_TORCH]={top:makeTorchTex(),side:makeTorchSideTex(),bot:makeTorchSideTex()};
 TEX[13]={top:makeOakPlankTex(),side:makeOakPlankTex(),bot:makeOakPlankTex()};
 TEX[B_DOOR]={top:makeOakDoorTex(),side:makeOakDoorTex(),bot:makeOakPlankTex()};
 TEX[B_DOOR_TOP]={top:makeOakDoorTex(),side:makeOakDoorTex(),bot:makeOakPlankTex()};
@@ -3753,6 +3766,16 @@ function makeSaplingTex(){
   }
   return mcTexFrom(img);
 }
+
+TEX[B_STAIRS]={top:makeStairsTex(),side:makeStairsTex(),bot:makeStairsTex()};
+TEX[B_CAMPFIRE]={top:makeCampfireTopTex(),side:makeCampfireSideTex(),bot:makeCampfireSideTex()};
+TEX[B_CHEST]={top:makeChestTopTex(),side:makeChestSideTex(),bot:makeChestSideTex()};
+TEX[B_GRILL]={top:makeGrillTex(),side:makeGrillTex(),bot:makeGrillTex()};
+TEX[B_TENT]={top:makeTentTopTex(),side:makeTentSideTex(),bot:makeTentTopTex()};
+TEX[B_BED]={top:makeBedTopTex(),side:makeBedSideTex(),bot:makeBedSideTex()};
+TEX[B_STUMP]={top:makeStumpTopTex(),side:makeStumpSideTex(),bot:makeStumpSideTex()};
+TEX[B_SAPLING]={top:makeSaplingTex(),side:makeSaplingTex(),bot:makeSaplingTex()};
+
 function drawIcon(blockId,canvasId){
   var cv=document.getElementById(canvasId);if(!cv)return;
   paintItemToCanvas(cv,blockId,34);
