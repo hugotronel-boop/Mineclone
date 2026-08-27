@@ -3177,46 +3177,50 @@ function makeGrassTop(){
   }
   return new THREE.CanvasTexture(cv);
 }
-function makeGrassSide(){
+function paintMcDirt16(d){
+  var pal=[[134,96,67],[121,85,58],[150,108,74],[96,67,45],[109,76,52],[163,119,82],[88,62,41],[142,102,70],[115,80,54],[128,90,61]];
+  var peb=[[176,164,140],[90,84,72],[70,62,52],[155,140,118]];
+  for(var y=0;y<16;y++)for(var x=0;x<16;x++){
+    var i=(ntex(x,y,31)*8+ntex(x*2,y*2,32)*2)|0;if(i<0)i=0;if(i>9)i=9;
+    var c=pal[i],n=ntex(x,y,33)*8-4;
+    var r=c[0]+n,g=c[1]+n*0.7,b=c[2]+n*0.5;
+    d[(y*16+x)*4]=r;d[(y*16+x)*4+1]=g;d[(y*16+x)*4+2]=b;d[(y*16+x)*4+3]=255;
+  }
+  for(var k=0;k<14;k++){
+    var px=(ntex(k,4,41)*15)|0,py=(ntex(k,5,42)*15)|0,p=peb[k&3];
+    var i=(py*16+px)*4;d[i]=p[0];d[i+1]=p[1];d[i+2]=p[2];
+    if((k&1)&&px<15){d[i+4]=p[0]-12;d[i+5]=p[1]-10;d[i+6]=p[2]-8;}
+  }
+}
+function scale16to32(img16){
   var cv=cv32(),ctx=cv.getContext('2d');
-  for(var y=0;y<32;y++)for(var x=0;x<32;x++){
-    var n=ntex(x,y,3),c=ntex(x*0.4,y*0.4,13);
-    var r=122+n*30,g=82+n*22,b=42+n*12;
-    if(c>0.62){r-=18;g-=14;b-=8;}
-    if(c<0.28){r+=16;g+=10;b+=6;}
-    pxi(ctx,x,y,r,g,b);
-  }
-  var pal=[[89,176,70],[102,188,78],[78,158,58],[116,198,86],[70,146,52],[94,182,74]];
-  for(var x=0;x<32;x++){
-    var h=7+(ntex(x,0,55)*5)|0;
-    if(ntex(x,2,66)>0.78)h+=3;
-    if(ntex(x,3,67)<0.2)h-=2;
-    if(h<5)h=5;if(h>14)h=14;
+  var t=document.createElement('canvas');t.width=t.height=16;
+  t.getContext('2d').putImageData(img16,0,0);
+  ctx.imageSmoothingEnabled=false;ctx.drawImage(t,0,0,32,32);
+  return cv;
+}
+function makeGrassSide(){
+  var img=document.createElement('canvas').getContext('2d').createImageData(16,16);
+  paintMcDirt16(img.data);
+  var gpal=[[89,176,70],[102,188,78],[78,158,58],[116,198,86],[70,146,52],[94,182,74]];
+  for(var x=0;x<16;x++){
+    var h=4+(ntex(x,0,55)*3)|0;
+    if(ntex(x,2,66)>0.75)h+=1;
+    if(h<3)h=3;if(h>6)h=6;
     for(var y=0;y<h;y++){
-      var i=(ntex(x>>1,y>>1,3)*5)|0;if(i>5)i=5;
-      var c=pal[i];
-      var fade=y>h-3?0.85:1;
-      pxi(ctx,x,y,c[0]*fade,c[1]*fade,c[2]*fade);
+      var i=(ntex(x,y,3)*5)|0;if(i>5)i=5;
+      var c=gpal[i],o=(y*16+x)*4,fade=y>h-2?0.82:1;
+      img.data[o]=c[0]*fade;img.data[o+1]=c[1]*fade;img.data[o+2]=c[2]*fade;img.data[o+3]=255;
     }
-    if(ntex(x,8,70)>0.82)pxi(ctx,x,h,78,158,58);
   }
-  return new THREE.CanvasTexture(cv);
+  return new THREE.CanvasTexture(scale16to32(img));
 }
 function makeDirtTex(){
-  var cv=cv32(),ctx=cv.getContext('2d');
-  for(var y=0;y<32;y++)for(var x=0;x<32;x++){
-    var n=ntex(x,y,3),c=ntex(x*0.4,y*0.4,13);
-    var r=122+n*30,g=82+n*22,b=42+n*12;
-    if(c>0.62){r-=18;g-=14;b-=8;}
-    if(c<0.28){r+=16;g+=10;b+=6;}
-    pxi(ctx,x,y,r,g,b);
-  }
-  for(var i=0;i<18;i++){
-    var rx=(ntex(i,7,55)*29)|0,ry=(ntex(i,8,44)*29)|0;
-    pxi(ctx,rx,ry,150,130,100);pxi(ctx,rx+1,ry,96,86,70);
-  }
-  return new THREE.CanvasTexture(cv);
+  var img=document.createElement('canvas').getContext('2d').createImageData(16,16);
+  paintMcDirt16(img.data);
+  return new THREE.CanvasTexture(scale16to32(img));
 }
+
 function makeStoneTex(bright){
   var cv=cv32(),ctx=cv.getContext('2d');
   var b=bright||1.0;
