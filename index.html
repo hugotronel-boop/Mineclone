@@ -2577,7 +2577,7 @@ display: none !important;
     <div id="overlay-content">
       <h1>MINECLONE</h1>
       <div id="overlay-tagline">Survivre. Ou mourir.</div>
-      <div id="overlay-build">v28</div>
+      <div id="overlay-build">v29</div>
       <button type="button" id="continueBtn" onclick="window.continueGame&&window.continueGame()">Continuer</button>
       <button type="button" id="startBtn">Nouvelle partie</button>
       <button type="button" id="btn-settings-open" onclick="if(typeof openSettings==='function')openSettings();">Parametres</button>
@@ -3580,19 +3580,25 @@ function makeGrillTex(){return makeGrillSideTex();}
 function makeTentTopTex(){
   var img=mcImg(),d=img.data;
   for(var y=0;y<16;y++)for(var x=0;x<16;x++){
-    var c=((x>>2)+(y>>2))&1? [62,122,48]:[78,148,58];
+    var n=((x*3+y*5)&3);
+    var c=n===0?[92,122,52]:n===1?[74,108,40]:[84,118,48];
+    if(y%5===0)c=[58,86,32];
+    if(x===0||x===15)c=[48,70,26];
     mcP(d,x,y,c[0],c[1],c[2]);
   }
-  return mcTexFrom(img);
+  return texPx(img,16,16);
 }
 function makeTentSideTex(){
   var img=mcImg(),d=img.data;
   for(var y=0;y<16;y++)for(var x=0;x<16;x++){
-    var c=((x>>2)+(y>>2))&1? [62,122,48]:[78,148,58];
-    if(x>=6&&x<=9&&y>=8)c=[40,28,16];
+    var n=((x*3+y*5)&3);
+    var c=n===0?[70,96,40]:[58,82,32];
+    if(x>=5&&x<=10&&y>=7)c=[28,20,12];
+    if(x===7||x===8){if(y>=7)c=[22,16,10];}
+    if(y%5===0&&!(x>=5&&x<=10&&y>=7))c=[48,70,26];
     mcP(d,x,y,c[0],c[1],c[2]);
   }
-  return mcTexFrom(img);
+  return texPx(img,16,16);
 }
 function makeBedTopTex(){
   var img=mcImg(),d=img.data;
@@ -4878,7 +4884,7 @@ function tickWaterFlow(){
 }
 function rebuildC(cx,cz){var key=ckey(cx,cz),old=chunkMeshes.get(key);if(old)scene.remove(old);chunkMeshes.delete(key);buildMesh(cx,cz);}
 
-function isTransp(b){return b===B_AIR||b===B_WATER||b===B_LEAF||b===B_BERRY_BUSH||b===B_BERRY_EMPTY||b===B_MUSHROOM_BLOCK||b===B_HERB_BLOCK||b===B_NETTLES||b===B_SAPLING||b===B_FENCE||b===B_DOOR||b===B_DOOR_TOP||b===B_CHEST||b===B_GRILL;}
+function isTransp(b){return b===B_AIR||b===B_WATER||b===B_LEAF||b===B_BERRY_BUSH||b===B_BERRY_EMPTY||b===B_MUSHROOM_BLOCK||b===B_HERB_BLOCK||b===B_NETTLES||b===B_SAPLING||b===B_FENCE||b===B_DOOR||b===B_DOOR_TOP||b===B_CHEST||b===B_GRILL||b===B_TENT;}
 
 function buildMesh(cx,cz){
   var key=ckey(cx,cz);if(chunkMeshes.has(key))return;
@@ -4894,7 +4900,7 @@ function buildMesh(cx,cz){
     var ny2=faceDir===0?y+1:y-1,faceName=faceDir===0?'top':'bot',br=faceDir===0?1.0:0.45;
     var visited=new Uint8Array(CS*CS);
     for(var lx=0;lx<CS;lx++)for(var lz=0;lz<CS;lz++){
-      var idx2=lx+CS*lz;if(visited[idx2])continue;var bid=getD(lx,y,lz);if(!bid||bid===B_WATER||bid===B_LEAF||bid===B_MUSHROOM_BLOCK||bid===B_BERRY_BUSH||bid===B_BERRY_EMPTY||bid===B_HERB_BLOCK||bid===B_NETTLES||bid===B_SAPLING||bid===B_FENCE||bid===B_DOOR||bid===B_DOOR_TOP||bid===B_CHEST||bid===B_GRILL)continue;
+      var idx2=lx+CS*lz;if(visited[idx2])continue;var bid=getD(lx,y,lz);if(!bid||bid===B_WATER||bid===B_LEAF||bid===B_MUSHROOM_BLOCK||bid===B_BERRY_BUSH||bid===B_BERRY_EMPTY||bid===B_HERB_BLOCK||bid===B_NETTLES||bid===B_SAPLING||bid===B_FENCE||bid===B_DOOR||bid===B_DOOR_TOP||bid===B_CHEST||bid===B_GRILL||bid===B_TENT)continue;
       if(!isTransp(getW(lx,ny2,lz))){visited[idx2]=1;continue;}
       var w=1,h=1;
       while(lz+w<CS&&getD(lx,y,lz+w)===bid&&isTransp(getW(lx,ny2,lz+w))&&!visited[lx+CS*(lz+w)])w++;
@@ -4909,7 +4915,7 @@ function buildMesh(cx,cz){
   for(var lx=0;lx<CS;lx++)for(var faceDir=0;faceDir<2;faceDir++){
     var nx=faceDir===0?lx+1:lx-1;var visited2=new Uint8Array(CS*maxY);
     for(var y=0;y<maxY;y++)for(var lz=0;lz<CS;lz++){
-      var idx3=y*CS+lz;if(visited2[idx3])continue;var bid=getD(lx,y,lz);if(!bid||bid===B_WATER||bid===B_LEAF||bid===B_MUSHROOM_BLOCK||bid===B_BERRY_BUSH||bid===B_BERRY_EMPTY||bid===B_HERB_BLOCK||bid===B_NETTLES||bid===B_SAPLING||bid===B_FENCE||bid===B_DOOR||bid===B_DOOR_TOP||bid===B_CHEST||bid===B_GRILL)continue;
+      var idx3=y*CS+lz;if(visited2[idx3])continue;var bid=getD(lx,y,lz);if(!bid||bid===B_WATER||bid===B_LEAF||bid===B_MUSHROOM_BLOCK||bid===B_BERRY_BUSH||bid===B_BERRY_EMPTY||bid===B_HERB_BLOCK||bid===B_NETTLES||bid===B_SAPLING||bid===B_FENCE||bid===B_DOOR||bid===B_DOOR_TOP||bid===B_CHEST||bid===B_GRILL||bid===B_TENT)continue;
       if(!isTransp(getW(nx,y,lz))){visited2[idx3]=1;continue;}
       var w=1,h=1;
       while(lz+w<CS&&getD(lx,y,lz+w)===bid&&isTransp(getW(nx,y,lz+w))&&!visited2[y*CS+(lz+w)])w++;
@@ -4924,7 +4930,7 @@ function buildMesh(cx,cz){
   for(var lz=0;lz<CS;lz++)for(var faceDir=0;faceDir<2;faceDir++){
     var nz=faceDir===0?lz+1:lz-1;var visited3=new Uint8Array(CS*maxY);
     for(var y=0;y<maxY;y++)for(var lx=0;lx<CS;lx++){
-      var idx4=y*CS+lx;if(visited3[idx4])continue;var bid=getD(lx,y,lz);if(!bid||bid===B_WATER||bid===B_LEAF||bid===B_MUSHROOM_BLOCK||bid===B_BERRY_BUSH||bid===B_BERRY_EMPTY||bid===B_HERB_BLOCK||bid===B_NETTLES||bid===B_SAPLING||bid===B_FENCE||bid===B_DOOR||bid===B_DOOR_TOP||bid===B_CHEST||bid===B_GRILL)continue;
+      var idx4=y*CS+lx;if(visited3[idx4])continue;var bid=getD(lx,y,lz);if(!bid||bid===B_WATER||bid===B_LEAF||bid===B_MUSHROOM_BLOCK||bid===B_BERRY_BUSH||bid===B_BERRY_EMPTY||bid===B_HERB_BLOCK||bid===B_NETTLES||bid===B_SAPLING||bid===B_FENCE||bid===B_DOOR||bid===B_DOOR_TOP||bid===B_CHEST||bid===B_GRILL||bid===B_TENT)continue;
       if(!isTransp(getW(lx,y,nz))){visited3[idx4]=1;continue;}
       var w=1,h=1;
       while(lx+w<CS&&getD(lx+w,y,lz)===bid&&isTransp(getW(lx+w,y,nz))&&!visited3[y*CS+(lx+w)])w++;
@@ -5093,6 +5099,39 @@ function buildMesh(cx,cz){
     gg.add(wbox(grillTopM,1,2*u16,1,0,15*u16,0));
     gg.position.set(ox+glx+0.5,gy,oz+glz+0.5);
     group.add(gg);
+  }
+  var tentC=new THREE.MeshBasicMaterial({map:makeTentTopTex()});
+  var tentD=new THREE.MeshBasicMaterial({map:makeTentSideTex()});
+  var tentPole=new THREE.MeshBasicMaterial({color:0x6a4420});
+  var tentOpen=new THREE.MeshBasicMaterial({color:0x140e08});
+  var tentRope=new THREE.MeshBasicMaterial({color:0xc4a86a});
+  for(var tlx=0;tlx<CS;tlx++)for(var ty=0;ty<maxY;ty++)for(var tlz=0;tlz<CS;tlz++){
+    if(getD(tlx,ty,tlz)!==B_TENT)continue;
+    var tg=new THREE.Group();
+    tg.add(wbox(tentD,0.92,0.04,1.18,0,0.02,0.02));
+    var L=wbox(tentC,1.24,0.05,1.22,0.27,0.56,0);
+    L.rotation.z=-0.58;
+    tg.add(L);
+    var R=wbox(tentC,1.24,0.05,1.22,-0.27,0.56,0);
+    R.rotation.z=0.58;
+    tg.add(R);
+    tg.add(wbox(tentPole,0.05,0.05,1.28,0,1.08,0));
+    tg.add(wbox(tentPole,0.05,1.08,0.05,0.44,0.54,0.58));
+    tg.add(wbox(tentPole,0.05,1.08,0.05,-0.44,0.54,0.58));
+    tg.add(wbox(tentPole,0.05,1.08,0.05,0.44,0.54,-0.56));
+    tg.add(wbox(tentPole,0.05,1.08,0.05,-0.44,0.54,-0.56));
+    tg.add(wbox(tentOpen,0.26,0.7,0.04,0,0.36,0.62));
+    var fL=wbox(tentD,0.2,0.68,0.03,0.2,0.38,0.6);fL.rotation.y=-0.4;tg.add(fL);
+    var fR=wbox(tentD,0.2,0.68,0.03,-0.2,0.38,0.6);fR.rotation.y=0.4;tg.add(fR);
+    tg.add(wbox(tentPole,0.04,0.14,0.04,0.5,0.07,0.66));
+    tg.add(wbox(tentPole,0.04,0.14,0.04,-0.5,0.07,0.66));
+    tg.add(wbox(tentPole,0.04,0.14,0.04,0.5,0.07,-0.62));
+    tg.add(wbox(tentPole,0.04,0.14,0.04,-0.5,0.07,-0.62));
+    tg.add(wbox(tentRope,0.02,0.02,0.36,0.48,0.12,0.42));
+    tg.add(wbox(tentRope,0.02,0.02,0.36,-0.48,0.12,0.42));
+    tg.add(wbox(tentC,0.08,0.16,0.02,0,1.18,0.12));
+    tg.position.set(ox+tlx+0.5,ty,oz+tlz+0.5);
+    group.add(tg);
   }
     var mushCap=new THREE.MeshBasicMaterial({color:0xc44a28});
   var mushStem=new THREE.MeshBasicMaterial({color:0xf0e6c8});
@@ -5696,10 +5735,11 @@ function drawSprite16(ctx,id){
     return;
   }
   if(id===ITEM_TENT||id===B_TENT){
-    P(8,2,1,10,hk);
-    P(3,12,10,3,hd);
-    _line(ctx,8,2,2,12,'#8B6914');_line(ctx,8,2,13,12,'#6B4a10');
-    P(4,8,3,4,'#c09050');P(9,8,3,4,'#5a3810');
+    P(1,13,14,2,'#5a4020');
+    for(var tt=0;tt<6;tt++){P(8-tt,2+tt,1,1,'#6a8c3a');P(8+tt,2+tt,1,1,'#4e702c');}
+    P(7,3,2,10,'#3a2818');
+    P(2,12,3,2,'#6a4420');P(11,12,3,2,'#6a4420');
+    P(7,1,2,2,'#c44c2a');
     return;
   }
   if(id===ITEM_DOOR||id===B_DOOR){
