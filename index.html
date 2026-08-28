@@ -2648,7 +2648,7 @@ display: none !important;
     <div id="overlay-content">
       <h1>MINECLONE</h1>
       <div id="overlay-tagline">Survivre. Ou mourir.</div>
-      <div id="overlay-build">v50</div>
+      <div id="overlay-build">v51</div>
       <button type="button" id="continueBtn" onclick="window.continueGame&&window.continueGame()">Continuer</button>
       <button type="button" id="startBtn">Nouvelle partie</button>
       <button type="button" id="btn-settings-open" onclick="if(typeof openSettings==='function')openSettings();">Parametres</button>
@@ -2878,7 +2878,7 @@ var THREE = (function () {
       gl.uniformMatrix4fv(loc.mvp,false,mvp);
       if(mat.map){mat.map._upload(gl);gl.bindTexture(gl.TEXTURE_2D,mat.map._glTex);gl.uniform1f(loc.useColor,0);}
       else{gl.uniform1f(loc.useColor,1);gl.uniform4f(loc.color,mat.color.r,mat.color.g,mat.color.b,mat.opacity);}
-      if(mat.transparent){gl.enable(gl.BLEND);}else{gl.disable(gl.BLEND);}
+      if(mat.transparent){gl.enable(gl.BLEND);gl.depthMask(false);}else{gl.disable(gl.BLEND);gl.depthMask(true);}
       if(mat.depthTest===false)gl.disable(gl.DEPTH_TEST);
       gl.bindBuffer(gl.ARRAY_BUFFER,bufs.vbo);var stride=24;
       gl.enableVertexAttribArray(loc.pos);gl.vertexAttribPointer(loc.pos,3,gl.FLOAT,false,stride,0);
@@ -5495,6 +5495,15 @@ function makeBlockOutline(){
   return g;
 }
 var hlMesh=makeBlockOutline();scene.add(hlMesh);
+var _ghostOkMat=new THREE.MeshBasicMaterial({color:0x3dff6a,transparent:true,opacity:0.38});
+var _ghostBadMat=new THREE.MeshBasicMaterial({color:0xff4a4a,transparent:true,opacity:0.32});
+var _buildGhost=new THREE.Group();_buildGhost.visible=false;_buildGhost._sig='';scene.add(_buildGhost);
+function _ghostBox(sx,sy,sz,x,y,z,ok){
+  var m=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),ok?_ghostOkMat:_ghostBadMat);
+  var br=m.geometry.attributes.brightness;
+  if(br&&br.array){for(var i=0;i<br.array.length;i++)br.array[i]=1;}
+  m.position.set(x,y,z);return m;
+}
 
 // ═══════════════════════════════════════════════════════
 //  SURVIVAL & PLAYER
@@ -10063,6 +10072,69 @@ function ensureBuildMeta(wx,wy,wz,b){
   if(_buildRoot[wx+','+wy+','+wz])return;
   inferPieceAt(wx,wy,wz,b);
 }
+function heldBuildBlock(){
+  var it=INV[selectedSlot];if(!it||!it.id)return 0;
+  var b=it.id;if(b>15)b=ITEM_TO_BLOCK[it.id];
+  if(b===B_WALL||b===B_FLOOR||b===B_ROOF||b===B_WALL_NARROW||b===B_STAIRS)return b;
+  return 0;
+}
+function ghostCellsFree(bid,cells){
+  for(var i=0;i<cells.length;i++){
+    var c=cells[i],occ=getBlock(c.x,c.y,c.z);
+    if(c.y<0||c.y>=CHUNK_HEIGHT)return false;
+    if(occ&&occ!==B_AIR&&occ!==B_WATER){
+      if((bid===B_WALL||bid===B_WALL_NARROW)&&isFloorB(occ))continue;
+      return false;
+    }
+  }
+  return true;
+}
+function updateBuildGhost(look){
+  var bid=heldBuildBlock();
+  if(!bid||!look||look.px===null||look.py===null||invOpen||wallChoiceOpen){
+    _buildGhost.visible=false;_buildGhost._sig='';return;
+  }
+  var px=look.px,py=look.py,pz=look.pz;
+  if(bid===B_FLOOR)py=snapFloorY(px,py,pz);
+  var dxp=player.pos.x-(px+0.5),dzp=player.pos.z-(pz+0.5);
+  var ddir=Math.abs(dxp)>Math.abs(dzp)?(dxp>0?3:1):(dzp>0?0:2);
+  var cells;
+  if(bid===B_STAIRS)cells=stairCells(px,py,pz,ddir);
+  else{
+    var kind=bid===B_WALL?'wall':(bid===B_WALL_NARROW?'wall1':(bid===B_FLOOR?'floor':'roof'));
+    cells=buildPieceCells(px,py,pz,ddir,kind);
+  }
+  var ok=true;
+  var val=typeof validateBuild==='function'?validateBuild(bid,cells):{ok:true};
+  if(!val.ok)ok=false;
+  if(ok&&!ghostCellsFree(bid,cells))ok=false;
+  var c0=cells[0];
+  var sig=bid+'|'+c0.x+','+c0.y+','+c0.z+'|'+ddir+'|'+(ok?1:0)+'|'+cells.length;
+  if(sig===_buildGhost._sig){_buildGhost.visible=true;hlMesh.visible=false;return;}
+  _buildGhost._sig=sig;
+  _buildGhost.children.length=0;
+  var ox=c0.x,oy=c0.y,oz=c0.z;
+  var sit=(typeof wallSitY==='function')?wallSitY(ox,oy,oz):oy;
+  var along=ddir===0||ddir===2;
+  if(bid===B_WALL){
+    if(along)_buildGhost.add(_ghostBox(2.05,1.96,0.18, ox+1,sit+0.98,oz+0.5, ok));
+    else _buildGhost.add(_ghostBox(0.18,1.96,2.05, ox+0.5,sit+0.98,oz+1, ok));
+  } else if(bid===B_WALL_NARROW){
+    if(along)_buildGhost.add(_ghostBox(1.02,1.96,0.16, ox+0.5,sit+0.98,oz+0.5, ok));
+    else _buildGhost.add(_ghostBox(0.16,1.96,1.02, ox+0.5,sit+0.98,oz+0.5, ok));
+  } else if(bid===B_FLOOR){
+    _buildGhost.add(_ghostBox(2.05,0.12,2.05, ox+1,oy+0.06,oz+1, ok));
+  } else if(bid===B_ROOF){
+    _buildGhost.add(_ghostBox(2.1,0.16,2.1, ox+1,oy+0.55,oz+1, ok));
+  } else if(bid===B_STAIRS){
+    var f=stairFwd(ddir);
+    _buildGhost.add(_ghostBox(0.95,0.36,0.95, ox+0.5,oy+0.18,oz+0.5, ok));
+    _buildGhost.add(_ghostBox(0.95,0.36,0.95, ox+f.x+0.5,oy+0.18,oz+f.z+0.5, ok));
+    _buildGhost.add(_ghostBox(0.95,0.36,0.95, ox+f.x+0.5,oy+1.18,oz+f.z+0.5, ok));
+  }
+  _buildGhost.visible=true;
+  hlMesh.visible=false;
+}
 var _pendingBuild=null;
 var wallChoiceOpen=false;
 var _doorState={};
@@ -13083,7 +13155,8 @@ function animate(now){
   document.getElementById('daytime-hud').textContent=pIcon[phase]+' '+minLeft+'min';
   document.getElementById('weather-hud').textContent=true?getWeatherIcon():'';
   document.getElementById('mode-hud').textContent=false?'✈️ Créatif':'⚔️ Survie';
-  if(!invOpen){var _look=raycast();if(typeof refreshPlaceBtn==='function')refreshPlaceBtn(_look);}
+  if(!invOpen){var _look=raycast();if(typeof refreshPlaceBtn==='function')refreshPlaceBtn(_look);if(typeof updateBuildGhost==='function')updateBuildGhost(_look);}
+  else if(_buildGhost)_buildGhost.visible=false;
   
 renderer.render(scene,camera);
 
