@@ -2650,7 +2650,7 @@ display: none !important;
     <div id="overlay-content">
       <h1>MINECLONE</h1>
       <div id="overlay-tagline">Survivre. Ou mourir.</div>
-      <div id="overlay-build">v63</div>
+      <div id="overlay-build">v70</div>
       <button type="button" id="continueBtn" onclick="window.continueGame&&window.continueGame()">Continuer</button>
       <button type="button" id="startBtn">Nouvelle partie</button>
       <button type="button" id="btn-settings-open" onclick="if(typeof openSettings==='function')openSettings();">Parametres</button>
@@ -2768,7 +2768,7 @@ var THREE = (function () {
       'varying vec2 vUV;varying float vFog;varying float vBr;'+
       'void main(){float br=min(vBr+uAmbient,1.0);'+
       'vec4 col=mix(texture2D(uTex,vUV)*vec4(br,br,br,1.0),uColor,uUseColor);'+
-      'col.rgb=mix(col.rgb,uFogColor,vFog);if(col.a<0.05)discard;gl_FragColor=col;}'
+      'col.rgb=mix(col.rgb,uFogColor,vFog);if(col.a<0.5)discard;gl_FragColor=col;}'
     );
     var p=this._prog;
     this._loc={mvp:gl.getUniformLocation(p,'uMVP'),fogNear:gl.getUniformLocation(p,'uFogNear'),
@@ -3359,12 +3359,36 @@ function makeWoodSide(){
 }
 function makeLeafTex(){
   var img=mcImg(),d=img.data;
-  var pal=[[48,118,28],[62,142,36],[36,96,20],[78,158,44],[28,84,16],[70,148,40]];
+  var pal=[
+    [0,0,0,0],
+    [36,86,14,255],
+    [52,114,22,255],
+    [70,142,32,255],
+    [88,164,42,255],
+    [108,184,52,255]
+  ];
+  var rows=[
+    '..2332..1223.12.',
+    '.23443223344323.',
+    '2345543234554322',
+    '345543.234543.23',
+    '23432.122332.234',
+    '.232..23.22.2345',
+    '..2.2332.2.34554',
+    '.22345543223443.',
+    '234554433.2332..',
+    '345543.232.22.12',
+    '23432.2332..2332',
+    '.232.23443223443',
+    '..2.23455434554.',
+    '.12.34554323432.',
+    '122.23432..232..',
+    '23.12232..1223.1'
+  ];
   for(var y=0;y<16;y++)for(var x=0;x<16;x++){
-    var n=ntex(x,y,7),n2=ntex(x*0.5,y*0.5,8);
-    if(n<0.22||n2<0.18){mcP(d,x,y,0,0,0,0);continue;}
-    var c=pal[(n*6)|0];
-    mcP(d,x,y,c[0],c[1],c[2],255);
+    var ch=rows[y].charAt(x),id=ch==='.'?0:(ch|0);
+    var c=pal[id];
+    mcP(d,x,y,c[0],c[1],c[2],c[3]);
   }
   return mcTexFrom(img);
 }
