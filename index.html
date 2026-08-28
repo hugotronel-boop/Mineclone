@@ -2650,7 +2650,7 @@ display: none !important;
     <div id="overlay-content">
       <h1>MINECLONE</h1>
       <div id="overlay-tagline">Survivre. Ou mourir.</div>
-      <div id="overlay-build">v62</div>
+      <div id="overlay-build">v63</div>
       <button type="button" id="continueBtn" onclick="window.continueGame&&window.continueGame()">Continuer</button>
       <button type="button" id="startBtn">Nouvelle partie</button>
       <button type="button" id="btn-settings-open" onclick="if(typeof openSettings==='function')openSettings();">Parametres</button>
@@ -5224,35 +5224,26 @@ function buildMesh(cx,cz){
     if(getD(dlx,dy,dlz)!==B_DOOR)continue;
     var dwx=ox+dlx,dwz=oz+dlz;
     var st=_doorState[doorKey(dwx,dy,dwz)]||{dir:0,open:false};
-    var dir=st.dir||0,open=!!st.open,T=0.2;
+    var dir=st.dir||0,open=!!st.open;
     var dg=new THREE.Group();
-    function addLogDoor(cx,cz,alongX){
+    function addLogDoor(alongX){
       for(var i=0;i<5;i++){
-        var t=0.13+(i%3)*0.025,h=1.82+(i%2)*0.1;
-        if(alongX) dg.add(wbox(i%2?bark:barkD, t,h,0.16, cx-0.4+i*0.2, h/2, cz));
-        else dg.add(wbox(i%2?bark:barkL, 0.16,h,t, cx, h/2, cz-0.4+i*0.2));
+        var o=-0.40+i*0.20, t=0.16+(i%2)*0.02, h=1.96-(i%3)*0.02;
+        if(alongX) dg.add(wbox(i%2?bark:barkD, t,h,0.16, o, h/2, 0));
+        else dg.add(wbox(i%2?bark:barkL, 0.16,h,t, 0, h/2, o));
       }
       if(alongX){
-        dg.add(wbox(ropeM,0.96,0.05,0.18,cx,0.52,cz));
-        dg.add(wbox(ropeM,0.96,0.05,0.18,cx,1.22,cz));
-        dg.add(wbox(barkL,0.08,0.22,0.08,cx+0.38,0.95,cz+0.08));
+        dg.add(wbox(ropeM,0.92,0.05,0.18,0,0.48,0));
+        dg.add(wbox(ropeM,0.92,0.05,0.18,0,1.38,0));
+        dg.add(wbox(barkL,0.08,0.22,0.08,0.36,1.0,0.1));
       } else {
-        dg.add(wbox(ropeM,0.18,0.05,0.96,cx,0.52,cz));
-        dg.add(wbox(ropeM,0.18,0.05,0.96,cx,1.22,cz));
-        dg.add(wbox(barkL,0.08,0.22,0.08,cx+0.08,0.95,cz+0.38));
+        dg.add(wbox(ropeM,0.18,0.05,0.92,0,0.48,0));
+        dg.add(wbox(ropeM,0.18,0.05,0.92,0,1.38,0));
+        dg.add(wbox(barkL,0.08,0.22,0.08,0.1,1.0,0.36));
       }
     }
-    if(!open){
-      if(dir===0)addLogDoor(0,0.5-T/2,true);
-      else if(dir===1)addLogDoor(-0.5+T/2,0,false);
-      else if(dir===2)addLogDoor(0,-0.5+T/2,true);
-      else addLogDoor(0.5-T/2,0,false);
-    } else {
-      if(dir===0)addLogDoor(-0.5+T/2,0,false);
-      else if(dir===1)addLogDoor(0,-0.5+T/2,true);
-      else if(dir===2)addLogDoor(0.5-T/2,0,false);
-      else addLogDoor(0,0.5-T/2,true);
-    }
+    var alongClosed=(dir===0||dir===2);
+    addLogDoor(open?!alongClosed:alongClosed);
     dg.position.set(dwx+0.5,dy,dwz+0.5);
     group.add(dg);
   }
@@ -5330,22 +5321,22 @@ function buildMesh(cx,cz){
       }
     }
     if(wb===B_WALL_NARROW){
+      if(getBlock(wwx,wy-1,wwz)===B_WALL_NARROW)continue;
       var dirN=_buildDir[bk]||0, alongN=(dirN===0||dirN===2);
       var ng=new THREE.Group();
       for(var ni=0;ni<5;ni++){
-        var no=-0.42+ni*0.21, nt=0.14+(ni%3)*0.02, nh=1.92+(ni%2)*0.06;
-        if(alongN) ng.add(wbox(ni%2?bark:barkD, nt, nh, 0.16, no, nh/2, 0));
-        else ng.add(wbox(ni%2?bark:barkL, 0.16, nh, nt, 0, nh/2, no));
+        var no=-0.42+ni*0.21, nt=0.18+(ni%2)*0.02, nh=2.0-(ni%3)*0.03;
+        if(alongN) ng.add(wbox(ni%2?bark:barkD, nt, nh, 0.22, no, nh/2, 0));
+        else ng.add(wbox(ni%2?bark:barkL, 0.22, nh, nt, 0, nh/2, no));
       }
       if(alongN){
-        ng.add(wbox(ropeM,0.95,0.06,0.18,0,0.45,0));
-        ng.add(wbox(ropeM,0.95,0.06,0.18,0,1.35,0));
+        ng.add(wbox(ropeM,0.96,0.06,0.18,0,0.48,0));
+        ng.add(wbox(ropeM,0.96,0.06,0.18,0,1.42,0));
       } else {
-        ng.add(wbox(ropeM,0.18,0.06,0.95,0,0.45,0));
-        ng.add(wbox(ropeM,0.18,0.06,0.95,0,1.35,0));
+        ng.add(wbox(ropeM,0.18,0.06,0.96,0,0.48,0));
+        ng.add(wbox(ropeM,0.18,0.06,0.96,0,1.42,0));
       }
-      joinWallCorners(ng, alongN, wwx, wy, wwz, 1);
-      ng.position.set(wwx+0.5,wallSitY(wwx,wy,wwz),wwz+0.5);
+      ng.position.set(wwx+0.5,wy,wwz+0.5);
       group.add(ng);
       continue;
     }
@@ -10509,7 +10500,7 @@ function isSolid(x,y,z){
     if(surf===null)return true;
     return y<surf;
   }
-  return b&&b!==B_WATER&&b!==B_LEAF&&b!==B_AIR&&b!==B_BERRY_BUSH&&b!==B_BERRY_EMPTY&&b!==B_HERB_BLOCK&&b!==B_SAPLING&&b!==B_NETTLES&&b!==B_MUSHROOM_BLOCK&&b!==B_TORCH&&b!==B_WALL_NARROW;
+  return b&&b!==B_WATER&&b!==B_LEAF&&b!==B_AIR&&b!==B_BERRY_BUSH&&b!==B_BERRY_EMPTY&&b!==B_HERB_BLOCK&&b!==B_SAPLING&&b!==B_NETTLES&&b!==B_MUSHROOM_BLOCK&&b!==B_TORCH;
 }
 function isInWater(x,y,z){return getBlock(Math.floor(x),Math.floor(y),Math.floor(z))===B_WATER;}
 
