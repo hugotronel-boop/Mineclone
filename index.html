@@ -2648,7 +2648,7 @@ display: none !important;
     <div id="overlay-content">
       <h1>MINECLONE</h1>
       <div id="overlay-tagline">Survivre. Ou mourir.</div>
-      <div id="overlay-build">v56</div>
+      <div id="overlay-build">v57</div>
       <button type="button" id="continueBtn" onclick="window.continueGame&&window.continueGame()">Continuer</button>
       <button type="button" id="startBtn">Nouvelle partie</button>
       <button type="button" id="btn-settings-open" onclick="if(typeof openSettings==='function')openSettings();">Parametres</button>
@@ -5392,7 +5392,7 @@ function buildMesh(cx,cz){
       }
       bg.add(wbox(ropeM,0.2,0.04,0.2,0.7,0.12,0.7));
       bg.add(wbox(ropeM,0.2,0.04,0.2,-0.7,0.12,-0.7));
-      bg.position.set(wwx+1,wy,wwz+1);
+      bg.position.set(wwx+1,floorSitY(wwx,wy,wwz),wwz+1);
     } else {
       var ang=0.42;
       for(var i=0;i<9;i++){
@@ -10157,6 +10157,18 @@ function wallSitY(wx,wy,wz){
   if(isFloorB(getBlock(wx,wy-1,wz))||isFloorB(getBlock(wx+1,wy-1,wz))||isFloorB(getBlock(wx-1,wy-1,wz))||isFloorB(getBlock(wx,wy-1,wz+1))||isFloorB(getBlock(wx,wy-1,wz-1)))return wy-1;
   return wy;
 }
+function floorSitY(wx,wy,wz){
+  var t=-1,dx,dz,tt,bot,sit;
+  for(dx=-1;dx<=2;dx++)for(dz=-1;dz<=2;dz++){
+    tt=wallTopY(wx+dx,wy-1,wz+dz);if(tt>t)t=tt;
+    tt=wallTopY(wx+dx,wy-2,wz+dz);if(tt>t)t=tt;
+  }
+  if(t<0)return wy;
+  bot=t;
+  while(bot>0&&isWallB(getBlock(wx,bot-1,wz)))bot--;
+  sit=wallSitY(wx,bot,wz);
+  return sit+1.84;
+}
 function nearHas(x,y,z,test,y0,y1){
   for(var yy=y0;yy<=y1;yy++)for(var dx=-1;dx<=1;dx++)for(var dz=-1;dz<=1;dz++){
     if(test(getBlock(x+dx,y+yy,z+dz)))return true;
@@ -10346,9 +10358,70 @@ function fenceConnects(b){
   if(b===B_LEAF||b===B_BERRY_BUSH||b===B_BERRY_EMPTY||b===B_HERB_BLOCK||b===B_NETTLES||b===B_SAPLING||b===B_MUSHROOM_BLOCK)return false;
   return true;
 }
+function stairOriginAt(fx,fy,fz){
+  var k=fx+','+fy+','+fz, rk=_buildRoot[k], dir, cells, p;
+  if(rk){
+    dir=_buildDir[rk]||_buildDir[k]||0;
+    cells=_buildCells[rk];
+    if(cells&&cells.length)return {x:cells[0].x,y:cells[0].y,z:cells[0].z,dir:dir};
+    p=rk.split(',');
+    return {x:+p[0],y:+p[1],z:+p[2],dir:dir};
+  }
+  var d,f;
+  for(d=0;d<4;d++){
+    f=stairFwd(d);
+    if(getBlock(fx+f.x,fy,fz+f.z)===B_STAIRS&&getBlock(fx+f.x,fy+1,fz+f.z)===B_STAIRS)return {x:fx,y:fy,z:fz,dir:d};
+    if(getBlock(fx-f.x,fy,fz-f.z)===B_STAIRS&&getBlock(fx,fy+1,fz)===B_STAIRS)return {x:fx-f.x,y:fy,z:fz-f.z,dir:d};
+    if(getBlock(fx,fy-1,fz)===B_STAIRS&&getBlock(fx-f.x,fy-1,fz-f.z)===B_STAIRS)return {x:fx-f.x,y:fy-1,z:fz-f.z,dir:d};
+  }
+  return {x:fx,y:fy,z:fz,dir:_buildDir[k]||0};
+}
+function stairAlongSide(x,z,o){
+  var dir=o.dir, along, side;
+  if(dir===0){along=z-o.z;side=x-o.x;}
+  else if(dir===1){along=(o.x+1)-x;side=z-o.z;}
+  else if(dir===2){along=(o.z+1)-z;side=x-o.x;}
+  else {along=x-o.x;side=z-o.z;}
+  return {along:along,side:side};
+}
+function stairSurfY(x,z,o){
+  var ls=stairAlongSide(x,z,o);
+  if(ls.side<0.08||ls.side>0.92)return null;
+  if(ls.along<-0.05||ls.along>2.08)return null;
+  return o.y+Math.max(0,Math.min(2,ls.along));
+}
+function walkUpSurface(x,z,feetY){
+  var best=null,dy,yy,b,o,h;
+  for(dy=-1;dy<=2;dy++){
+    yy=Math.floor(feetY)+dy;
+    b=getBlock(Math.floor(x),yy,Math.floor(z));
+    if(b===B_STAIRS){
+      o=stairOriginAt(Math.floor(x),yy,Math.floor(z));
+      var ls=stairAlongSide(x,z,o);
+      if(ls.side<0.08||ls.side>0.92)return null;
+      if(ls.along<0||ls.along>2.08)continue;
+      h=o.y+Math.max(0,Math.min(2,ls.along));
+      if(h>=feetY-0.08&&h<=feetY+0.62){if(best===null||h>best)best=h;}
+    } else if(b===B_FLOOR){
+      h=yy+0.16;
+      if(h>=feetY-0.08&&h<=feetY+0.62){if(best===null||h>best)best=h;}
+    }
+  }
+  return best;
+}
 function isSolid(x,y,z){
-  var b=getBlock(Math.floor(x),Math.floor(y),Math.floor(z));
-  if(b===B_DOOR||b===B_DOOR_TOP)return !isDoorOpen(Math.floor(x),Math.floor(y),Math.floor(z));
+  var fx=Math.floor(x),fy=Math.floor(y),fz=Math.floor(z);
+  var b=getBlock(fx,fy,fz);
+  if(b===B_DOOR||b===B_DOOR_TOP)return !isDoorOpen(fx,fy,fz);
+  if(b===B_FLOOR)return (y-fy)<0.18;
+  if(b===B_STAIRS){
+    var o=stairOriginAt(fx,fy,fz);
+    var ls=stairAlongSide(x,z,o);
+    if(ls.side<0.08||ls.side>0.92)return true;
+    if(ls.along<-0.02)return true;
+    var surf=o.y+Math.max(0,Math.min(2,ls.along));
+    return y<surf;
+  }
   return b&&b!==B_WATER&&b!==B_LEAF&&b!==B_AIR&&b!==B_BERRY_BUSH&&b!==B_BERRY_EMPTY&&b!==B_HERB_BLOCK&&b!==B_SAPLING&&b!==B_NETTLES&&b!==B_MUSHROOM_BLOCK&&b!==B_TORCH&&b!==B_WALL_NARROW;
 }
 function isInWater(x,y,z){return getBlock(Math.floor(x),Math.floor(y),Math.floor(z))===B_WATER;}
@@ -10568,10 +10641,19 @@ function movePlayer(dt){
   for(var pi=0;pi<pts.length;pi++)if(isSolid(nx+pts[pi][0],yF,player.pos.z+pts[pi][1])||isSolid(nx+pts[pi][0],yW,player.pos.z+pts[pi][1])||isSolid(nx+pts[pi][0],yH,player.pos.z+pts[pi][1])){canX=false;break;}
   for(var pi2=0;pi2<pts.length;pi2++)if(isSolid(player.pos.x+pts[pi2][0],yF,nz+pts[pi2][1])||isSolid(player.pos.x+pts[pi2][0],yW,nz+pts[pi2][1])||isSolid(player.pos.x+pts[pi2][0],yH,nz+pts[pi2][1])){canZ=false;break;}
   if((!canX||!canZ)&&player.onGround){
+    var feet0=player.pos.y-1.72;
+    if(!canX){
+      var upX=walkUpSurface(nx,player.pos.z,feet0);
+      if(upX!==null){player.pos.y=upX+1.72;canX=true;}
+    }
+    if(!canZ){
+      var upZ=walkUpSurface(player.pos.x,nz,feet0);
+      if(upZ!==null){player.pos.y=upZ+1.72;canZ=true;}
+    }
     var yF0=player.pos.y-1.62,stairHit=false;
     if(!canX){for(var st=0;st<pts.length;st++){if(getBlock(Math.floor(nx+pts[st][0]),Math.floor(yF0),Math.floor(player.pos.z+pts[st][1]))===B_STAIRS){stairHit=true;break;}}}
     if(!stairHit&&!canZ){for(var st2=0;st2<pts.length;st2++){if(getBlock(Math.floor(player.pos.x+pts[st2][0]),Math.floor(yF0),Math.floor(nz+pts[st2][1]))===B_STAIRS){stairHit=true;break;}}}
-    if(stairHit){
+    if(stairHit&&(!canX||!canZ)){
       var lift=1.02,yF2=player.pos.y-1.62+lift,yW2=player.pos.y-0.9-_crouchY*0.4+lift,yH2=player.pos.y-0.1-_crouchY+lift;
       var headOK=true;
       for(var hs=0;hs<pts.length;hs++)if(isSolid(player.pos.x+pts[hs][0],player.pos.y+0.25+lift,player.pos.z+pts[hs][1])){headOK=false;break;}
@@ -10593,7 +10675,14 @@ function movePlayer(dt){
   player.onGround=false;var canY=true;
   if(player.vel.y<=0){for(var pi3=0;pi3<pts.length;pi3++)if(isSolid(player.pos.x+pts[pi3][0],ny-1.72,player.pos.z+pts[pi3][1])){canY=false;player.onGround=true;break;}}
   else if(player.vel.y>0){for(var pi4=0;pi4<pts.length;pi4++)if(isSolid(player.pos.x+pts[pi4][0],ny+0.2,player.pos.z+pts[pi4][1])){canY=false;break;}}
-  if(canY)player.pos.y=ny;else player.vel.y=0;
+  if(canY)player.pos.y=ny;
+  else {
+    player.vel.y=0;
+    if(player.onGround){
+      var stand=walkUpSurface(player.pos.x,player.pos.z,player.pos.y-1.72);
+      if(stand!==null)player.pos.y=stand+1.72;
+    }
+  }
 }
 function updateChunks(){var pcx=Math.floor(player.pos.x/CHUNK_SIZE),pcz=Math.floor(player.pos.z/CHUNK_SIZE);for(var ddx=-RENDER_DIST;ddx<=RENDER_DIST;ddx++)for(var ddz=-RENDER_DIST;ddz<=RENDER_DIST;ddz++){var cx2=pcx+ddx,cz2=pcz+ddz;if(!chunkMeshes.has(ckey(cx2,cz2)))buildMesh(cx2,cz2);}chunkMeshes.forEach(function(mesh,key){var p=key.split(','),cx3=parseInt(p[0]),cz3=parseInt(p[1]);if(Math.abs(cx3-pcx)>RENDER_DIST+2||Math.abs(cz3-pcz)>RENDER_DIST+2){scene.remove(mesh);chunkMeshes.delete(key);chunks.delete(key);}});}
 
