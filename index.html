@@ -149,6 +149,7 @@ left: 50%;
 top: 50%;
 transform: translate(-50%,-50%);
 }
+#equip-worn {border-color:#c4a070;}
 #ammo-hud {
 position: fixed;
 top: calc(96px + env(safe-area-inset-top, 0px));
@@ -2314,6 +2315,7 @@ display: none !important;
   <div id="ammo-hud">
     <div id="ammo-pouch" class="ammo-ico" style="display:none"><canvas width="32" height="32"></canvas><b>0</b></div>
     <div id="ammo-quiver" class="ammo-ico" style="display:none"><canvas width="32" height="32"></canvas><b>0</b></div>
+    <div id="equip-worn" class="ammo-ico" style="display:none"><canvas width="32" height="32"></canvas></div>
   </div>
   <div id="info">
     <span id="fps">60</span> FPS<br>
@@ -2648,7 +2650,7 @@ display: none !important;
     <div id="overlay-content">
       <h1>MINECLONE</h1>
       <div id="overlay-tagline">Survivre. Ou mourir.</div>
-      <div id="overlay-build">v58</div>
+      <div id="overlay-build">v59</div>
       <button type="button" id="continueBtn" onclick="window.continueGame&&window.continueGame()">Continuer</button>
       <button type="button" id="startBtn">Nouvelle partie</button>
       <button type="button" id="btn-settings-open" onclick="if(typeof openSettings==='function')openSettings();">Parametres</button>
@@ -5902,6 +5904,23 @@ var RECIPES=[
 var INV=[];for(var _s=0;_s<14;_s++)INV.push({id:0,qty:0});
 var EQUIP={left:{id:0,qty:0},bag:{id:0,qty:0},chest:{id:0,qty:0,durability:0},right:{id:0,qty:0}};
 var heldItem={id:0,qty:0},invOpen=false;
+function isClothing(id){return id===ITEM_FUR_COAT||id===ITEM_LEATHER_VEST||id===ITEM_WOOL_CLOAK;}
+function clothingDurMax(id){if(id===ITEM_FUR_COAT)return 200;if(id===ITEM_LEATHER_VEST)return 300;if(id===ITEM_WOOL_CLOAK)return 150;return 200;}
+function wearClothingFromHand(){
+  var it=INV[selectedSlot];if(!it||!isClothing(it.id))return false;
+  var id=it.id, old=EQUIP.chest&&EQUIP.chest.id?{id:EQUIP.chest.id,qty:1}:null;
+  EQUIP.chest={id:id,qty:1,durability:clothingDurMax(id)};
+  it.qty--;if(it.qty<=0){it.id=0;it.qty=0;}
+  if(old){
+    if(!it.id){it.id=old.id;it.qty=1;}
+    else if(typeof giveItem==='function')giveItem(old.id,1);
+  }
+  if(typeof buildInvUI==='function'&&invOpen)buildInvUI();
+  if(typeof syncHotbar==='function')syncHotbar();
+  if(typeof updateEquipHud==='function')updateEquipHud();
+  showPopup('🧥 Équipé !',player.pos.clone().add(new THREE.Vector3(0,1.4,0)));
+  return true;
+}
 
 
 // ════════════════════════════════════════════════════════
@@ -6408,7 +6427,7 @@ function makeSlotEl(slotIdx){
   el.addEventListener('pointermove',function(e){if(INV[slotIdx].id)showTip(BNAMES[INV[slotIdx].id]||'?',e.clientX,e.clientY);else hideTip();});
   el.addEventListener('pointerleave',hideTip);return el;
 }
-function refreshEquipSlot(el,item,slotKey){el.innerHTML='';el.classList.toggle('has-item',item.id!==0);if(item.id&&item.id!==0){var cv=document.createElement('canvas');drawBlockIconCanvas(cv,item.id);el.appendChild(cv);if(item.qty>1){var q=document.createElement('span');q.className='qty';q.textContent=item.qty;el.appendChild(q);}}else{var ph=document.createElement('span');ph.style.cssText='font-size:18px;opacity:0.3;';ph.textContent=slotKey==='bag'?'🎒':slotKey==='left'?'✋':'🤚';el.appendChild(ph);}}
+function refreshEquipSlot(el,item,slotKey){el.innerHTML='';el.classList.toggle('has-item',item.id!==0);if(item.id&&item.id!==0){var cv=document.createElement('canvas');drawBlockIconCanvas(cv,item.id);el.appendChild(cv);if(item.qty>1){var q=document.createElement('span');q.className='qty';q.textContent=item.qty;el.appendChild(q);}}else{var ph=document.createElement('span');ph.style.cssText='font-size:18px;opacity:0.3;';ph.textContent=slotKey==='bag'?'🎒':slotKey==='chest'?'🧥':slotKey==='left'?'✋':'🤚';el.appendChild(ph);}}
 function buildEquipUI(){refreshEquipSlot(document.getElementById('eq-left'),EQUIP.left,'left');refreshEquipSlot(document.getElementById('eq-bag'),EQUIP.bag,'bag');refreshEquipSlot(document.getElementById('eq-chest'),EQUIP.chest,'chest');refreshEquipSlot(document.getElementById('eq-right'),EQUIP.right,'right');}
 function buildInvUI(){
   var grid=document.getElementById('inv-grid'),hb=document.getElementById('inv-hotbar');
@@ -7730,18 +7749,7 @@ function updateSurvival(dt){
     // Faim augmente plus vite au froid
     _foodTimer+=dt*(severeHypothermia?1.5:0.8);
 
-    // Hypothermie sévère → dégâts HP
-    if(severeHypothermia){
-      if(!updateSurvival._coldTimer)updateSurvival._coldTimer=0;
-      updateSurvival._coldTimer+=dt;
-      if(updateSurvival._coldTimer>=8){
-        updateSurvival._coldTimer=0;
-        hurtPlayer(1,'Vous gelez sur place!');
-        showPopup('🥶 Hypothermie!',player.pos.clone().add(new THREE.Vector3(0,1.5,0)));
-      }
-    }
-    // Mort de froid
-    if(player.temp===0)hurtPlayer(2,'Mort de froid!');
+    // Froid : ralentissement seulement (plus de dégâts de cœurs)
   } else {
     updateSurvival._coldTimer=0;
   }
@@ -10010,6 +10018,7 @@ function syncCrouchBtn(){
   var el=document.getElementById('btn-crouch');
   if(el){if(_crouching)el.classList.add('on');else el.classList.remove('on');}
 }
+function updateEquipHud(){var el=document.getElementById('equip-worn');if(!el)return;var on=EQUIP.chest&&EQUIP.chest.id&&EQUIP.chest.durability>0;el.style.display=on?'flex':'none';if(on){var cv=el.querySelector('canvas');if(cv&&el._id!==EQUIP.chest.id){el._id=EQUIP.chest.id;if(typeof drawBlockIconCanvas==='function')drawBlockIconCanvas(cv,EQUIP.chest.id);}}else el._id=0;}
 function updateStealthHud(){
   var eye=document.getElementById('stealth-eye');
   var noi=document.getElementById('stealth-noise');
@@ -10521,6 +10530,7 @@ function refreshPlaceBtn(look){
   if(hit===B_DOOR||hit===B_DOOR_TOP){btn.textContent='🚪';btn.title='Ouvrir / fermer';return;}
   var id=INV[selectedSlot]&&INV[selectedSlot].id;
   if(!id){btn.textContent='✋';btn.title='Utiliser';return;}
+  if(id===ITEM_FUR_COAT||id===ITEM_LEATHER_VEST||id===ITEM_WOOL_CLOAK){btn.textContent='🧥';btn.title='Porter';return;}
   if(id===ITEM_BOAT){btn.textContent='🪵';btn.title='Poser le radeau';}
   else if(id===ITEM_WATER_FILTER||id===ITEM_CANTEEN||id===ITEM_CANTEEN_WATER||id===ITEM_BOWL||id===ITEM_BOWL_WATER||id===ITEM_WATER_LAKE||id===ITEM_WATER_SEA||id===ITEM_WATER_FILTERED||id===ITEM_WATER_RAIN){btn.textContent='💧';btn.title='Utiliser';}
   else if(id===ITEM_BONE){btn.textContent='🦴';btn.title='Engrais';}
@@ -10572,8 +10582,7 @@ function movePlayer(dt){
   // Hypothermie → ralentissement progressif
   if(true&&player.temp<=4){
     var hasClothing=(EQUIP.chest&&EQUIP.chest.id&&EQUIP.chest.durability>0);
-    var coldPenalty=player.temp<=2?(hasClothing?0.60:0.45):(hasClothing?0.85:0.70);
-    speedFactor*=coldPenalty;
+    if(!hasClothing) speedFactor*=(player.temp<=2?0.48:0.68);
   }
   var wantCrouch=(_crouchToggled||_mobileCrouch||keys['ControlLeft']||keys['ControlRight'])&&player.onGround&&!wantSprint;
   _crouching=!!wantCrouch;
@@ -10685,7 +10694,9 @@ document.addEventListener('contextmenu',function(e){if(!invOpen)e.preventDefault
 document.addEventListener('pointerlockchange',function(){mouseLocked=!!document.pointerLockElement;if(mouseLocked){setTracking(false);document.getElementById('tracking-hint').style.display='none';}if(!isMobile)document.getElementById('paused').style.display=mouseLocked?'none':(gameStarted&&!invOpen?'flex':'none');});
 
 function raycast(){var cp=Math.cos(player.pitch),sp=Math.sin(player.pitch),sy2=Math.sin(player.yaw),cy2=Math.cos(player.yaw),rdx=-sy2*cp,rdy=sp,rdz=-cy2*cp,px=player.pos.x,py=player.pos.y,pz=player.pos.z,step=0.05,maxD=6,lbx=Math.floor(px),lby=Math.floor(py),lbz=Math.floor(pz);for(var t=0;t<maxD;t+=step){var bx=Math.floor(px+rdx*t),by=Math.floor(py+rdy*t),bz=Math.floor(pz+rdz*t),bl=getBlock(bx,by,bz);if(bl&&bl!==B_WATER){hlMesh.visible=true;hlMesh.position.set(bx+0.5,by+0.5,bz+0.5);return{bx:bx,by:by,bz:bz,px:lbx,py:lby,pz:lbz};}lbx=bx;lby=by;lbz=bz;}hlMesh.visible=false;return null;}
-function doPlace(px2,py2,pz2){var it=INV[selectedSlot];if(!it||!it.id)return;var itemId=it.id,blockId=itemId;if(itemId>15){blockId=ITEM_TO_BLOCK[itemId];if(!blockId)return;}
+function doPlace(px2,py2,pz2){var it=INV[selectedSlot];if(!it||!it.id)return;var itemId=it.id,blockId=itemId;
+  if(typeof isClothing==='function'&&isClothing(itemId)){wearClothingFromHand();return;}
+  if(itemId>15){blockId=ITEM_TO_BLOCK[itemId];if(!blockId)return;}
   // Graine d'arbre → pose une pousse + programme la croissance
   if(itemId===ITEM_TREE_SEED){
     var belowP=getBlock(px2,py2-1,pz2);
@@ -13197,6 +13208,7 @@ function animate(now){
   if(typeof fbApplyCamera==='function')fbApplyCamera();
   if(typeof updateViewmodel==='function')updateViewmodel(dt);
   if(typeof updateStealthHud==='function')updateStealthHud();
+  if(typeof updateEquipHud==='function')updateEquipHud();
 
   // Cycle jour/nuit
   if(!_sleeping)dayTime=(dayTime+dt)%DAY_CYCLE_TOTAL;var t=dayTime,phaseT;
