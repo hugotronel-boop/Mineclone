@@ -2650,7 +2650,7 @@ display: none !important;
     <div id="overlay-content">
       <h1>MINECLONE</h1>
       <div id="overlay-tagline">Survivre. Ou mourir.</div>
-      <div id="overlay-build">v71</div>
+      <div id="overlay-build">v72</div>
       <button type="button" id="continueBtn" onclick="window.continueGame&&window.continueGame()">Continuer</button>
       <button type="button" id="startBtn">Nouvelle partie</button>
       <button type="button" id="btn-settings-open" onclick="if(typeof openSettings==='function')openSettings();">Parametres</button>
@@ -5166,7 +5166,7 @@ function buildMesh(cx,cz){
     }
   }
   var group=new THREE.Group();group.userData.cx=cx;group.userData.cz=cz;group.userData.flames=[];group.userData.minY=0;group.userData.maxY=maxY;
-  for(var bk in bkts){var b=bkts[bk];if(!b.cnt)continue;var geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(b.pos,3));geo.setAttribute('uv',new THREE.Float32BufferAttribute(b.uv,2));geo.setAttribute('brightness',new THREE.Float32BufferAttribute(b.br,1));geo.index=new Uint16Array(b.idx);var tex=TEX[b.id]?TEX[b.id][b.face]:null;var isPlant=(b.id===B_LEAF||b.id===B_BERRY_BUSH||b.id===B_BERRY_EMPTY||b.id===B_HERB_BLOCK||b.id===B_NETTLES||b.id===B_SAPLING);group.add(new THREE.Mesh(geo,isPlant?new THREE.MeshBasicMaterial({map:tex,transparent:true,opacity:1}):new THREE.MeshBasicMaterial({map:tex})));}
+  for(var bk in bkts){var b=bkts[bk];if(!b.cnt)continue;var geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(b.pos,3));geo.setAttribute('uv',new THREE.Float32BufferAttribute(b.uv,2));geo.setAttribute('brightness',new THREE.Float32BufferAttribute(b.br,1));geo.index=new Uint16Array(b.idx);var tex=TEX[b.id]?TEX[b.id][b.face]:null;var isCutout=(b.id===B_LEAF||b.id===B_BERRY_BUSH||b.id===B_BERRY_EMPTY||b.id===B_HERB_BLOCK||b.id===B_NETTLES||b.id===B_SAPLING);group.add(new THREE.Mesh(geo,new THREE.MeshBasicMaterial({map:tex})));}
   if(wC>0){var wgeo=new THREE.BufferGeometry();wgeo.setAttribute('position',new THREE.Float32BufferAttribute(wP,3));wgeo.setAttribute('uv',new THREE.Float32BufferAttribute(wU,2));wgeo.setAttribute('brightness',new THREE.Float32BufferAttribute(wB,1));wgeo.index=new Uint16Array(wI);group.add(new THREE.Mesh(wgeo,new THREE.MeshBasicMaterial({map:TEX[B_WATER]?TEX[B_WATER].top:null,transparent:true,opacity:0.88})));}
     var bark=new THREE.MeshBasicMaterial({color:0x6b4a26});
   var barkD=new THREE.MeshBasicMaterial({color:0x4a3014});
