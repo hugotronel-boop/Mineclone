@@ -2650,7 +2650,7 @@ display: none !important;
     <div id="overlay-content">
       <h1>MINECLONE</h1>
       <div id="overlay-tagline">Survivre. Ou mourir.</div>
-      <div id="overlay-build">v68</div>
+      <div id="overlay-build">v69</div>
       <button type="button" id="continueBtn" onclick="window.continueGame&&window.continueGame()">Continuer</button>
       <button type="button" id="startBtn">Nouvelle partie</button>
       <button type="button" id="btn-settings-open" onclick="if(typeof openSettings==='function')openSettings();">Parametres</button>
@@ -2966,16 +2966,16 @@ var THREE = (function () {
 // ═══════════════════════════════════════════════════════
 var isMobile = ('ontouchstart' in window)||(navigator.maxTouchPoints>0);
 var PERF={
-  res: isMobile?0.62:1,
-  far: isMobile?88:400,
-  maxAnimals: isMobile?22:70,
-  maxParticles: isMobile?24:90,
-  rainN: isMobile?48:200,
-  rainRes: isMobile?0.45:1,
-  animalDist2: isMobile?28*28:80*80,
+  res: isMobile?0.5:0.85,
+  far: isMobile?64:140,
+  maxAnimals: isMobile?8:16,
+  maxParticles: isMobile?12:36,
+  rainN: isMobile?16:64,
+  rainRes: isMobile?0.32:0.65,
+  animalDist2: isMobile?18*18:42*42,
   unloadPad: isMobile?1:2
 };
-var CHUNK_SIZE=16,CHUNK_HEIGHT=128,RENDER_DIST=isMobile?2:4;
+var CHUNK_SIZE=16,CHUNK_HEIGHT=128,RENDER_DIST=isMobile?2:3;
 var _wasInWater=false;
 var GRAVITY=-25,JUMP_FORCE=7.1,MOVE_SPEED=5,SEA_LEVEL=20;
 var gameMode='survival';
@@ -3420,7 +3420,7 @@ function makeWaterTex(){
 }
 function updateWaterAnim(dt){
   _waterAnimT+=dt;
-  if(_waterAnimT<(isMobile?0.08:0.05))return;
+  if(_waterAnimT<(isMobile?0.16:0.08))return;
   _waterAnimT=0;
   if(!_waterShared||!_waterShared._cv)return;
   tickMinecraftWater();
@@ -3885,7 +3885,7 @@ for(var _i=0;_i<HOTBAR.length;_i++)drawIcon(HOTBAR[_i],'icon'+_i);
 // ── Scene / Renderer / Camera ──────────────────────────────
 var scene=new THREE.Scene();
 var renderer=new THREE.WebGLRenderer({canvas:document.getElementById('canvas'),antialias:false,powerPreference:'high-performance'});
-renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, isMobile?1.25:2));
+renderer.setPixelRatio(isMobile?0.5:0.85);
 renderer.setSize(window.innerWidth,window.innerHeight);
 var camera=new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,400);
 scene.add(new THREE.AmbientLight(0xffffff,0.6));
@@ -5111,7 +5111,7 @@ function buildMesh(cx,cz){
   for(var lx=0;lx<CS;lx++)for(var y=0;y<maxY;y++)for(var lz=0;lz<CS;lz++){
     if(getD(lx,y,lz)!==B_LEAF)continue;var wx5=ox+lx,wz5=oz+lz;
     var LD=[{dx:0,dy:1,dz:0,c:[[0,1,1],[1,1,1],[1,1,0],[0,1,0]],br:1.0},{dx:0,dy:-1,dz:0,c:[[0,0,0],[1,0,0],[1,0,1],[0,0,1]],br:0.45},{dx:1,dy:0,dz:0,c:[[1,0,0],[1,1,0],[1,1,1],[1,0,1]],br:0.72},{dx:-1,dy:0,dz:0,c:[[0,0,1],[0,1,1],[0,1,0],[0,0,0]],br:0.72},{dx:0,dy:0,dz:1,c:[[1,0,1],[1,1,1],[0,1,1],[0,0,1]],br:0.72},{dx:0,dy:0,dz:-1,c:[[0,0,0],[0,1,0],[1,1,0],[1,0,0]],br:0.72}];
-    for(var di=0;di<6;di++){var ld=LD[di];if(!isTransp(getW(lx+ld.dx,y+ld.dy,lz+ld.dz)))continue;var bl=bkt(B_LEAF,'side'),ql=bl.cnt;for(var vi=0;vi<4;vi++){var vc=ld.c[vi];bl.pos.push(wx5+vc[0],y+vc[1],wz5+vc[2]);bl.uv.push(vi===0||vi===3?0:1,vi<2?1:0);bl.br.push(ld.br);}bl.idx.push(ql,ql+1,ql+2,ql,ql+2,ql+3);bl.cnt+=4;}
+    for(var di=0;di<6;di++){var ld=LD[di];var nbL=getW(lx+ld.dx,y+ld.dy,lz+ld.dz);if(nbL===B_LEAF||!isTransp(nbL))continue;var bl=bkt(B_LEAF,'side'),ql=bl.cnt;for(var vi=0;vi<4;vi++){var vc=ld.c[vi];bl.pos.push(wx5+vc[0],y+vc[1],wz5+vc[2]);bl.uv.push(vi===0||vi===3?0:1,vi<2?1:0);bl.br.push(ld.br);}bl.idx.push(ql,ql+1,ql+2,ql,ql+2,ql+3);bl.cnt+=4;}
   }
 
   // Plantes (buisson de baies + champignon) — billboard en croix
@@ -5698,11 +5698,11 @@ function regenStamina(dt){
 // ── Paramètres ──────────────────────────────────────────────
 var _ls={get:function(k,d){try{var v=localStorage.getItem(k);return v!==null?v:d;}catch(e){return d;}},set:function(k,v){try{localStorage.setItem(k,v);}catch(e){}}};
 var SETTINGS={
-  renderDist: parseInt(_ls.get('mc_renderDist', isMobile?'2':'4')),
+  renderDist: parseInt(_ls.get('mc_renderDist', isMobile?'2':'3')),
   sensitivity: parseFloat(_ls.get('mc_sensitivity','1.0')),
   invertY:     _ls.get('mc_invertY','0')==='1',
   volume:      parseInt(_ls.get('mc_volume','80')),
-  pixelRatio:  parseFloat(_ls.get('mc_pixelRatio', isMobile?'0.75':'1.0')),
+  pixelRatio:  parseFloat(_ls.get('mc_pixelRatio', isMobile?'0.5':'0.85')),
   seed:        parseInt(_ls.get('mc_seed','0'))||0
 };
 if(isMobile && SETTINGS.renderDist>3) SETTINGS.renderDist=Math.min(SETTINGS.renderDist,3);
@@ -5727,11 +5727,12 @@ function resizeRenderer(){
   camera.updateProjectionMatrix();
 }
 function applySettings(){
-  RENDER_DIST=Math.max(2,Math.min(8, SETTINGS.renderDist));
+  RENDER_DIST=Math.max(2,Math.min(isMobile?2:3, SETTINGS.renderDist|| (isMobile?2:3)));
   if(renderer&&renderer.setPixelRatio)
-    renderer.setPixelRatio(Math.min(SETTINGS.pixelRatio||1, window.devicePixelRatio||1, isMobile?1.25:2));
+    renderer.setPixelRatio(Math.min(SETTINGS.pixelRatio||PERF.res||0.7, isMobile?0.55:0.9));
   if(renderer&&renderer.setSize) renderer.setSize(window.innerWidth,window.innerHeight);
   camera.aspect=window.innerWidth/Math.max(1,window.innerHeight);
+  if(camera)camera.far=PERF.far;
   camera.updateProjectionMatrix();
 }
 
@@ -9141,8 +9142,11 @@ function updateAnimals(dt){
   for(var i=animals.length-1;i>=0;i--){
     var a=animals[i];
     var adx=a.pos.x-ppos.x,adz=a.pos.z-ppos.z;
-    if(isMobile && !a.dying && (adx*adx+adz*adz)>PERF.animalDist2){
+    if(!a.dying && (adx*adx+adz*adz)>PERF.animalDist2){
       if(a.mesh)a.mesh.visible=false;
+      continue;
+    }
+    if(isMobile && !a.dying && !(MOB_DEF[a.type]&&MOB_DEF[a.type].hostile) && ((updateAnimals._f||0)&1)){
       continue;
     }
     if(a.mesh)a.mesh.visible=true;
@@ -10805,7 +10809,27 @@ function movePlayer(dt){
     }
   }
 }
-function updateChunks(){var pcx=Math.floor(player.pos.x/CHUNK_SIZE),pcz=Math.floor(player.pos.z/CHUNK_SIZE);for(var ddx=-RENDER_DIST;ddx<=RENDER_DIST;ddx++)for(var ddz=-RENDER_DIST;ddz<=RENDER_DIST;ddz++){var cx2=pcx+ddx,cz2=pcz+ddz;if(!chunkMeshes.has(ckey(cx2,cz2)))buildMesh(cx2,cz2);}chunkMeshes.forEach(function(mesh,key){var p=key.split(','),cx3=parseInt(p[0]),cz3=parseInt(p[1]);if(Math.abs(cx3-pcx)>RENDER_DIST+2||Math.abs(cz3-pcz)>RENDER_DIST+2){scene.remove(mesh);chunkMeshes.delete(key);chunks.delete(key);}});}
+function updateChunks(){
+  var pcx=Math.floor(player.pos.x/CHUNK_SIZE),pcz=Math.floor(player.pos.z/CHUNK_SIZE);
+  var budget=isMobile?1:2,built=0;
+  for(var ddx=-RENDER_DIST;ddx<=RENDER_DIST;ddx++){
+    for(var ddz=-RENDER_DIST;ddz<=RENDER_DIST;ddz++){
+      var cx2=pcx+ddx,cz2=pcz+ddz;
+      if(chunkMeshes.has(ckey(cx2,cz2)))continue;
+      if(built>=budget)break;
+      buildMesh(cx2,cz2);built++;
+    }
+    if(built>=budget)break;
+  }
+  var pad=PERF.unloadPad||2;
+  chunkMeshes.forEach(function(mesh,key){
+    var p=key.split(','),cx3=parseInt(p[0]),cz3=parseInt(p[1]);
+    if(Math.abs(cx3-pcx)>RENDER_DIST+pad||Math.abs(cz3-pcz)>RENDER_DIST+pad){
+      scene.remove(mesh);chunkMeshes.delete(key);
+      if(Math.abs(cx3-pcx)>RENDER_DIST+6||Math.abs(cz3-pcz)>RENDER_DIST+6)chunks.delete(key);
+    }
+  });
+}
 
 // ── Controls ───────────────────────────────────────────────
 var keys={},mouseLocked=false,gameStarted=false,jumpHeld=false,_flyActive=false,_lastSpaceTime=0;
@@ -13266,6 +13290,8 @@ function updateViewmodel(dt){
 
 function updateFlames(){
   if(typeof chunkMeshes==='undefined')return;
+  updateFlames._n=(updateFlames._n||0)+1;
+  if(isMobile&&(updateFlames._n&1))return;
   var t=performance.now()*0.001;
   chunkMeshes.forEach(function(g){
     var arr=g.userData&&g.userData.flames;
