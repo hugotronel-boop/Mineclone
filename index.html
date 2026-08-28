@@ -2650,7 +2650,7 @@ display: none !important;
     <div id="overlay-content">
       <h1>MINECLONE</h1>
       <div id="overlay-tagline">Survivre. Ou mourir.</div>
-      <div id="overlay-build">v60</div>
+      <div id="overlay-build">v61</div>
       <button type="button" id="continueBtn" onclick="window.continueGame&&window.continueGame()">Continuer</button>
       <button type="button" id="startBtn">Nouvelle partie</button>
       <button type="button" id="btn-settings-open" onclick="if(typeof openSettings==='function')openSettings();">Parametres</button>
@@ -5178,17 +5178,15 @@ function buildMesh(cx,cz){
     function post(lx,lz){
       var key=Math.round(lx*4)+','+Math.round(lz*4);
       if(seen[key])return;seen[key]=1;
-      grp.add(wbox(barkD,0.2,2.0,0.2, lx, 1.0, lz));
-      grp.add(wbox(ropeM,0.24,0.06,0.24, lx, 0.42, lz));
-      grp.add(wbox(ropeM,0.24,0.06,0.24, lx, 1.52, lz));
+      grp.add(wbox(barkD,0.18,2.0,0.18, lx, 1.0, lz));
     }
-    if(!alongX)return;
     for(var x=x0-1;x<=x1+1;x++){
       for(var z=z0-1;z<=z1+1;z++){
         if(x>=x0&&x<=x1&&z>=z0&&z<=z1)continue;
         var nAlong=wallAlongXAt(x,wy,z);
         if(nAlong===null||nAlong===alongX)continue;
-        post((x+0.5)-gx, 0);
+        if(alongX) post((x+0.5)-gx, 0);
+        else post(0, (z+0.5)-gz);
       }
     }
   }
@@ -5342,18 +5340,17 @@ function buildMesh(cx,cz){
       group.add(ng);
       continue;
     }
-    if(!_buildRoot[bk]){
-      if(wb===B_WALL){
-        if(getBlock(wwx-1,wy,wwz)===wb||getBlock(wwx,wy,wwz-1)===wb||getBlock(wwx,wy-1,wwz)===wb)continue;
-      } else if(getBlock(wwx-1,wy,wwz)===wb||getBlock(wwx,wy,wwz-1)===wb)continue;
-    }
     var dir=_buildDir[bk]||0;
     var alongX=(dir===0||dir===2);
     var bg=new THREE.Group();
+    var box=wallPieceBox(bk,wwx,wy,wwz,alongX);
     if(wb===B_WALL){
       var hasWin=!!_buildWin[bk];
-      for(var i=0;i<9;i++){
-        var o=-0.92+i*0.23,t=0.13+(i%3)*0.015,inWin=hasWin&&i>=3&&i<=5;
+      var span=box.span, nLog=Math.max(5,span*4+1), extraL=box.extL, extraR=box.extR;
+      for(var i=0;i<nLog;i++){
+        var o=-span/2+0.12+i*((span-0.24)/(nLog-1));
+        if(i===0)o-=extraL;if(i===nLog-1)o+=extraR;
+        var t=0.13+(i%3)*0.015,inWin=hasWin&&i>=Math.floor(nLog*0.35)&&i<=Math.floor(nLog*0.65);
         if(inWin){
           if(alongX){bg.add(wbox(i%2?bark:barkD,t,0.52,0.16,o,0.26,0));bg.add(wbox(i%2?bark:barkD,t,0.5,0.16,o,1.7,0));}
           else {bg.add(wbox(i%2?bark:barkL,0.16,0.52,t,0,0.26,o));bg.add(wbox(i%2?bark:barkL,0.16,0.5,t,0,1.7,o));}
@@ -5363,8 +5360,8 @@ function buildMesh(cx,cz){
           else bg.add(wbox(i%2?bark:barkL,0.16,h,t,0,h/2,o));
         }
       }
-      if(alongX){bg.add(wbox(ropeM,2.0,0.05,0.16,0,0.45,0));bg.add(wbox(ropeM,2.0,0.05,0.16,0,1.35,0));}
-      else {bg.add(wbox(ropeM,0.16,0.05,2.0,0,0.45,0));bg.add(wbox(ropeM,0.16,0.05,2.0,0,1.35,0));}
+      if(alongX){bg.add(wbox(ropeM,span+extraL+extraR,0.05,0.16, (extraR-extraL)/2,0.45,0));bg.add(wbox(ropeM,span+extraL+extraR,0.05,0.16,(extraR-extraL)/2,1.35,0));}
+      else {bg.add(wbox(ropeM,0.16,0.05,span+extraL+extraR,0,0.45,(extraR-extraL)/2));bg.add(wbox(ropeM,0.16,0.05,span+extraL+extraR,0,1.35,(extraR-extraL)/2));}
       if(hasWin){
         if(alongX){
           bg.add(wbox(barkL,0.78,0.1,0.2,0,0.54,0));
@@ -5378,8 +5375,8 @@ function buildMesh(cx,cz){
           bg.add(wbox(barkD,0.18,0.92,0.08,0,1.0,0.4));
         }
       }
-      joinWallCorners(bg, alongX, wwx, wy, wwz, 2);
-      bg.position.set(alongX?wwx+1:wwx+0.5,wallSitY(wwx,wy,wwz),alongX?wwz+0.5:wwz+1);
+      joinWallCorners(bg, alongX, box.minx, wy, box.minz, box.span);
+      bg.position.set(alongX?box.minx+box.span/2:wwx+0.5,wallSitY(wwx,wy,wwz),alongX?wwz+0.5:box.minz+box.span/2);
     } else if(wb===B_FLOOR){
       for(var i=0;i<9;i++){
         var o=-0.9+i*0.22,t=0.16+(i%2)*0.02;
@@ -10150,6 +10147,66 @@ function snapWallY(px,py,pz){
   if(isFloorB(getBlock(px+1,py-1,pz))||isFloorB(getBlock(px-1,py-1,pz))||isFloorB(getBlock(px,py-1,pz+1))||isFloorB(getBlock(px,py-1,pz-1)))return py-1;
   return py;
 }
+function wallDirNear(px,py,pz){
+  var n=[[1,0],[-1,0],[0,1],[0,-1]],i,a;
+  for(i=0;i<4;i++){
+    a=typeof wallAlongXAt==='function'?null:null;
+    if(!isWallB(getBlock(px+n[i][0],py,pz+n[i][1]))&&!isWallB(getBlock(px+n[i][0],py-1,pz+n[i][1])))continue;
+    var k=(px+n[i][0])+','+py+','+(pz+n[i][1]);
+    var d=_buildDir[_buildRoot[k]||k];
+    if(d===undefined)d=_buildDir[k];
+    if(d!==undefined)return d;
+    if(n[i][0]!==0)return 0;
+    return 1;
+  }
+  return -1;
+}
+function wallCellsOverlap(cells){
+  var i,c,occ,n=0;
+  for(i=0;i<cells.length;i++){
+    c=cells[i];occ=getBlock(c.x,c.y,c.z);
+    if(occ&&occ!==B_AIR&&occ!==B_WATER&&!isFloorB(occ))n++;
+  }
+  return n;
+}
+function alignWallCells(px,py,pz,dir){
+  py=snapWallY(px,py,pz);
+  var alongX=dir===0||dir===2;
+  var cells=buildPieceCells(px,py,pz,dir,'wall');
+  if(wallCellsOverlap(cells)===0)return cells;
+  var deltas=[1,-1,2,-2],d,i,sh,cs,c;
+  for(d=0;d<deltas.length;d++){
+    sh=deltas[d];cs=[];
+    for(i=0;i<cells.length;i++){
+      c=cells[i];
+      cs.push(alongX?{x:c.x+sh,y:c.y,z:c.z}:{x:c.x,y:c.y,z:c.z+sh});
+    }
+    if(wallCellsOverlap(cs)===0)return cs;
+  }
+  return cells;
+}
+function wallPieceBox(bk,wwx,wy,wwz,alongX){
+  var pcs=_buildCells[bk]||_buildCells[_buildRoot[bk]||bk], minx=wwx,maxx=wwx,minz=wwz,maxz=wwz,i;
+  if(pcs&&pcs.length){
+    minx=pcs[0].x;maxx=pcs[0].x;minz=pcs[0].z;maxz=pcs[0].z;
+    for(i=1;i<pcs.length;i++){
+      if(pcs[i].x<minx)minx=pcs[i].x;if(pcs[i].x>maxx)maxx=pcs[i].x;
+      if(pcs[i].z<minz)minz=pcs[i].z;if(pcs[i].z>maxz)maxz=pcs[i].z;
+    }
+  } else {
+    if(alongX)maxx=wwx+1; else maxz=wwz+1;
+  }
+  var span=alongX?(maxx-minx+1):(maxz-minz+1);
+  var extL=0,extR=0;
+  if(alongX){
+    if(isWallB(getBlock(minx-1,wy,minz))||isWallB(getBlock(minx-1,wy+1,minz)))extL=0.12;
+    if(isWallB(getBlock(maxx+1,wy,minz))||isWallB(getBlock(maxx+1,wy+1,minz)))extR=0.12;
+  } else {
+    if(isWallB(getBlock(minx,wy,minz-1))||isWallB(getBlock(minx,wy+1,minz-1)))extL=0.12;
+    if(isWallB(getBlock(minx,wy,maxz+1))||isWallB(getBlock(minx,wy+1,maxz+1)))extR=0.12;
+  }
+  return {minx:minx,maxx:maxx,minz:minz,maxz:maxz,span:span,extL:extL,extR:extR};
+}
 function wallCellOK(c){
   var occ=getBlock(c.x,c.y,c.z);
   if(!occ||occ===B_AIR)return true;
@@ -10255,10 +10312,16 @@ function validateBuild(blockId,cells){
 }
 function finishBuildPiece(px,py,pz,blockId,withWin){
   if(blockId===B_FLOOR)py=snapFloorY(px,py,pz);
+  if(blockId===B_WALL||blockId===B_WALL_NARROW)py=snapWallY(px,py,pz);
   var dxp=player.pos.x-(px+0.5),dzp=player.pos.z-(pz+0.5);
   var ddir=Math.abs(dxp)>Math.abs(dzp)?(dxp>0?3:1):(dzp>0?0:2);
+  if(blockId===B_WALL){
+    var nd=wallDirNear(px,py,pz);
+    if(nd>=0)ddir=nd;
+  }
   var kind=blockId===B_WALL?'wall':(blockId===B_WALL_NARROW?'wall1':(blockId===B_FLOOR?'floor':'roof'));
-  var cells=buildPieceCells(px,py,pz,ddir,kind);
+  var cells=(blockId===B_WALL)?alignWallCells(px,py,pz,ddir):buildPieceCells(px,py,pz,ddir,kind);
+  if(blockId===B_WALL&&wallCellsOverlap(cells)>0){showPopup('Place le mur collé à côté !',player.pos.clone().add(new THREE.Vector3(0,1.2,0)));return false;}
   var placed=[];
   for(var ci=0;ci<cells.length;ci++){
     var c=cells[ci],occ=getBlock(c.x,c.y,c.z);
