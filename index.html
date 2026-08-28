@@ -2648,7 +2648,7 @@ display: none !important;
     <div id="overlay-content">
       <h1>MINECLONE</h1>
       <div id="overlay-tagline">Survivre. Ou mourir.</div>
-      <div id="overlay-build">v53</div>
+      <div id="overlay-build">v54</div>
       <button type="button" id="continueBtn" onclick="window.continueGame&&window.continueGame()">Continuer</button>
       <button type="button" id="startBtn">Nouvelle partie</button>
       <button type="button" id="btn-settings-open" onclick="if(typeof openSettings==='function')openSettings();">Parametres</button>
@@ -10103,15 +10103,24 @@ function heldBuildBlock(){
   return 0;
 }
 function ghostCellsFree(bid,cells){
+  var free=0;
   for(var i=0;i<cells.length;i++){
     var c=cells[i],occ=getBlock(c.x,c.y,c.z);
-    if(c.y<0||c.y>=CHUNK_HEIGHT)return false;
+    if(c.y<0||c.y>=CHUNK_HEIGHT){
+      if(bid!==B_FLOOR)return false;
+      continue;
+    }
+    if(bid===B_FLOOR){
+      if(floorCellFree(c.x,c.y,c.z))free++;
+      continue;
+    }
     if(occ&&occ!==B_AIR&&occ!==B_WATER){
       if((bid===B_WALL||bid===B_WALL_NARROW)&&isFloorB(occ))continue;
       return false;
     }
+    free++;
   }
-  return true;
+  return free>=1;
 }
 function updateBuildGhost(look){
   var bid=heldBuildBlock();
@@ -10129,6 +10138,13 @@ function updateBuildGhost(look){
   else{
     var kind=bid===B_WALL?'wall':(bid===B_WALL_NARROW?'wall1':(bid===B_FLOOR?'floor':'roof'));
     cells=buildPieceCells(px,py,pz,ddir,kind);
+  }
+  if(bid===B_FLOOR){
+    var fc=[];
+    for(var gi=0;gi<cells.length;gi++){
+      if(floorCellFree(cells[gi].x,cells[gi].y,cells[gi].z))fc.push(cells[gi]);
+    }
+    if(fc.length)cells=fc;
   }
   var ok=true;
   var val=typeof validateBuild==='function'?validateBuild(bid,cells):{ok:true};
@@ -10212,25 +10228,59 @@ function wallTopY(x,y,z){
   while(isWallB(getBlock(x,y+1,z)))y++;
   return y;
 }
+function adjFloorY(px,py,pz){
+  for(var dy=-1;dy<=1;dy++){
+    var y=py+dy;
+    if(isFloorB(getBlock(px,y,pz)))return y;
+    for(var dx=-1;dx<=1;dx++)for(var dz=-1;dz<=1;dz++){
+      if(!dx&&!dz)continue;
+      if(isFloorB(getBlock(px+dx,y,pz+dz)))return y;
+    }
+  }
+  return -1;
+}
 function snapFloorY(px,py,pz){
+  var fy=adjFloorY(px,py,pz);
+  if(fy>=0)return fy;
   var t=wallTopY(px,py,pz);
   if(t<0)t=wallTopY(px,py-1,pz);
+  if(t<0){
+    var d=[[1,0],[-1,0],[0,1],[0,-1]],i,t2;
+    for(i=0;i<4;i++){
+      t2=wallTopY(px+d[i][0],py,pz+d[i][1]);
+      if(t2>t)t=t2;
+      t2=wallTopY(px+d[i][0],py-1,pz+d[i][1]);
+      if(t2>t)t=t2;
+    }
+  }
   if(t>=0)return t+1;
   return py;
+}
+function floorCellFree(x,y,z){
+  var occ=getBlock(x,y,z);
+  if(occ&&occ!==B_AIR&&occ!==B_WATER)return false;
+  if(isRoofB(getBlock(x,y-1,z)))return false;
+  return true;
+}
+function floorHasSupport(x,y,z){
+  var below=getBlock(x,y-1,z);
+  if(isWallB(below)||isWallB(getBlock(x,y-2,z)))return true;
+  if(below===B_STAIRS||isFloorB(below))return true;
+  if(below&&below!==B_AIR&&below!==B_WATER&&below!==B_LEAF)return true;
+  if(nearHas(x,y,z,isFloorB,0,0))return true;
+  if(nearHas(x,y-1,z,isWallB,0,0)||nearHas(x,y,z,isWallB,0,0))return true;
+  return false;
 }
 function validateBuild(blockId,cells){
   var i,c,below,walls=0,terrain=0,floorOk=0,w=0,f=0,r=0,botY=cells[0].y,sup=0;
   if(blockId===B_FLOOR){
+    if(!cells.length)return {ok:false,msg:'Pas assez de place !'};
     for(i=0;i<cells.length;i++){
-      c=cells[i];below=getBlock(c.x,c.y-1,c.z);
-      if(isRoofB(below))return {ok:false,msg:"Pas d'étage au-dessus d'un toit"};
-      if(isWallB(below)||isWallB(getBlock(c.x,c.y-2,c.z)))walls++;
-      else if(below===B_STAIRS||isFloorB(below))walls++;
-      else if(below&&below!==B_AIR&&below!==B_WATER&&below!==B_LEAF)terrain++;
-      else if(nearHas(c.x,c.y-1,c.z,isWallB,0,0)||nearHas(c.x,c.y,c.z,isWallB,0,0))walls++;
+      c=cells[i];
+      if(floorHasSupport(c.x,c.y,c.z))floorOk++;
     }
-    if(walls>=1||terrain>=1)return {ok:true};
-    return {ok:false,msg:'Plancher : sur le sol, sur des murs, ou contre un mur'};
+    if(floorOk>=1)return {ok:true};
+    return {ok:false,msg:'Plancher : sur le sol, sur des murs, ou collé à un autre plancher'};
   }
   if(blockId===B_WALL||blockId===B_WALL_NARROW){
     for(i=0;i<cells.length;i++)if(cells[i].y<botY)botY=cells[i].y;
@@ -10263,22 +10313,25 @@ function finishBuildPiece(px,py,pz,blockId,withWin){
   var ddir=Math.abs(dxp)>Math.abs(dzp)?(dxp>0?3:1):(dzp>0?0:2);
   var kind=blockId===B_WALL?'wall':(blockId===B_WALL_NARROW?'wall1':(blockId===B_FLOOR?'floor':'roof'));
   var cells=buildPieceCells(px,py,pz,ddir,kind);
-  for(var ci=0;ci<cells.length;ci++){
-    var c=cells[ci],occ=getBlock(c.x,c.y,c.z);
-    if(c.y<0||c.y>=CHUNK_HEIGHT){showPopup('Pas assez de place !',player.pos.clone().add(new THREE.Vector3(0,1.2,0)));return false;}
-    if(blockId===B_WALL||blockId===B_WALL_NARROW){if(!wallCellOK(c)){showPopup('Pas assez de place !',player.pos.clone().add(new THREE.Vector3(0,1.2,0)));return false;}}
-    else if(occ&&occ!==B_AIR){showPopup('Pas assez de place !',player.pos.clone().add(new THREE.Vector3(0,1.2,0)));return false;}
-  }
-  var valb=validateBuild(blockId,cells);
-  if(!valb.ok){showPopup(valb.msg,player.pos.clone().add(new THREE.Vector3(0,1.2,0)));return false;}
-
   var placed=[];
   for(var ci=0;ci<cells.length;ci++){
-    var c=cells[ci],occ2=getBlock(c.x,c.y,c.z);
-    if((blockId===B_WALL||blockId===B_WALL_NARROW)&&isFloorB(occ2))continue;
-    placed.push(c);
+    var c=cells[ci],occ=getBlock(c.x,c.y,c.z);
+    if(c.y<0||c.y>=CHUNK_HEIGHT)continue;
+    if(blockId===B_WALL||blockId===B_WALL_NARROW){
+      if(!wallCellOK(c))continue;
+      if(isFloorB(occ))continue;
+      placed.push(c);
+    } else if(blockId===B_FLOOR){
+      if(!floorCellFree(c.x,c.y,c.z))continue;
+      placed.push(c);
+    } else {
+      if(occ&&occ!==B_AIR&&occ!==B_WATER){showPopup('Pas assez de place !',player.pos.clone().add(new THREE.Vector3(0,1.2,0)));return false;}
+      placed.push(c);
+    }
   }
   if(!placed.length){showPopup('Pas assez de place !',player.pos.clone().add(new THREE.Vector3(0,1.2,0)));return false;}
+  var valb=validateBuild(blockId,placed);
+  if(!valb.ok){showPopup(valb.msg,player.pos.clone().add(new THREE.Vector3(0,1.2,0)));return false;}
   var root=placed[0].x+','+placed[0].y+','+placed[0].z;
   _buildCells[root]=placed;
   if(withWin)_buildWin[root]=1;
