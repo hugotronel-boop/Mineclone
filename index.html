@@ -2650,7 +2650,7 @@ display: none !important;
     <div id="overlay-content">
       <h1>MINECLONE</h1>
       <div id="overlay-tagline">Survivre. Ou mourir.</div>
-      <div id="overlay-build">v70</div>
+      <div id="overlay-build">v71</div>
       <button type="button" id="continueBtn" onclick="window.continueGame&&window.continueGame()">Continuer</button>
       <button type="button" id="startBtn">Nouvelle partie</button>
       <button type="button" id="btn-settings-open" onclick="if(typeof openSettings==='function')openSettings();">Parametres</button>
@@ -2762,7 +2762,7 @@ var THREE = (function () {
       'uniform mat4 uMVP;uniform float uFogNear;uniform float uFogFar;'+
       'varying vec2 vUV;varying float vFog;varying float vBr;'+
       'void main(){gl_Position=uMVP*vec4(aPos,1.0);float dist=length(gl_Position.xyz);'+
-      'vFog=clamp((dist-uFogNear)/(uFogFar-uFogNear),0.0,1.0);vUV=aUV;vBr=aBr;}',
+      'vFog=clamp((gl_Position.w-uFogNear)/(uFogFar-uFogNear),0.0,1.0);vUV=aUV;vBr=aBr;}',
       'precision mediump float;'+
       'uniform sampler2D uTex;uniform vec4 uColor;uniform vec3 uFogColor;uniform float uUseColor;uniform float uAmbient;'+
       'varying vec2 vUV;varying float vFog;varying float vBr;'+
@@ -5549,8 +5549,7 @@ scene.add(group);chunkMeshes.set(key,group);if(gameStarted){trySpawnAnimalsInChu
 }
 
 function updateChunkVisibility(){
-  var pcx=Math.floor(player.pos.x/CHUNK_SIZE),pcz=Math.floor(player.pos.z/CHUNK_SIZE),cp=Math.cos(player.pitch),sy2=Math.sin(player.yaw),cy2=Math.cos(player.yaw),fdx=-sy2*cp,fdz=-cy2*cp;
-  chunkMeshes.forEach(function(mesh,key){var dcx=mesh.userData.cx-pcx,dcz=mesh.userData.cz-pcz,dist=Math.sqrt(dcx*dcx+dcz*dcz);if(dist===0){mesh.visible=true;return;}mesh.visible=((dcx*fdx+dcz*fdz)/dist>-0.3||dist<2);});
+  chunkMeshes.forEach(function(mesh){if(mesh)mesh.visible=true;});
 }
 
 function makeBlockOutline(){
@@ -13345,8 +13344,8 @@ function animate(now){
 
   // Distance de brouillard 3D : réduite par le brouillard météo et la pluie
   var fogMult=1.0-_fogIntensity*0.72-_rainIntensity*0.25;
-  renderer._fogNear=RENDER_DIST*CHUNK_SIZE*0.6*fogMult;
-  renderer._fogFar=RENDER_DIST*CHUNK_SIZE*1.2*fogMult;
+  renderer._fogNear=RENDER_DIST*CHUNK_SIZE*1.4*fogMult;
+  renderer._fogFar=Math.max(camera.far||160, RENDER_DIST*CHUNK_SIZE*2.8)*fogMult;
   renderer._fogColor=skyRGB;
   if(typeof isInWater==='function'&&isInWater(player.pos.x,player.pos.y-0.15,player.pos.z)){
     renderer._fogNear=1.5;
