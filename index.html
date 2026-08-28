@@ -2650,7 +2650,7 @@ display: none !important;
     <div id="overlay-content">
       <h1>MINECLONE</h1>
       <div id="overlay-tagline">Survivre. Ou mourir.</div>
-      <div id="overlay-build">v64</div>
+      <div id="overlay-build">v65</div>
       <button type="button" id="continueBtn" onclick="window.continueGame&&window.continueGame()">Continuer</button>
       <button type="button" id="startBtn">Nouvelle partie</button>
       <button type="button" id="btn-settings-open" onclick="if(typeof openSettings==='function')openSettings();">Parametres</button>
@@ -4944,9 +4944,8 @@ function onBlockBreak(blockType,wx,wy,wz){
     schedulePlantRegrowth(wx,wy,wz,blockType===B_BERRY_EMPTY?B_BERRY_BUSH:blockType);
   }
   if(blockType===B_WOOD){
-    // Vérifier si c'est la base du tronc (bloc sol en dessous)
     var belowBlock=getBlock(wx,wy-1,wz);
-    var isBase=belowBlock===B_GRASS||belowBlock===B_DIRT||belowBlock===B_SAND||belowBlock===B_GRAVEL;
+    var isBase=belowBlock!==B_WOOD;
 
     if(isBase){
       // Compter la hauteur du tronc
@@ -4967,9 +4966,9 @@ function onBlockBreak(blockType,wx,wy,wz){
       }
       // Feuilles BFS silencieux
       var visitedF=new Set(),queueF=[],key6F=function(x,y,z){return x+','+y+','+z;};
-      for(var fddx=-1;fddx<=1;fddx++)for(var fddy=-1;fddy<=2;fddy++)for(var fddz=-1;fddz<=1;fddz++){var fsx=wx+fddx,fsy=topY+fddy,fsz=wz+fddz,fsk=key6F(fsx,fsy,fsz);if(!visitedF.has(fsk)&&getBlock(fsx,fsy,fsz)===B_LEAF){visitedF.add(fsk);queueF.push([fsx,fsy,fsz]);}}
+      for(var fddx=-3;fddx<=3;fddx++)for(var fddy=-2;fddy<=treeH+3;fddy++)for(var fddz=-3;fddz<=3;fddz++){var fsx=wx+fddx,fsy=wy+fddy,fsz=wz+fddz,fsk=key6F(fsx,fsy,fsz);if(!visitedF.has(fsk)&&getBlock(fsx,fsy,fsz)===B_LEAF){visitedF.add(fsk);queueF.push([fsx,fsy,fsz]);}}
       var fLeafCount=0;
-      while(queueF.length>0&&fLeafCount<200){
+      while(queueF.length>0&&fLeafCount<400){
         var fcur=queueF.shift(),flx=fcur[0],fly=fcur[1],flz=fcur[2];
         var fcx=Math.floor(flx/CHUNK_SIZE),fcz=Math.floor(flz/CHUNK_SIZE),fdata=chunks.get(ckey(fcx,fcz));
         if(fdata){var fllx=((flx%CHUNK_SIZE)+CHUNK_SIZE)%CHUNK_SIZE,fllz=((flz%CHUNK_SIZE)+CHUNK_SIZE)%CHUNK_SIZE;fdata[fllx+CHUNK_SIZE*(fly+CHUNK_HEIGHT*fllz)]=B_AIR;}
