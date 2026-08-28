@@ -2650,7 +2650,7 @@ display: none !important;
     <div id="overlay-content">
       <h1>MINECLONE</h1>
       <div id="overlay-tagline">Survivre. Ou mourir.</div>
-      <div id="overlay-build">v61</div>
+      <div id="overlay-build">v62</div>
       <button type="button" id="continueBtn" onclick="window.continueGame&&window.continueGame()">Continuer</button>
       <button type="button" id="startBtn">Nouvelle partie</button>
       <button type="button" id="btn-settings-open" onclick="if(typeof openSettings==='function')openSettings();">Parametres</button>
@@ -5170,7 +5170,7 @@ function buildMesh(cx,cz){
     if(isWallB(getBlock(x,y,z+1))||isWallB(getBlock(x,y,z-1)))return false;
     return null;
   }
-  function joinWallCorners(grp, alongX, wwx, wy, wwz, span){
+  function joinWallCorners(grp, alongX, wwx, wy, wwz, span){return;
     var gx=alongX?wwx+span/2:wwx+0.5;
     var gz=alongX?wwz+0.5:wwz+span/2;
     var x0=wwx, z0=wwz, x1=alongX?wwx+span-1:wwx, z1=alongX?wwz:wwz+span-1;
@@ -5320,6 +5320,15 @@ function buildMesh(cx,cz){
     var bk=wwx+','+wy+','+wwz;
     ensureBuildMeta(wwx,wy,wwz,wb);
     if(_buildRoot[bk]&&_buildRoot[bk]!==bk)continue;
+    if(wb===B_WALL){
+      if(getBlock(wwx,wy-1,wwz)===B_WALL)continue;
+      var nL=wwx-1,nB=wwz-1;
+      var rL=_buildRoot[nL+','+wy+','+wwz], rB=_buildRoot[wwx+','+wy+','+nB];
+      if(!_buildRoot[bk]){
+        if(getBlock(nL,wy,wwz)===B_WALL&&!rL)continue;
+        if(getBlock(wwx,wy,nB)===B_WALL&&!rB)continue;
+      }
+    }
     if(wb===B_WALL_NARROW){
       var dirN=_buildDir[bk]||0, alongN=(dirN===0||dirN===2);
       var ng=new THREE.Group();
@@ -5342,41 +5351,42 @@ function buildMesh(cx,cz){
     }
     var dir=_buildDir[bk]||0;
     var alongX=(dir===0||dir===2);
-    var bg=new THREE.Group();
     var box=wallPieceBox(bk,wwx,wy,wwz,alongX);
+    if(box.spanX>box.spanZ)alongX=true;
+    else if(box.spanZ>box.spanX)alongX=false;
+    var bg=new THREE.Group();
     if(wb===B_WALL){
       var hasWin=!!_buildWin[bk];
-      var span=box.span, nLog=Math.max(5,span*4+1), extraL=box.extL, extraR=box.extR;
+      var span=2, nLog=8, thick=0.22;
       for(var i=0;i<nLog;i++){
-        var o=-span/2+0.12+i*((span-0.24)/(nLog-1));
-        if(i===0)o-=extraL;if(i===nLog-1)o+=extraR;
-        var t=0.13+(i%3)*0.015,inWin=hasWin&&i>=Math.floor(nLog*0.35)&&i<=Math.floor(nLog*0.65);
+        var o=-0.94+i*(1.88/7);
+        var t=0.20+(i%2)*0.02, h=2.0-(i%3)*0.04;
+        var inWin=hasWin&&i>=2&&i<=5;
         if(inWin){
-          if(alongX){bg.add(wbox(i%2?bark:barkD,t,0.52,0.16,o,0.26,0));bg.add(wbox(i%2?bark:barkD,t,0.5,0.16,o,1.7,0));}
-          else {bg.add(wbox(i%2?bark:barkL,0.16,0.52,t,0,0.26,o));bg.add(wbox(i%2?bark:barkL,0.16,0.5,t,0,1.7,o));}
+          if(alongX){bg.add(wbox(i%2?bark:barkD,t,0.55,thick,o,0.28,0));bg.add(wbox(i%2?bark:barkD,t,0.52,thick,o,1.72,0));}
+          else {bg.add(wbox(i%2?bark:barkL,thick,0.55,t,0,0.28,o));bg.add(wbox(i%2?bark:barkL,thick,0.52,t,0,1.72,o));}
         } else {
-          var h=1.92+(i%2)*0.06;
-          if(alongX) bg.add(wbox(i%2?bark:barkD,t,h,0.16,o,h/2,0));
-          else bg.add(wbox(i%2?bark:barkL,0.16,h,t,0,h/2,o));
+          if(alongX) bg.add(wbox(i%2?bark:barkD,t,h,thick,o,h/2,0));
+          else bg.add(wbox(i%2?bark:barkL,thick,h,t,0,h/2,o));
         }
       }
-      if(alongX){bg.add(wbox(ropeM,span+extraL+extraR,0.05,0.16, (extraR-extraL)/2,0.45,0));bg.add(wbox(ropeM,span+extraL+extraR,0.05,0.16,(extraR-extraL)/2,1.35,0));}
-      else {bg.add(wbox(ropeM,0.16,0.05,span+extraL+extraR,0,0.45,(extraR-extraL)/2));bg.add(wbox(ropeM,0.16,0.05,span+extraL+extraR,0,1.35,(extraR-extraL)/2));}
+      if(alongX){bg.add(wbox(ropeM,1.96,0.06,0.18,0,0.48,0));bg.add(wbox(ropeM,1.96,0.06,0.18,0,1.42,0));}
+      else {bg.add(wbox(ropeM,0.18,0.06,1.96,0,0.48,0));bg.add(wbox(ropeM,0.18,0.06,1.96,0,1.42,0));}
       if(hasWin){
         if(alongX){
-          bg.add(wbox(barkL,0.78,0.1,0.2,0,0.54,0));
-          bg.add(wbox(barkL,0.78,0.1,0.2,0,1.46,0));
-          bg.add(wbox(barkD,0.08,0.92,0.18,-0.4,1.0,0));
-          bg.add(wbox(barkD,0.08,0.92,0.18,0.4,1.0,0));
+          bg.add(wbox(barkL,0.9,0.1,0.24,0,0.56,0));
+          bg.add(wbox(barkL,0.9,0.1,0.24,0,1.46,0));
+          bg.add(wbox(barkD,0.08,0.9,0.2,-0.42,1.0,0));
+          bg.add(wbox(barkD,0.08,0.9,0.2,0.42,1.0,0));
         } else {
-          bg.add(wbox(barkL,0.2,0.1,0.78,0,0.54,0));
-          bg.add(wbox(barkL,0.2,0.1,0.78,0,1.46,0));
-          bg.add(wbox(barkD,0.18,0.92,0.08,0,1.0,-0.4));
-          bg.add(wbox(barkD,0.18,0.92,0.08,0,1.0,0.4));
+          bg.add(wbox(barkL,0.24,0.1,0.9,0,0.56,0));
+          bg.add(wbox(barkL,0.24,0.1,0.9,0,1.46,0));
+          bg.add(wbox(barkD,0.2,0.9,0.08,0,1.0,-0.42));
+          bg.add(wbox(barkD,0.2,0.9,0.08,0,1.0,0.42));
         }
       }
-      joinWallCorners(bg, alongX, box.minx, wy, box.minz, box.span);
-      bg.position.set(alongX?box.minx+box.span/2:wwx+0.5,wallSitY(wwx,wy,wwz),alongX?wwz+0.5:box.minz+box.span/2);
+      joinWallCorners(bg, alongX, box.minx, wy, box.minz, 2);
+      bg.position.set(alongX?box.minx+1:wwx+0.5, wy, alongX?wwz+0.5:box.minz+1);
     } else if(wb===B_FLOOR){
       for(var i=0;i<9;i++){
         var o=-0.9+i*0.22,t=0.16+(i%2)*0.02;
@@ -10196,7 +10206,8 @@ function wallPieceBox(bk,wwx,wy,wwz,alongX){
   } else {
     if(alongX)maxx=wwx+1; else maxz=wwz+1;
   }
-  var span=alongX?(maxx-minx+1):(maxz-minz+1);
+  var spanX=maxx-minx+1, spanZ=maxz-minz+1;
+  var span=alongX?spanX:spanZ;
   var extL=0,extR=0;
   if(alongX){
     if(isWallB(getBlock(minx-1,wy,minz))||isWallB(getBlock(minx-1,wy+1,minz)))extL=0.12;
@@ -10205,7 +10216,7 @@ function wallPieceBox(bk,wwx,wy,wwz,alongX){
     if(isWallB(getBlock(minx,wy,minz-1))||isWallB(getBlock(minx,wy+1,minz-1)))extL=0.12;
     if(isWallB(getBlock(minx,wy,maxz+1))||isWallB(getBlock(minx,wy+1,maxz+1)))extR=0.12;
   }
-  return {minx:minx,maxx:maxx,minz:minz,maxz:maxz,span:span,extL:extL,extR:extR};
+  return {minx:minx,maxx:maxx,minz:minz,maxz:maxz,span:span,spanX:spanX,spanZ:spanZ,extL:extL,extR:extR};
 }
 function wallCellOK(c){
   var occ=getBlock(c.x,c.y,c.z);
