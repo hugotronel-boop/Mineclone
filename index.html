@@ -2648,7 +2648,7 @@ display: none !important;
     <div id="overlay-content">
       <h1>MINECLONE</h1>
       <div id="overlay-tagline">Survivre. Ou mourir.</div>
-      <div id="overlay-build">v54</div>
+      <div id="overlay-build">v55</div>
       <button type="button" id="continueBtn" onclick="window.continueGame&&window.continueGame()">Continuer</button>
       <button type="button" id="startBtn">Nouvelle partie</button>
       <button type="button" id="btn-settings-open" onclick="if(typeof openSettings==='function')openSettings();">Parametres</button>
@@ -5155,6 +5155,47 @@ function buildMesh(cx,cz){
     var m=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),mat);
     m.position.set(px,py,pz);return m;
   }
+  function wallAlongXAt(x,y,z){
+    if(!isWallB(getBlock(x,y,z))){
+      if(isWallB(getBlock(x,y-1,z)))y=y-1;
+      else if(isWallB(getBlock(x,y+1,z)))y=y+1;
+      else return null;
+    }
+    var k=x+','+y+','+z, rk=_buildRoot[k]||k, d=_buildDir[rk];
+    if(d===undefined)d=_buildDir[k];
+    if(d!==undefined)return d===0||d===2;
+    if(isWallB(getBlock(x+1,y,z))||isWallB(getBlock(x-1,y,z)))return true;
+    if(isWallB(getBlock(x,y,z+1))||isWallB(getBlock(x,y,z-1)))return false;
+    return null;
+  }
+  function joinWallCorners(grp, alongX, wwx, wy, wwz, span){
+    var gx=alongX?wwx+span/2:wwx+0.5;
+    var gz=alongX?wwz+0.5:wwz+span/2;
+    var x0=wwx, z0=wwz, x1=alongX?wwx+span-1:wwx, z1=alongX?wwz:wwz+span-1;
+    var seen={};
+    function post(lx,lz){
+      var key=Math.round(lx*8)+','+Math.round(lz*8);
+      if(seen[key])return;seen[key]=1;
+      grp.add(wbox(barkD,0.32,2.1,0.32, lx, 1.05, lz));
+      grp.add(wbox(bark,0.22,2.04,0.22, lx, 1.02, lz));
+      grp.add(wbox(ropeM,0.34,0.08,0.34, lx, 0.4, lz));
+      grp.add(wbox(ropeM,0.34,0.08,0.34, lx, 1.55, lz));
+    }
+    for(var x=x0-1;x<=x1+1;x++){
+      for(var z=z0-1;z<=z1+1;z++){
+        if(x>=x0&&x<=x1&&z>=z0&&z<=z1)continue;
+        var nAlong=wallAlongXAt(x,wy,z);
+        if(nAlong===null)continue;
+        if(nAlong===alongX){
+          if(alongX) grp.add(wbox(barkD,0.28,1.98,0.2, (x<x0)?-(span/2):span/2, 0.99, 0));
+          else grp.add(wbox(barkD,0.2,1.98,0.28, 0, 0.99, (z<z0)?-(span/2):span/2));
+          continue;
+        }
+        if(alongX) post((x+0.5)-gx, 0);
+        else post(0, (z+0.5)-gz);
+      }
+    }
+  }
   function addFlame(parent,x,y,z,kind){
     var camp=kind==='camp';
     var matO=new THREE.MeshBasicMaterial({color:0xff6418});
@@ -5300,6 +5341,7 @@ function buildMesh(cx,cz){
         ng.add(wbox(ropeM,0.18,0.06,0.95,0,0.45,0));
         ng.add(wbox(ropeM,0.18,0.06,0.95,0,1.35,0));
       }
+      joinWallCorners(ng, alongN, wwx, wy, wwz, 1);
       ng.position.set(wwx+0.5,wallSitY(wwx,wy,wwz),wwz+0.5);
       group.add(ng);
       continue;
@@ -5314,8 +5356,8 @@ function buildMesh(cx,cz){
     var bg=new THREE.Group();
     if(wb===B_WALL){
       var hasWin=!!_buildWin[bk];
-      for(var i=0;i<9;i++){
-        var o=-0.9+i*0.22,t=0.14+(i%3)*0.02,inWin=hasWin&&i>=3&&i<=5;
+      for(var i=0;i<11;i++){
+        var o=-1.1+i*0.22,t=0.14+(i%3)*0.02,inWin=hasWin&&i>=4&&i<=6;
         if(inWin){
           if(alongX){bg.add(wbox(i%2?bark:barkD,t,0.52,0.16,o,0.26,0));bg.add(wbox(i%2?bark:barkD,t,0.5,0.16,o,1.7,0));}
           else {bg.add(wbox(i%2?bark:barkL,0.16,0.52,t,0,0.26,o));bg.add(wbox(i%2?bark:barkL,0.16,0.5,t,0,1.7,o));}
@@ -5325,8 +5367,8 @@ function buildMesh(cx,cz){
           else bg.add(wbox(i%2?bark:barkL,0.16,h,t,0,h/2,o));
         }
       }
-      if(alongX){bg.add(wbox(ropeM,1.9,0.06,0.18,0,0.45,0));bg.add(wbox(ropeM,1.9,0.06,0.18,0,1.35,0));}
-      else {bg.add(wbox(ropeM,0.18,0.06,1.9,0,0.45,0));bg.add(wbox(ropeM,0.18,0.06,1.9,0,1.35,0));}
+      if(alongX){bg.add(wbox(ropeM,2.2,0.06,0.18,0,0.45,0));bg.add(wbox(ropeM,2.2,0.06,0.18,0,1.35,0));}
+      else {bg.add(wbox(ropeM,0.18,0.06,2.2,0,0.45,0));bg.add(wbox(ropeM,0.18,0.06,2.2,0,1.35,0));}
       if(hasWin){
         if(alongX){
           bg.add(wbox(barkL,0.78,0.1,0.2,0,0.54,0));
@@ -5340,6 +5382,7 @@ function buildMesh(cx,cz){
           bg.add(wbox(barkD,0.18,0.92,0.08,0,1.0,0.4));
         }
       }
+      joinWallCorners(bg, alongX, wwx, wy, wwz, 2);
       bg.position.set(alongX?wwx+1:wwx+0.5,wallSitY(wwx,wy,wwz),alongX?wwz+0.5:wwz+1);
     } else if(wb===B_FLOOR){
       for(var i=0;i<9;i++){
