@@ -2650,7 +2650,7 @@ display: none !important;
     <div id="overlay-content">
       <h1>MINECLONE</h1>
       <div id="overlay-tagline">Survivre. Ou mourir.</div>
-      <div id="overlay-build">v65</div>
+      <div id="overlay-build">v66</div>
       <button type="button" id="continueBtn" onclick="window.continueGame&&window.continueGame()">Continuer</button>
       <button type="button" id="startBtn">Nouvelle partie</button>
       <button type="button" id="btn-settings-open" onclick="if(typeof openSettings==='function')openSettings();">Parametres</button>
@@ -3984,7 +3984,7 @@ function getH(wx,wz){
   return Math.floor(getHForIsle(wx,wz,ISLE_C,isleDistC));
 }
 function ckey(cx,cz){return cx+','+cz;}
-function setBlockRaw(wx,wy,wz,type){if(wy<0||wy>=CHUNK_HEIGHT)return;var cx=Math.floor(wx/CHUNK_SIZE),cz=Math.floor(wz/CHUNK_SIZE),data=chunks.get(ckey(cx,cz));if(!data)return;var lx=((wx%CHUNK_SIZE)+CHUNK_SIZE)%CHUNK_SIZE,lz=((wz%CHUNK_SIZE)+CHUNK_SIZE)%CHUNK_SIZE;data[lx+CHUNK_SIZE*(wy+CHUNK_HEIGHT*lz)]=type;}
+function setBlockRaw(wx,wy,wz,type){if(wy<0||wy>=CHUNK_HEIGHT)return;if(typeof trackBlockChange==='function')trackBlockChange(wx,wy,wz,type);var cx=Math.floor(wx/CHUNK_SIZE),cz=Math.floor(wz/CHUNK_SIZE),data=chunks.get(ckey(cx,cz));if(!data)return;var lx=((wx%CHUNK_SIZE)+CHUNK_SIZE)%CHUNK_SIZE,lz=((wz%CHUNK_SIZE)+CHUNK_SIZE)%CHUNK_SIZE;data[lx+CHUNK_SIZE*(wy+CHUNK_HEIGHT*lz)]=type;}
 
 function getLakeCell(wx,wz){return{cx:Math.floor(wx/48)*48+24,cz:Math.floor(wz/48)*48+24};}
 function isLake(wx,wz){var biome=getBiome(wx,wz);if(biome==='ocean'||biome==='beach'||biome==='mountain')return false;var cell=getLakeCell(wx,wz);if(hash(cell.cx*3.1,cell.cz*2.7,SEED+4242)<0.70)return false;var h=getH(cell.cx,cell.cz);if(h<=SEA_LEVEL+2||h>SEA_LEVEL+40)return false;var radius=8+Math.floor(hash(cell.cx,cell.cz,SEED+1234)*8),dx=wx-cell.cx,dz=wz-cell.cz;return dx*dx+dz*dz<=radius*radius;}
@@ -4865,6 +4865,47 @@ function updateFallingTrees(dt){
   }
 }
 
+var _fellingTree=false;
+function fellTreeAt(wx,wy,wz){
+  if(_fellingTree)return;
+  _fellingTree=true;
+  var y0=wy;
+  while(y0>1&&getBlock(wx,y0-1,wz)===B_WOOD)y0--;
+  var y1=wy;
+  while(y1<CHUNK_HEIGHT-1&&getBlock(wx,y1+1,wz)===B_WOOD)y1++;
+  var treeH=y1-y0+1;
+  var fallDx=wx-player.pos.x,fallDz=wz-player.pos.z;
+  var fallDir=Math.atan2(fallDx,fallDz)+(Math.random()-0.5)*0.6;
+  var y;
+  for(y=y0;y<=y1;y++)setBlockRaw(wx,y,wz,B_AIR);
+  var visited=new Set(),queue=[],key6=function(x,y,z){return x+','+y+','+z;},dx,dy,dz,k,cur,nx,ny,nz;
+  for(dx=-3;dx<=3;dx++)for(dy=-2;dy<=treeH+4;dy++)for(dz=-3;dz<=3;dz++){
+    if(getBlock(wx+dx,y0+dy,wz+dz)===B_LEAF){k=key6(wx+dx,y0+dy,wz+dz);if(!visited.has(k)){visited.add(k);queue.push([wx+dx,y0+dy,wz+dz]);}}
+  }
+  var n=0;
+  while(queue.length&&n<500){
+    cur=queue.shift();n++;
+    setBlockRaw(cur[0],cur[1],cur[2],B_AIR);
+    var nbrs=[[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
+    for(var i=0;i<6;i++){
+      nx=cur[0]+nbrs[i][0];ny=cur[1]+nbrs[i][1];nz=cur[2]+nbrs[i][2];k=key6(nx,ny,nz);
+      if(!visited.has(k)&&getBlock(nx,ny,nz)===B_LEAF){visited.add(k);queue.push([nx,ny,nz]);}
+    }
+  }
+  var seen={};
+  function rb(x,z){var cx=Math.floor(x/CHUNK_SIZE),cz=Math.floor(z/CHUNK_SIZE),id=cx+','+cz;if(seen[id])return;seen[id]=1;rebuildC(cx,cz);}
+  rb(wx,wz);rb(wx-4,wz);rb(wx+4,wz);rb(wx,wz-4);rb(wx,wz+4);
+  visited.forEach(function(kk){var p=kk.split(',');rb(parseInt(p[0]),parseInt(p[2]));});
+  setBlockRaw(wx,y0,wz,B_STUMP);
+  rb(wx,wz);
+  _ecoWoodCut++;
+  if(typeof scheduleTreeRegrowth==='function')scheduleTreeRegrowth(wx,wz);
+  if(typeof spawnFallingTree==='function')spawnFallingTree(wx,y0+1,wz,Math.max(1,treeH-1),fallDir);
+  showPopup('🌲 CRACK!',new THREE.Vector3(wx+0.5,y0+treeH*0.5,wz+0.5));
+  if(typeof playSoundTreeCrack==='function')playSoundTreeCrack();
+  _fellingTree=false;
+}
+
 function onBlockBreak(blockType,wx,wy,wz){
   if((blockType===B_WALL||blockType===B_FLOOR||blockType===B_ROOF||blockType===B_WALL_NARROW||blockType===B_STAIRS)&&_clearingBuild)return;
   if(blockType===B_WALL||blockType===B_FLOOR||blockType===B_ROOF||blockType===B_WALL_NARROW||blockType===B_STAIRS){
@@ -4944,56 +4985,7 @@ function onBlockBreak(blockType,wx,wy,wz){
     schedulePlantRegrowth(wx,wy,wz,blockType===B_BERRY_EMPTY?B_BERRY_BUSH:blockType);
   }
   if(blockType===B_WOOD){
-    var belowBlock=getBlock(wx,wy-1,wz);
-    var isBase=belowBlock!==B_WOOD;
-
-    if(isBase){
-      // Compter la hauteur du tronc
-      var treeH=0,above=wy;
-      while(above<CHUNK_HEIGHT&&getBlock(wx,above,wz)===B_WOOD){treeH++;above++;}
-      var topY=wy+treeH-1;
-
-      // Direction de chute : s'éloigne du joueur
-      var fallDx=wx-player.pos.x,fallDz=wz-player.pos.z;
-      var fallDir=Math.atan2(fallDx,fallDz)+(Math.random()-0.5)*0.6;
-
-      // Supprimer les blocs du monde (tronc + feuilles) immédiatement
-      var above2=wy;
-      while(above2<CHUNK_HEIGHT&&getBlock(wx,above2,wz)===B_WOOD){
-        var cxW=Math.floor(wx/CHUNK_SIZE),czW=Math.floor(wz/CHUNK_SIZE),dataW=chunks.get(ckey(cxW,czW));
-        if(dataW){var lxW=((wx%CHUNK_SIZE)+CHUNK_SIZE)%CHUNK_SIZE,lzW=((wz%CHUNK_SIZE)+CHUNK_SIZE)%CHUNK_SIZE;dataW[lxW+CHUNK_SIZE*(above2+CHUNK_HEIGHT*lzW)]=B_AIR;}
-        above2++;
-      }
-      // Feuilles BFS silencieux
-      var visitedF=new Set(),queueF=[],key6F=function(x,y,z){return x+','+y+','+z;};
-      for(var fddx=-3;fddx<=3;fddx++)for(var fddy=-2;fddy<=treeH+3;fddy++)for(var fddz=-3;fddz<=3;fddz++){var fsx=wx+fddx,fsy=wy+fddy,fsz=wz+fddz,fsk=key6F(fsx,fsy,fsz);if(!visitedF.has(fsk)&&getBlock(fsx,fsy,fsz)===B_LEAF){visitedF.add(fsk);queueF.push([fsx,fsy,fsz]);}}
-      var fLeafCount=0;
-      while(queueF.length>0&&fLeafCount<400){
-        var fcur=queueF.shift(),flx=fcur[0],fly=fcur[1],flz=fcur[2];
-        var fcx=Math.floor(flx/CHUNK_SIZE),fcz=Math.floor(flz/CHUNK_SIZE),fdata=chunks.get(ckey(fcx,fcz));
-        if(fdata){var fllx=((flx%CHUNK_SIZE)+CHUNK_SIZE)%CHUNK_SIZE,fllz=((flz%CHUNK_SIZE)+CHUNK_SIZE)%CHUNK_SIZE;fdata[fllx+CHUNK_SIZE*(fly+CHUNK_HEIGHT*fllz)]=B_AIR;}
-        fLeafCount++;
-        var fnbrs=[[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
-        for(var fni=0;fni<6;fni++){var fnx=flx+fnbrs[fni][0],fny=fly+fnbrs[fni][1],fnz=flz+fnbrs[fni][2],fnk=key6F(fnx,fny,fnz);if(!visitedF.has(fnk)&&getBlock(fnx,fny,fnz)===B_LEAF){visitedF.add(fnk);queueF.push([fnx,fny,fnz]);}}
-      }
-      var rebuiltKeysF=new Set();visitedF.forEach(function(k){var parts=k.split(','),rcx=Math.floor(parseInt(parts[0])/CHUNK_SIZE),rcz=Math.floor(parseInt(parts[2])/CHUNK_SIZE),rk=ckey(rcx,rcz);if(!rebuiltKeysF.has(rk)){rebuiltKeysF.add(rk);rebuildC(rcx,rcz);}});
-      rebuildC(Math.floor(wx/CHUNK_SIZE),Math.floor(wz/CHUNK_SIZE));
-
-      // Souche
-      setBlock(wx,wy,wz,B_STUMP);
-      _ecoWoodCut++;
-      scheduleTreeRegrowth(wx,wz);
-
-      // Lancer l'entité arbre qui tombe (PAS de drop direct ici → géré dans updateFallingTrees)
-      spawnFallingTree(wx,wy+1,wz,treeH-1,fallDir);
-      showPopup('🌲 CRACK!',new THREE.Vector3(wx+0.5,wy+treeH*0.5,wz+0.5));if(typeof playSoundTreeCrack==='function')playSoundTreeCrack();
-
-    } else {
-      // Bloc de bois à mi-tronc (pas la base) : drop normal
-      if(typeof spawnWorldDrop==='function')spawnWorldDrop(B_WOOD,1,wx+0.5,wy+0.6,wz+0.5);
-      else{giveItem(B_WOOD,1);showPopup('+1 '+BNAMES[B_WOOD],pos);}
-      scheduleTreeRegrowth(wx,wz);
-    }
+    if(!_fellingTree)fellTreeAt(wx,wy,wz);
     return; // éviter le drop standard du début de onBlockBreak
   }
 }
@@ -9961,11 +9953,7 @@ function updateBreaking(dt){
   if(!breaking.active&&breaking.resetTimer>0){breaking.resetTimer-=dt;if(breaking.resetTimer<=0){breaking.progress=0;breaking.savedBx=null;crackMesh.visible=false;hlMesh.visible=false;drawCrack(0,null,null,null);breaking._stage=-1;breaking._creaked=false;}}
   if(!breaking.active)return;var h=raycast();if(!h){crackMesh.visible=false;hlMesh.visible=false;return;}
   var bx=h.bx,by=h.by,bz=h.bz,blockType=getBlock(bx,by,bz);if(blockType===B_WATER||!blockType){crackMesh.visible=false;return;}
-  if(blockType===B_WOOD&&true){
-    var below=getBlock(bx,by-1,bz);
-    var isBase=below===B_GRASS||below===B_DIRT||below===B_SAND||below===B_GRAVEL||below===B_STONE||below===B_STUMP;
-    if(!isBase){crackMesh.visible=false;showPopup('🪓 Coupe à la base!',new THREE.Vector3(bx+0.5,by+1.5,bz+0.5));return;}
-  }
+  if(blockType===B_WOOD){ /* tout le bois se casse, la chute est gérée dans onBlockBreak */ }
   if(bx!==breaking.bx||by!==breaking.by||bz!==breaking.bz){if(bx===breaking.savedBx&&by===breaking.savedBy&&bz===breaking.savedBz)breaking.resetTimer=0;else{breaking.progress=0;breaking._stage=-1;breaking._creaked=false;drawCrack._b=-1;}breaking.bx=bx;breaking.by=by;breaking.bz=bz;}
   var tool=INV[selectedSlot];breaking.progress+=dt*getToolMultiplier(tool?tool.id:0,blockType)/(BREAK_TIMES[blockType]||1.0);
   breaking.hitAcc=(breaking.hitAcc||0)+dt;
