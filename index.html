@@ -2648,7 +2648,7 @@ display: none !important;
     <div id="overlay-content">
       <h1>MINECLONE</h1>
       <div id="overlay-tagline">Survivre. Ou mourir.</div>
-      <div id="overlay-build">v51</div>
+      <div id="overlay-build">v52</div>
       <button type="button" id="continueBtn" onclick="window.continueGame&&window.continueGame()">Continuer</button>
       <button type="button" id="startBtn">Nouvelle partie</button>
       <button type="button" id="btn-settings-open" onclick="if(typeof openSettings==='function')openSettings();">Parametres</button>
@@ -5267,20 +5267,17 @@ function buildMesh(cx,cz){
     if(wb===B_WALL_NARROW){
       var dirN=_buildDir[bk]||0, alongN=(dirN===0||dirN===2);
       var ng=new THREE.Group();
+      for(var ni=0;ni<5;ni++){
+        var no=-0.42+ni*0.21, nt=0.14+(ni%3)*0.02, nh=1.92+(ni%2)*0.06;
+        if(alongN) ng.add(wbox(ni%2?bark:barkD, nt, nh, 0.16, no, nh/2, 0));
+        else ng.add(wbox(ni%2?bark:barkL, 0.16, nh, nt, 0, nh/2, no));
+      }
       if(alongN){
-        ng.add(wbox(barkD,0.14,1.95,0.16,-0.32,0.98,0));
-        ng.add(wbox(bark,0.14,1.95,0.16,0.32,0.98,0));
-        ng.add(wbox(barkL,0.78,0.12,0.16,0,1.88,0));
-        ng.add(wbox(barkD,0.7,0.1,0.16,0,0.08,0));
-        ng.add(wbox(ropeM,0.08,0.7,0.08,-0.32,1.1,0.08));
-        ng.add(wbox(ropeM,0.08,0.7,0.08,0.32,1.1,0.08));
+        ng.add(wbox(ropeM,0.95,0.06,0.18,0,0.45,0));
+        ng.add(wbox(ropeM,0.95,0.06,0.18,0,1.35,0));
       } else {
-        ng.add(wbox(barkD,0.16,1.95,0.14,0,0.98,-0.32));
-        ng.add(wbox(bark,0.16,1.95,0.14,0,0.98,0.32));
-        ng.add(wbox(barkL,0.16,0.12,0.78,0,1.88,0));
-        ng.add(wbox(barkD,0.16,0.1,0.7,0,0.08,0));
-        ng.add(wbox(ropeM,0.08,0.7,0.08,0.08,1.1,-0.32));
-        ng.add(wbox(ropeM,0.08,0.7,0.08,0.08,1.1,0.32));
+        ng.add(wbox(ropeM,0.18,0.06,0.95,0,0.45,0));
+        ng.add(wbox(ropeM,0.18,0.06,0.95,0,1.35,0));
       }
       ng.position.set(wwx+0.5,wallSitY(wwx,wy,wwz),wwz+0.5);
       group.add(ng);
@@ -5736,8 +5733,8 @@ ITEM_TO_BLOCK[ITEM_BERRY_SEED]=B_BERRY_BUSH;
 ITEM_TO_BLOCK[ITEM_MUSHROOM_SPORE]=B_MUSHROOM_BLOCK;
 ITEM_TO_BLOCK[ITEM_TREE_SEED]=B_SAPLING;
 
-BNAMES[ITEM_TORCH]='Torche';BNAMES[ITEM_BONE]='Os';BNAMES[ITEM_AXE_WOOD]='Hache en bois';BNAMES[ITEM_AXE_STONE]='Hache en pierre';BNAMES[ITEM_AXE_IRON]='Hache en fer';BNAMES[ITEM_PICK_WOOD]='Pioche en bois';BNAMES[ITEM_PICK_STONE]='Pioche en pierre';BNAMES[ITEM_PICK_IRON]='Pioche en fer';BNAMES[ITEM_BOW]='Arc';BNAMES[ITEM_ARROW]='Flèche';BNAMES[ITEM_SPEAR]='Lance';BNAMES[ITEM_CLUB]='Massue';BNAMES[ITEM_SLING]='Lance-pierre';BNAMES[ITEM_ROPE]='Corde';BNAMES[ITEM_BED]='Lit';BNAMES[ITEM_BACKPACK]='Sac à dos';BNAMES[ITEM_WALL]='Mur de rondins';BNAMES[ITEM_FLOOR]='Plancher';BNAMES[ITEM_ROOF]='Toit';BNAMES[ITEM_WALL_DOOR]='Mur-porte';
-BNAMES[B_WALL]='Mur de rondins';BNAMES[B_FLOOR]='Plancher';BNAMES[B_ROOF]='Toit';BNAMES[B_WALL_NARROW]='Mur-porte';
+BNAMES[ITEM_TORCH]='Torche';BNAMES[ITEM_BONE]='Os';BNAMES[ITEM_AXE_WOOD]='Hache en bois';BNAMES[ITEM_AXE_STONE]='Hache en pierre';BNAMES[ITEM_AXE_IRON]='Hache en fer';BNAMES[ITEM_PICK_WOOD]='Pioche en bois';BNAMES[ITEM_PICK_STONE]='Pioche en pierre';BNAMES[ITEM_PICK_IRON]='Pioche en fer';BNAMES[ITEM_BOW]='Arc';BNAMES[ITEM_ARROW]='Flèche';BNAMES[ITEM_SPEAR]='Lance';BNAMES[ITEM_CLUB]='Massue';BNAMES[ITEM_SLING]='Lance-pierre';BNAMES[ITEM_ROPE]='Corde';BNAMES[ITEM_BED]='Lit';BNAMES[ITEM_BACKPACK]='Sac à dos';BNAMES[ITEM_WALL]='Mur de rondins';BNAMES[ITEM_FLOOR]='Plancher';BNAMES[ITEM_ROOF]='Toit';BNAMES[ITEM_WALL_DOOR]='Mur 1x2';
+BNAMES[B_WALL]='Mur de rondins';BNAMES[B_FLOOR]='Plancher';BNAMES[B_ROOF]='Toit';BNAMES[B_WALL_NARROW]='Mur 1x2';
 BNAMES[ITEM_FENCE]='Clôture';BNAMES[ITEM_DOOR]='Porte';BNAMES[ITEM_STAIRS]='Escalier';BNAMES[ITEM_KNIFE_WOOD]='Couteau en bois';BNAMES[ITEM_KNIFE_IRON]='Couteau en métal';BNAMES[ITEM_GRILL]='Grille de cuisson';BNAMES[ITEM_WATER_FILTER]='Filtre à eau';BNAMES[ITEM_CANTEEN]='Récipient vide';BNAMES[ITEM_CANTEEN_WATER]="Récipient d'eau";BNAMES[ITEM_CAMPFIRE]='Feu de camp';BNAMES[ITEM_BANDAGE]='Bandage';BNAMES[ITEM_BOAT]='Radeau';BNAMES[ITEM_TENT]='Tente';BNAMES[ITEM_CHEST]='Coffre';BNAMES[ITEM_COOKED_MEAT]='Viande cuite';BNAMES[ITEM_FABRIC]='Tissu';BNAMES[B_CAMPFIRE]='Feu de camp';BNAMES[B_CHEST]='Coffre';BNAMES[B_GRILL]='Grille';BNAMES[B_TENT]='Tente';BNAMES[B_BED]='Lit';BNAMES[B_WATER_COLLECTOR]="Collecteur d'eau";BNAMES[B_WATER_COLLECTOR_FULL]="Collecteur d'eau (plein)";BNAMES[ITEM_WATER_COLLECTOR]="Collecteur d'eau";BNAMES[ITEM_STEAK]='Steak';BNAMES[ITEM_WOOL]='Laine';BNAMES[ITEM_FIBER]='Fibre végétale';BNAMES[ITEM_RESIN]='Résine';BNAMES[ITEM_IRON]='Fer brut';BNAMES[ITEM_LEATHER]='Cuir';
 BNAMES[ITEM_WATER_LAKE]="Eau de lac (risque)";BNAMES[ITEM_WATER_SEA]="Eau de mer (danger)";
 BNAMES[ITEM_WATER_FILTERED]="Eau filtrée";BNAMES[ITEM_WATER_RAIN]="Eau de pluie";
@@ -6077,9 +6074,8 @@ function drawSprite16(ctx,id){
     return;
   }
   if(id===ITEM_WALL_DOOR){
-    P(3,1,2,14,hw);P(11,1,2,14,hd);
-    P(3,1,10,2,'#c2a070');P(4,13,8,2,hw);
-    P(5,4,6,9,'#1a1008');
+    P(6,1,2,14,hw);P(8,1,2,14,hd);P(7,1,1,14,hk);
+    P(5,4,6,2,'#c2a070');P(5,10,6,2,'#c2a070');
     return;
   }
   if(id===ITEM_FLOOR){
@@ -10601,9 +10597,19 @@ function doPlace(px2,py2,pz2){var it=INV[selectedSlot];if(!it||!it.id)return;var
   }
   if(blockId===B_DOOR){
     var d0=getBlock(px2,py2,pz2),d1=getBlock(px2,py2+1,pz2);
-    var onFrame=(d0===B_WALL_NARROW&&(d1===B_WALL_NARROW||d1===B_AIR));
-    if(!onFrame){showPopup('Pose la porte dans un mur-porte (1x2)',player.pos.clone().add(new THREE.Vector3(0,1.2,0)));return;}
-    if(!onFrame && d1&&d1!==B_AIR){showPopup('Pas assez de place!',player.pos.clone().add(new THREE.Vector3(0,1.2,0)));return;}
+    function _doorSpace(b){return !b||b===B_AIR||b===B_WATER||b===B_WALL_NARROW||b===B_DOOR||b===B_DOOR_TOP;}
+    if(!_doorSpace(d0)||!_doorSpace(d1)){showPopup('Pas assez de place pour la porte (2 de haut)',player.pos.clone().add(new THREE.Vector3(0,1.2,0)));return;}
+    if(d0===B_WALL_NARROW||d1===B_WALL_NARROW){
+      var nk=px2+','+py2+','+pz2, rk=_buildRoot[nk]||_buildRoot[px2+','+(py2+1)+','+pz2];
+      if(rk&&_buildCells[rk]){
+        var cs=_buildCells[rk];
+        for(var ci=0;ci<cs.length;ci++){
+          var ck=cs[ci].x+','+cs[ci].y+','+cs[ci].z;
+          delete _buildDir[ck];delete _buildRoot[ck];
+        }
+        delete _buildCells[rk];delete _buildWin[rk];
+      }
+    }
     var dxp=player.pos.x-(px2+0.5),dzp=player.pos.z-(pz2+0.5);
     var ddir=Math.abs(dxp)>Math.abs(dzp)?(dxp>0?3:1):(dzp>0?0:2);
     setBlock(px2,py2,pz2,B_DOOR);
