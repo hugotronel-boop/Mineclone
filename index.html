@@ -2650,7 +2650,7 @@ display: none !important;
     <div id="overlay-content">
       <h1>MINECLONE</h1>
       <div id="overlay-tagline">Survivre. Ou mourir.</div>
-      <div id="overlay-build">v63</div>
+      <div id="overlay-build">v64</div>
       <button type="button" id="continueBtn" onclick="window.continueGame&&window.continueGame()">Continuer</button>
       <button type="button" id="startBtn">Nouvelle partie</button>
       <button type="button" id="btn-settings-open" onclick="if(typeof openSettings==='function')openSettings();">Parametres</button>
@@ -3362,7 +3362,7 @@ function makeLeafTex(){
   var pal=[[48,118,28],[62,142,36],[36,96,20],[78,158,44],[28,84,16],[70,148,40]];
   for(var y=0;y<16;y++)for(var x=0;x<16;x++){
     var n=ntex(x,y,7),n2=ntex(x*0.5,y*0.5,8);
-    if(n<0.22||n2<0.18){mcP(d,x,y,0,0,0,0);continue;}
+    if(n<0.10||n2<0.08){mcP(d,x,y,0,0,0,0);continue;}
     var c=pal[(n*6)|0];
     mcP(d,x,y,c[0],c[1],c[2],255);
   }
@@ -4300,12 +4300,50 @@ function renderCaveMap(){
 }
 
 
+function treeAt(wx,wz){
+  var biome=getBiome(wx,wz);
+  var h=getH(wx,wz);
+  if(h<=SEA_LEVEL||h>=CHUNK_HEIGHT-14)return null;
+  if(typeof isLake==='function'&&isLake(wx,wz))return null;
+  if(biome==='beach'||biome==='ocean')return null;
+  if(h>SEA_LEVEL+48)return null;
+  if(biome==='mountain'&&h>SEA_LEVEL+22)return null;
+  if((biome==='forest'||biome==='plain')&&hash(wx*3.7,wz*4.1,SEED+999)>(biome==='forest'?0.975:0.988))
+    return {type:'oak',h:h,th:5+Math.floor(hash(wx,wz,SEED+11)*2)};
+  if(biome==='mountain'&&h>SEA_LEVEL+5&&hash(wx*2.9,wz*3.7,SEED+888)>0.990)
+    return {type:'pine',h:h,th:6+Math.floor(hash(wx,wz,SEED+22)*3)};
+  return null;
+}
+function oakLeafOff(dx,dy,dz){
+  var ax=Math.abs(dx),az=Math.abs(dz);
+  if(dy===1)return ax+az<=1;
+  if(dy===0)return ax<=2&&az<=2&&!(ax===2&&az===2);
+  if(dy===-1)return ax<=2&&az<=2;
+  if(dy===-2)return ax<=1&&az<=1;
+  return false;
+}
+function pineLeafOff(dx,dy,dz){
+  var ax=Math.abs(dx),az=Math.abs(dz);
+  if(dy===1)return ax===0&&az===0;
+  if(dy===0)return ax+az<=1;
+  if(dy===-1)return ax<=1&&az<=1;
+  if(dy===-2)return ax+az<=2&&!(ax===2&&az===2);
+  if(dy===-3)return ax<=1&&az<=1;
+  return false;
+}
+function stampTreeLeaves(wx,top,wz,kind,put){
+  var dy,dx,dz,fn=kind==='pine'?pineLeafOff:oakLeafOff,y0=kind==='pine'?-3:-2;
+  for(dy=y0;dy<=1;dy++)for(dx=-2;dx<=2;dx++)for(dz=-2;dz<=2;dz++){
+    if(!fn(dx,dy,dz))continue;
+    put(wx+dx,top+dy,wz+dz);
+  }
+}
+
 function genChunk(cx,cz){
   var key=ckey(cx,cz);if(chunks.has(key))return chunks.get(key);
   var data=new Uint8Array(CHUNK_SIZE*CHUNK_HEIGHT*CHUNK_SIZE);chunks.set(key,data);
   var CS=CHUNK_SIZE,CH=CHUNK_HEIGHT,ox=cx*CS,oz=cz*CS;
   function idx(x,y,z){return x+CS*(y+CH*z);}
-  var treeList=[];
   for(var lx=0;lx<CS;lx++)for(var lz=0;lz<CS;lz++){
     var wx=cx*CS+lx,wz=cz*CS+lz,h=getH(wx,wz),biome=getBiome(wx,wz);
     var lake=h>SEA_LEVEL+2&&isLake(wx,wz),lakeLevel=lake?getLakeSurfaceY(wx,wz):0,lakeBot=lake?lakeLevel-lakeDepth(wx,wz):0;
@@ -4334,29 +4372,32 @@ function genChunk(cx,cz){
       if(rn>(highMtn?0.58:0.78)){var rh=1+Math.floor(rn*(highMtn?5:2));for(var ry=h;ry<h+rh&&ry<CH;ry++)if(lx>=0&&lx<CS&&lz>=0&&lz<CS)data[idx(lx,ry,lz)]=snowLine?B_SNOW:B_STONE;
         var dirs2=[[1,0],[-1,0],[0,1],[0,-1]];for(var di3=0;di3<dirs2.length;di3++){var nlx=lx+dirs2[di3][0],nlz=lz+dirs2[di3][1];if(nlx>=0&&nlx<CS&&nlz>=0&&nlz<CS){var nh2=getH(ox+nlx,oz+nlz);if(hash(ox+nlx,oz+nlz,SEED+501)>0.5)data[idx(nlx,nh2,nlz)]=B_GRAVEL;}}}
     }
-    if((biome==='forest'||biome==='plain')&&!beach&&h>SEA_LEVEL&&h<CH-12){
-      var tc=(biome==='forest')?0.975:0.988;
-      if(hash(wx*3.7,wz*4.1,SEED+999)>tc){var th=4+Math.floor(hash(wx,wz,SEED+11)*4);for(var ty=h;ty<h+th&&ty<CH;ty++)data[idx(lx,ty,lz)]=B_WOOD;treeList.push({wx:wx,wz:wz,top:h+th,lr:2+Math.floor(th/4),type:'round'});}
-    }
-    if(biome==='mountain'&&!highMtn&&h>SEA_LEVEL+5&&h<CH-16){
-      if(hash(wx*2.9,wz*3.7,SEED+888)>0.990){var pt=5+Math.floor(hash(wx,wz,SEED+22)*5);for(var piy=h;piy<h+pt&&piy<CH;piy++)data[idx(lx,piy,lz)]=B_WOOD;treeList.push({wx:wx,wz:wz,top:h+pt,lr:pt,type:'pine'});}
-    }
+    var trs=treeAt(wx,wz);
+    if(trs){for(var ty=trs.h;ty<trs.h+trs.th&&ty<CH;ty++)data[idx(lx,ty,lz)]=B_WOOD;}
     // Plantes sauvages — rares pour forcer la recherche
     if(!beach&&!lake&&h>SEA_LEVEL&&h<CHUNK_HEIGHT-2){
       if(biome==='forest'&&hash(wx*5.3,wz*4.7,SEED+6000)>0.993){
-        data[idx(lx,h,lz)]=B_BERRY_BUSH;}
+        if(data[idx(lx,h,lz)]!==B_WOOD)data[idx(lx,h,lz)]=B_BERRY_BUSH;}
       if((biome==='forest'||biome==='mountain')&&hash(wx*6.1,wz*5.3,SEED+6001)>0.994){
-        data[idx(lx,h,lz)]=B_MUSHROOM_BLOCK;}
+        if(data[idx(lx,h,lz)]!==B_WOOD)data[idx(lx,h,lz)]=B_MUSHROOM_BLOCK;}
       if((biome==='forest'||biome==='plain')&&hash(wx*7.3,wz*8.1,SEED+6002)>0.997){
-        data[idx(lx,h,lz)]=B_HERB_BLOCK;}
+        if(data[idx(lx,h,lz)]!==B_WOOD)data[idx(lx,h,lz)]=B_HERB_BLOCK;}
       if(biome==='forest'&&hash(wx*8.7,wz*9.3,SEED+6003)>0.987){
-        data[idx(lx,h,lz)]=B_NETTLES;}
+        if(data[idx(lx,h,lz)]!==B_WOOD)data[idx(lx,h,lz)]=B_NETTLES;}
     }
   }
-  for(var ti=0;ti<treeList.length;ti++){
-    var tr=treeList[ti];
-    if(tr.type==='round'){var lr2=tr.lr;for(var ldy=-lr2;ldy<=lr2;ldy++)for(var ldx=-lr2;ldx<=lr2;ldx++)for(var ldz=-lr2;ldz<=lr2;ldz++){if(Math.abs(ldx)+Math.abs(ldz)+Math.abs(ldy)>lr2+1)continue;var ly=tr.top+ldy;if(ly<0||ly>=CH)continue;if(getBlock(tr.wx+ldx,ly,tr.wz+ldz)===B_AIR)setBlockRaw(tr.wx+ldx,ly,tr.wz+ldz,B_LEAF);}}
-    else{var ph=tr.lr;for(var pdy2=-1;pdy2<=ph;pdy2++){var pr2=Math.max(0,Math.floor((ph-pdy2)*0.6));for(var pdx2=-pr2;pdx2<=pr2;pdx2++)for(var pdz2=-pr2;pdz2<=pr2;pdz2++){if(Math.abs(pdx2)+Math.abs(pdz2)>pr2)continue;var py2=tr.top+pdy2;if(py2<0||py2>=CH)continue;if(getBlock(tr.wx+pdx2,py2,tr.wz+pdz2)===B_AIR)setBlockRaw(tr.wx+pdx2,py2,tr.wz+pdz2,B_LEAF);}}}
+  for(var lxL=0;lxL<CS;lxL++)for(var lzL=0;lzL<CS;lzL++){
+    var wxL=ox+lxL,wzL=oz+lzL;
+    for(var tdx=-3;tdx<=3;tdx++)for(var tdz=-3;tdz<=3;tdz++){
+      var t=treeAt(wxL+tdx,wzL+tdz);if(!t)continue;
+      var top=t.h+t.th-1,fn=t.type==='pine'?pineLeafOff:oakLeafOff;
+      for(var dy=-3;dy<=1;dy++){
+        if(!fn(-tdx,dy,-tdz))continue;
+        var ly=top+dy;if(ly<0||ly>=CH)continue;
+        var ii=idx(lxL,ly,lzL);
+        if(!data[ii]||data[ii]===B_AIR)data[ii]=B_LEAF;
+      }
+    }
   }
   var chunkCX=cx*CS+8,chunkCZ=cz*CS+8;
   initCaveNet();
@@ -8955,14 +8996,15 @@ function schedulePlantRegrowth(wx,wy,wz,blockType){
 function growTreeAt(nx,nz){
   var nh=getH(nx,nz);
   if(nh<SEA_LEVEL||nh>SEA_LEVEL+60||isLake(nx,nz))return;
-  var th=4+Math.floor(Math.random()*4);
-  for(var ty=nh;ty<nh+th&&ty<CHUNK_HEIGHT;ty++)setBlockRaw(nx,ty,nz,B_WOOD);
-  for(var ldx=-2;ldx<=2;ldx++)for(var ldy=-1;ldy<=2;ldy++)for(var ldz=-2;ldz<=2;ldz++){
-    if(Math.abs(ldx)+Math.abs(ldz)+Math.abs(ldy)>3)continue;
-    var lly=nh+th+ldy;if(lly<0||lly>=CHUNK_HEIGHT)continue;
-    if(getBlock(nx+ldx,lly,nz+ldz)===B_AIR)setBlockRaw(nx+ldx,lly,nz+ldz,B_LEAF);
-  }
-  rebuildC(Math.floor(nx/CHUNK_SIZE),Math.floor(nz/CHUNK_SIZE));
+  var kind=getBiome(nx,nz)==='mountain'?'pine':'oak';
+  var th=kind==='pine'?7:5;
+  for(var ty=nh;ty<nh+th&&ty<CHUNK_HEIGHT;ty++)setBlock(nx,ty,nz,B_WOOD);
+  stampTreeLeaves(nx,nh+th-1,nz,kind,function(x,y,z){
+    if(y<0||y>=CHUNK_HEIGHT)return;
+    if(getBlock(x,y,z)===B_AIR)setBlock(x,y,z,B_LEAF);
+  });
+  var cx=Math.floor(nx/CHUNK_SIZE),cz=Math.floor(nz/CHUNK_SIZE);
+  rebuildC(cx,cz);rebuildC(cx-1,cz);rebuildC(cx+1,cz);rebuildC(cx,cz-1);rebuildC(cx,cz+1);
 }
 
 // Sapling planté → pousse en arbre après 5 min
