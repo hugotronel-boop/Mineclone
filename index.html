@@ -2650,7 +2650,7 @@ display: none !important;
     <div id="overlay-content">
       <h1>MINECLONE</h1>
       <div id="overlay-tagline">Survivre. Ou mourir.</div>
-      <div id="overlay-build">v59</div>
+      <div id="overlay-build">v60</div>
       <button type="button" id="continueBtn" onclick="window.continueGame&&window.continueGame()">Continuer</button>
       <button type="button" id="startBtn">Nouvelle partie</button>
       <button type="button" id="btn-settings-open" onclick="if(typeof openSettings==='function')openSettings();">Parametres</button>
@@ -5266,12 +5266,12 @@ function buildMesh(cx,cz){
     if(_buildRoot[sk]&&_buildRoot[sk]!==sk)continue;
     var sdir=_buildDir[sk]||0;
     var sg=new THREE.Group();
-    for(var si=0;si<7;si++){
-      var zz=-0.12+si*(2.0/6),yy=0.08+si*(2.0/6);
-      sg.add(wbox(si%2?bark:barkD,0.92,0.14,0.34,0,yy,zz));
+    for(var si=0;si<5;si++){
+      var zz=si*0.48-0.06,yy=si*0.5+0.07;
+      sg.add(wbox(si%2?bark:barkD,0.92,0.12,0.46,0,yy,zz));
     }
-    sg.add(wbox(ropeM,0.06,2.05,0.06,0.42,1.1,0.85));
-    sg.add(wbox(ropeM,0.06,2.05,0.06,-0.42,1.1,0.85));
+    sg.add(wbox(ropeM,0.06,2.1,0.06,0.42,1.12,0.9));
+    sg.add(wbox(ropeM,0.06,2.1,0.06,-0.42,1.12,0.9));
     sg.rotation.y=[0,-Math.PI/2,Math.PI,Math.PI/2][sdir];
     sg.position.set(swx+0.5,sy,swz+0.5);
     group.add(sg);
@@ -10385,21 +10385,38 @@ function stairSurfY(x,z,o){
   if(ls.along<-0.05||ls.along>2.08)return null;
   return o.y+Math.max(0,Math.min(2,ls.along))*1.08;
 }
+function stairTreadY(o,along,side){
+  if(side<0.02||side>0.98)return null;
+  if(along<-0.12||along>2.2)return null;
+  var steps=Math.min(4,Math.max(0,Math.floor(along*2+0.001)));
+  var h=o.y+steps*0.5;
+  if(along>=1.9)h=o.y+2.16;
+  return h;
+}
+function stairStepY(x,z,hintY){
+  var best=null,dy,yy,b,o,ls,h;
+  for(dy=-1;dy<=3;dy++){
+    yy=Math.floor(hintY)+dy;
+    b=getBlock(Math.floor(x),yy,Math.floor(z));
+    if(b!==B_STAIRS)continue;
+    o=stairOriginAt(Math.floor(x),yy,Math.floor(z));
+    ls=stairAlongSide(x,z,o);
+    h=stairTreadY(o,ls.along,ls.side);
+    if(h===null)continue;
+    if(best===null||h>best)best=h;
+  }
+  return best;
+}
 function walkUpSurface(x,z,feetY){
-  var best=null,dy,yy,b,o,h;
+  var h=stairStepY(x,z,feetY);
+  if(h!==null&&h>=feetY-0.12&&h<=feetY+0.55)return h;
+  var best=null,dy,yy,b;
   for(dy=-1;dy<=2;dy++){
     yy=Math.floor(feetY)+dy;
     b=getBlock(Math.floor(x),yy,Math.floor(z));
-    if(b===B_STAIRS){
-      o=stairOriginAt(Math.floor(x),yy,Math.floor(z));
-      var ls=stairAlongSide(x,z,o);
-      if(ls.side<0.08||ls.side>0.92)return null;
-      if(ls.along<0||ls.along>2.08)continue;
-      h=o.y+Math.max(0,Math.min(2,ls.along))*1.08;
-      if(h>=feetY-0.08&&h<=feetY+0.7){if(best===null||h>best)best=h;}
-    } else if(b===B_FLOOR){
+    if(b===B_FLOOR){
       h=yy+0.16;
-      if(h>=feetY-0.08&&h<=feetY+0.62){if(best===null||h>best)best=h;}
+      if(h>=feetY-0.08&&h<=feetY+0.55){if(best===null||h>best)best=h;}
     }
   }
   return best;
@@ -10412,9 +10429,10 @@ function isSolid(x,y,z){
   if(b===B_STAIRS){
     var o=stairOriginAt(fx,fy,fz);
     var ls=stairAlongSide(x,z,o);
-    if(ls.side<0.08||ls.side>0.92)return true;
-    if(ls.along<-0.02)return true;
-    var surf=o.y+Math.max(0,Math.min(2,ls.along))*1.08;
+    if(ls.side<0.02||ls.side>0.98)return true;
+    if(ls.along<-0.08)return true;
+    var surf=stairTreadY(o,ls.along,ls.side);
+    if(surf===null)return true;
     return y<surf;
   }
   return b&&b!==B_WATER&&b!==B_LEAF&&b!==B_AIR&&b!==B_BERRY_BUSH&&b!==B_BERRY_EMPTY&&b!==B_HERB_BLOCK&&b!==B_SAPLING&&b!==B_NETTLES&&b!==B_MUSHROOM_BLOCK&&b!==B_TORCH&&b!==B_WALL_NARROW;
@@ -10645,31 +10663,23 @@ function movePlayer(dt){
       var upZ=walkUpSurface(player.pos.x,nz,feet0);
       if(upZ!==null){player.pos.y=upZ+1.72;canZ=true;}
     }
-    var yF0=player.pos.y-1.62,stairHit=false;
-    if(!canX){for(var st=0;st<pts.length;st++){if(getBlock(Math.floor(nx+pts[st][0]),Math.floor(yF0),Math.floor(player.pos.z+pts[st][1]))===B_STAIRS){stairHit=true;break;}}}
-    if(!stairHit&&!canZ){for(var st2=0;st2<pts.length;st2++){if(getBlock(Math.floor(player.pos.x+pts[st2][0]),Math.floor(yF0),Math.floor(nz+pts[st2][1]))===B_STAIRS){stairHit=true;break;}}}
-    if(stairHit&&(!canX||!canZ)){
-      var lift=1.02,yF2=player.pos.y-1.62+lift,yW2=player.pos.y-0.9-_crouchY*0.4+lift,yH2=player.pos.y-0.1-_crouchY+lift;
-      var headOK=true;
-      for(var hs=0;hs<pts.length;hs++)if(isSolid(player.pos.x+pts[hs][0],player.pos.y+0.25+lift,player.pos.z+pts[hs][1])){headOK=false;break;}
-      if(headOK){
-        if(!canX){
-          var sxOK=true;
-          for(var s1=0;s1<pts.length;s1++)if(isSolid(nx+pts[s1][0],yF2,player.pos.z+pts[s1][1])||isSolid(nx+pts[s1][0],yW2,player.pos.z+pts[s1][1])||isSolid(nx+pts[s1][0],yH2,player.pos.z+pts[s1][1])){sxOK=false;break;}
-          if(sxOK){player.pos.y+=lift;canX=true;}
-        }
-        if(!canZ){
-          var szOK=true;
-          for(var s2=0;s2<pts.length;s2++)if(isSolid(player.pos.x+pts[s2][0],yF2,nz+pts[s2][1])||isSolid(player.pos.x+pts[s2][0],yW2,nz+pts[s2][1])||isSolid(player.pos.x+pts[s2][0],yH2,nz+pts[s2][1])){szOK=false;break;}
-          if(szOK){player.pos.y+=lift;canZ=true;}
-        }
-      }
-    }
   }
   if(canX)player.pos.x=nx;else player.vel.x=0;if(canZ)player.pos.z=nz;else player.vel.z=0;
-  player.onGround=false;var canY=true;
+  var onStair=false;
+  var follow=stairStepY(player.pos.x,player.pos.z,player.pos.y-1.72);
+  if(follow!==null){
+    var dyS=follow-(player.pos.y-1.72);
+    if(dyS>-0.2&&dyS<=0.55){
+      player.pos.y+=(follow+1.72-player.pos.y)*Math.min(1,dt*22);
+      player.vel.y=0;player.onGround=true;onStair=true;
+    }
+  }
+  var canY=true;
+  if(onStair){canY=false;}
+  else {player.onGround=false;
   if(player.vel.y<=0){for(var pi3=0;pi3<pts.length;pi3++)if(isSolid(player.pos.x+pts[pi3][0],ny-1.72,player.pos.z+pts[pi3][1])){canY=false;player.onGround=true;break;}}
   else if(player.vel.y>0){for(var pi4=0;pi4<pts.length;pi4++)if(isSolid(player.pos.x+pts[pi4][0],ny+0.2,player.pos.z+pts[pi4][1])){canY=false;break;}}
+  }
   if(canY)player.pos.y=ny;
   else {
     player.vel.y=0;
