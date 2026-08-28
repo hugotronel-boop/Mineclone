@@ -2648,7 +2648,7 @@ display: none !important;
     <div id="overlay-content">
       <h1>MINECLONE</h1>
       <div id="overlay-tagline">Survivre. Ou mourir.</div>
-      <div id="overlay-build">v48</div>
+      <div id="overlay-build">v49</div>
       <button type="button" id="continueBtn" onclick="window.continueGame&&window.continueGame()">Continuer</button>
       <button type="button" id="startBtn">Nouvelle partie</button>
       <button type="button" id="btn-settings-open" onclick="if(typeof openSettings==='function')openSettings();">Parametres</button>
@@ -6692,11 +6692,33 @@ function giveItem(id,qty,silent){
   if(bag)emptyRange(7,14);
   syncHotbar();
   if(left===qty){
-    showPopup('Inventaire plein!',player.pos.clone().add(new THREE.Vector3(0,2,0)));
+    showPopup('Inventaire plein !',player.pos.clone().add(new THREE.Vector3(0,2,0)));
     return false;
   }
   if(left>0)return left;
   return true;
+}
+function canFitItem(id){
+  if(!id)return false;
+  if(id===ITEM_PEBBLE&&_hasPouch&&_pouchAmmo<PEBBLE_POUCH_MAX)return true;
+  if(id===ITEM_ARROW&&_hasQuiver&&_quiverAmmo<QUIVER_MAX)return true;
+  var cap=(id===ITEM_PEBBLE||id===ITEM_ARROW)?5:64;
+  var max=(typeof hasBag==='function'&&hasBag())?14:7;
+  for(var i=0;i<max;i++){
+    if(!INV[i]||!INV[i].id)return true;
+    if(INV[i].id===id&&INV[i].qty<cap)return true;
+  }
+  return false;
+}
+function leftoverGive(id,qty,silent){
+  var r=giveItem(id,qty,silent);
+  if(r===true)return 0;
+  if(r===false)return qty;
+  return r;
+}
+function giveOrDrop(id,qty,x,y,z){
+  var left=leftoverGive(id,qty);
+  if(left>0&&typeof spawnWorldDrop==='function')spawnWorldDrop(id,left,x,y,z);
 }
 
 // Synchronise les icônes de la hotbar (INV 0-6)
@@ -8784,8 +8806,8 @@ function harvestBerryBush(x,y,z){
   if(getBlock(x,y,z)!==B_BERRY_BUSH)return false;
   setBlock(x,y,z,B_BERRY_EMPTY);
   var n=1+(Math.random()<0.5?1:0);
-  if(Math.random()<0.22)giveItem(ITEM_BERRY_TOXIC,1);
-  else giveItem(ITEM_BERRY,n);
+  var bid=(Math.random()<0.22)?ITEM_BERRY_TOXIC:ITEM_BERRY;
+  giveOrDrop(bid,bid===ITEM_BERRY?n:1,x+0.5,y+0.4,z+0.5);
   showPopup('Baies cueillies',new THREE.Vector3(x+0.5,y+1.2,z+0.5));
   _regrowQueue.push({type:'berryRipe',wx:x,wy:y,wz:z,timer:80+Math.random()*100});
   return true;
@@ -8793,8 +8815,8 @@ function harvestBerryBush(x,y,z){
 function pickupMushroomAt(x,y,z){
   if(getBlock(x,y,z)!==B_MUSHROOM_BLOCK)return false;
   setBlock(x,y,z,B_AIR);
-  if(Math.random()<0.35)giveItem(ITEM_MUSHROOM_TOXIC,1);
-  else giveItem(ITEM_MUSHROOM,1);
+  var mid=(Math.random()<0.35)?ITEM_MUSHROOM_TOXIC:ITEM_MUSHROOM;
+  giveOrDrop(mid,1,x+0.5,y+0.2,z+0.5);
   return true;
 }
 function updatePebbles(){
@@ -9764,7 +9786,7 @@ document.getElementById('loot-float-btn').addEventListener('pointerdown',functio
     if(btn._kind==='ammo'&&btn._ammo){
       var am=btn._ammo,ix=_spentAmmo.indexOf(am);
       if(ix>=0){
-        giveItem(am.id,1);
+        if(giveItem(am.id,1)===false)return;
         try{scene.remove(am.mesh);}catch(e){}
         _spentAmmo.splice(ix,1);
       }
@@ -12556,7 +12578,7 @@ function spawnWorldDrop(id,qty,x,y,z){
   if(FB.drops.length>48){
     var old=FB.drops[0];
     if(old&&old.mesh&&_fbGroup)_fbGroup.remove(old.mesh);
-    giveItem(old.id,old.qty,true);FB.drops.shift();
+    FB.drops.shift();
   }
   var ic=document.createElement('canvas');
   if(typeof paintItemToCanvas==='function')paintItemToCanvas(ic,id,16);
@@ -12602,15 +12624,18 @@ function fbUpdate(dt){
     dr.life-=dt;
     var dx=ppx-dr.x,dy=ppy-dr.y,dz=ppz-dr.z;
     var dist=Math.sqrt(dx*dx+dy*dy+dz*dz);
-    if(dist<2.2)dr.magnet=true;
+    if(dist<2.2&&canFitItem(dr.id))dr.magnet=true;
+    else if(dist<2.2)dr.magnet=false;
     if(dr.magnet){
       var sp=14;
       dr.vx=dx*sp;dr.vy=dy*sp;dr.vz=dz*sp;
       dr.x+=dr.vx*dt;dr.y+=dr.vy*dt;dr.z+=dr.vz*dt;
-      if(dist<0.45||dr.life<=0){
-        giveItem(dr.id,dr.qty,true);
+      if(dist<0.45){
+        var took=dr.qty, left=leftoverGive(dr.id,dr.qty,true);
+        if(left>=took){dr.magnet=false;dr.vx=0;dr.vz=0;continue;}
+        if(left>0){dr.qty=left;dr.magnet=false;continue;}
         playSoundPickup();
-        fbToast('+' + dr.qty + ' ' + (BNAMES[dr.id]||''));
+        fbToast('+' + took + ' ' + (BNAMES[dr.id]||''));
         fbPulse('block-name');
         if(_fbGroup)_fbGroup.remove(dr.mesh);
         FB.drops.splice(d,1);
@@ -12635,7 +12660,6 @@ function fbUpdate(dt){
     dr.mesh.position.set(dr.x,dr.y,dr.z);
     dr.mesh.rotation.y=(dr.mesh.rotation.y||0)+dt*dr.spin;
     if(dr.life<=0){
-      giveItem(dr.id,dr.qty,true);
       if(_fbGroup)_fbGroup.remove(dr.mesh);
       FB.drops.splice(d,1);
     }
