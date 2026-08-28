@@ -2768,7 +2768,7 @@ var THREE = (function () {
       'varying vec2 vUV;varying float vFog;varying float vBr;'+
       'void main(){float br=min(vBr+uAmbient,1.0);'+
       'vec4 col=mix(texture2D(uTex,vUV)*vec4(br,br,br,1.0),uColor,uUseColor);'+
-      'col.rgb=mix(col.rgb,uFogColor,vFog);if(col.a<0.5)discard;gl_FragColor=col;}'
+      'col.rgb=mix(col.rgb,uFogColor,vFog);if(col.a<0.05)discard;gl_FragColor=col;}'
     );
     var p=this._prog;
     this._loc={mvp:gl.getUniformLocation(p,'uMVP'),fogNear:gl.getUniformLocation(p,'uFogNear'),
