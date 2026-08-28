@@ -2648,7 +2648,7 @@ display: none !important;
     <div id="overlay-content">
       <h1>MINECLONE</h1>
       <div id="overlay-tagline">Survivre. Ou mourir.</div>
-      <div id="overlay-build">v47</div>
+      <div id="overlay-build">v48</div>
       <button type="button" id="continueBtn" onclick="window.continueGame&&window.continueGame()">Continuer</button>
       <button type="button" id="startBtn">Nouvelle partie</button>
       <button type="button" id="btn-settings-open" onclick="if(typeof openSettings==='function')openSettings();">Parametres</button>
@@ -9989,26 +9989,43 @@ function nearHas(x,y,z,test,y0,y1){
   }
   return false;
 }
+function wallTopY(x,y,z){
+  if(!isWallB(getBlock(x,y,z))){
+    if(isWallB(getBlock(x,y-1,z)))y=y-1;
+    else return -1;
+  }
+  while(isWallB(getBlock(x,y+1,z)))y++;
+  return y;
+}
+function snapFloorY(px,py,pz){
+  var t=wallTopY(px,py,pz);
+  if(t<0)t=wallTopY(px,py-1,pz);
+  if(t>=0)return t+1;
+  return py;
+}
 function validateBuild(blockId,cells){
-  var i,c,below,walls=0,terrain=0,floorOk=0,w=0,f=0,r=0,botY=cells[0].y;
+  var i,c,below,walls=0,terrain=0,floorOk=0,w=0,f=0,r=0,botY=cells[0].y,sup=0;
   if(blockId===B_FLOOR){
     for(i=0;i<cells.length;i++){
       c=cells[i];below=getBlock(c.x,c.y-1,c.z);
       if(isRoofB(below))return {ok:false,msg:"Pas d'étage au-dessus d'un toit"};
-      if(isWallB(below))walls++;
-      else if(below&&below!==B_AIR&&below!==B_WATER&&!isFloorB(below))terrain++;
+      if(isWallB(below)||isWallB(getBlock(c.x,c.y-2,c.z)))walls++;
+      else if(below===B_STAIRS||isFloorB(below))walls++;
+      else if(below&&below!==B_AIR&&below!==B_WATER&&below!==B_LEAF)terrain++;
+      else if(nearHas(c.x,c.y-1,c.z,isWallB,0,0)||nearHas(c.x,c.y,c.z,isWallB,0,0))walls++;
     }
-    if(walls>=2)return {ok:true};
-    if(terrain>=2)return {ok:true};
-    return {ok:false,msg:'Plancher : sol naturel ou murs en dessous'};
+    if(walls>=1||terrain>=1)return {ok:true};
+    return {ok:false,msg:'Plancher : sur le sol, sur des murs, ou contre un mur'};
   }
   if(blockId===B_WALL||blockId===B_WALL_NARROW){
     for(i=0;i<cells.length;i++)if(cells[i].y<botY)botY=cells[i].y;
     for(i=0;i<cells.length;i++){
       c=cells[i];if(c.y!==botY)continue;
-      if(isFloorB(getBlock(c.x,c.y,c.z))||isFloorB(getBlock(c.x,c.y-1,c.z))||nearHas(c.x,c.y,c.z,isFloorB,-1,0))floorOk++;
+      below=getBlock(c.x,c.y-1,c.z);
+      if(isFloorB(below)||isWallB(below)||below===B_STAIRS)sup++;
+      else if(below&&below!==B_AIR&&below!==B_WATER&&below!==B_LEAF)sup++;
     }
-    if(floorOk<1)return {ok:false,msg:'Il faut un plancher pour poser un mur'};
+    if(sup<1)return {ok:false,msg:'Mur : pose sur le sol, un plancher ou un autre mur'};
     return {ok:true};
   }
   if(blockId===B_ROOF){
@@ -10026,6 +10043,7 @@ function validateBuild(blockId,cells){
   return {ok:true};
 }
 function finishBuildPiece(px,py,pz,blockId,withWin){
+  if(blockId===B_FLOOR)py=snapFloorY(px,py,pz);
   var dxp=player.pos.x-(px+0.5),dzp=player.pos.z-(pz+0.5);
   var ddir=Math.abs(dxp)>Math.abs(dzp)?(dxp>0?3:1):(dzp>0?0:2);
   var kind=blockId===B_WALL?'wall':(blockId===B_WALL_NARROW?'wall1':(blockId===B_FLOOR?'floor':'roof'));
