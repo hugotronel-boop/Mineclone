@@ -2660,7 +2660,7 @@ display: none !important;
     <div id="overlay-content">
       <h1>MINECLONE</h1>
       <div id="overlay-tagline">Survivre. Ou mourir.</div>
-      <div id="overlay-build">v74</div>
+      <div id="overlay-build">v75</div>
       <button type="button" id="continueBtn" onclick="window.continueGame&&window.continueGame()">Continuer</button>
       <button type="button" id="startBtn">Nouvelle partie</button>
       <button type="button" id="btn-settings-open" onclick="if(typeof openSettings==='function')openSettings();">Parametres</button>
@@ -3404,30 +3404,29 @@ function makeLeafTex(){
 }
 var _waterShared=null,_waterAnimT=0,_waterPhase=0;
 var _WAT_PAL=[
-  [18,72,168,185],
-  [24,88,188,192],
-  [32,108,210,200],
-  [48,138,230,210],
-  [72,168,245,220],
-  [140,210,255,230]
+  [38,96,198,200],
+  [42,104,206,200],
+  [46,112,214,200],
+  [52,122,222,205],
+  [58,132,228,205]
 ];
 var _WAT_MAP=[
-  '1223322112233221',
-  '2334433223344332',
-  '3445544334455443',
-  '2334433223344332',
-  '1223322112233221',
-  '2112233221122332',
-  '3223344332233443',
-  '2112233221122332',
-  '1223322112233221',
-  '2334433223344332',
-  '3445544334455443',
-  '2334433223344332',
-  '1223322112233221',
-  '2112233221122332',
-  '3223344332233443',
-  '2112233221122332'
+  '1222123212212321',
+  '2123212212321222',
+  '2212232122123212',
+  '3221223212212232',
+  '2123212212321221',
+  '2212232122132122',
+  '1222123212212321',
+  '2321221223212212',
+  '2123212212232122',
+  '2212232122123212',
+  '1222123212321222',
+  '2321221222123212',
+  '2123212212212321',
+  '2212232123212212',
+  '1222123212212232',
+  '2321221223212212'
 ];
 function blitMinecraftWater(ctx,phase){
   var img=ctx.createImageData(16,16),d=img.data;
@@ -5144,27 +5143,14 @@ function buildMesh(cx,cz){
     return getBlock(ox+lx,ly,oz+lz);
   }
   for(var y=0;y<maxY;y++){
-    var wvis=new Uint8Array(CS*CS);
     for(var lz=0;lz<CS;lz++)for(var lx=0;lx<CS;lx++){
-      if(wvis[lx+lz*CS])continue;
       if(getD(lx,y,lz)!==B_WATER)continue;
       if(waterNb(lx,y+1,lz)===B_WATER)continue;
-      var ww=1;
-      while(lx+ww<CS&&!wvis[lx+ww+lz*CS]&&getD(lx+ww,y,lz)===B_WATER&&waterNb(lx+ww,y+1,lz)!==B_WATER)ww++;
-      var wd=1,wok=true;
-      while(lz+wd<CS&&wok){
-        for(var tx=0;tx<ww;tx++){
-          if(wvis[lx+tx+(lz+wd)*CS]||getD(lx+tx,y,lz+wd)!==B_WATER||waterNb(lx+tx,y+1,lz+wd)===B_WATER){wok=false;break;}
-        }
-        if(wok)wd++;
-      }
-      for(var dz=0;dz<wd;dz++)for(var dx=0;dx<ww;dx++)wvis[lx+dx+(lz+dz)*CS]=1;
-      var x0=ox+lx,z0=oz+lz,x1=x0+ww,z1=z0+wd,ty=y+WATER_TOP,wq=wC;
-      wP.push(x0,ty,z1, x1,ty,z1, x1,ty,z0, x0,ty,z0);
-      wU.push(x0,z1, x1,z1, x1,z0, x0,z0);
+      var x0=ox+lx,z0=oz+lz,ty=y+WATER_TOP,wq=wC;
+      wP.push(x0,ty,z0+1, x0+1,ty,z0+1, x0+1,ty,z0, x0,ty,z0);
+      wU.push(0,1, 1,1, 1,0, 0,0);
       for(var wb=0;wb<4;wb++)wB.push(1.0);
       wI.push(wq,wq+1,wq+2, wq,wq+2,wq+3);
-      wI.push(wq,wq+3,wq+2, wq,wq+2,wq+1);
       wC+=4;
     }
   }
@@ -5180,7 +5166,6 @@ function buildMesh(cx,cz){
       wU.push(0,1, 1,1, 1,0, 0,0);
       for(var wb3=0;wb3<4;wb3++)wB.push(0.85);
       wI.push(wq3,wq3+1,wq3+2, wq3,wq3+2,wq3+3);
-      wI.push(wq3,wq3+3,wq3+2, wq3,wq3+2,wq3+1);
       wC+=4;
     }
   }
