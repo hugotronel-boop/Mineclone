@@ -1001,6 +1001,15 @@ transition: opacity 1.5s;
 }
 #rain-canvas.active { opacity: 1; }
 
+#night-dark {
+position: fixed;
+inset: 0;
+pointer-events: none;
+z-index: 18;
+opacity: 0;
+transition: opacity 1.1s ease, background 0.8s ease;
+background: radial-gradient(circle at 50% 48%, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.96) 60%);
+}
 #fog-overlay {
 position: fixed;
 inset: 0;
@@ -2329,6 +2338,7 @@ display: none !important;
 <canvas id="rain-canvas"></canvas>
 
   <div id="fog-overlay"></div>
+  <div id="night-dark"></div>
   <div id="crack-overlay"><canvas id="crack-lines-canvas" style="position:fixed;transform:translate(-50%,-50%);pointer-events:none;image-rendering:pixelated;"></canvas></div>
   <!-- Lance-pierre / Arc overlay -->
   <div id="sling-overlay">
@@ -2650,7 +2660,7 @@ display: none !important;
     <div id="overlay-content">
       <h1>MINECLONE</h1>
       <div id="overlay-tagline">Survivre. Ou mourir.</div>
-      <div id="overlay-build">v72</div>
+      <div id="overlay-build">v73</div>
       <button type="button" id="continueBtn" onclick="window.continueGame&&window.continueGame()">Continuer</button>
       <button type="button" id="startBtn">Nouvelle partie</button>
       <button type="button" id="btn-settings-open" onclick="if(typeof openSettings==='function')openSettings();">Parametres</button>
@@ -3081,7 +3091,7 @@ function updateVolFog(intensity){
   var r=col.r,g=col.g,b=col.b;
 
   // Intensité : météo brouillard + nuit + pluie
-  var nightBoost=(phase==='night')?0.25:(phase==='dusk'||phase==='dawn')?0.1:0;
+  var nightBoost=(phase==='night')?0.55:(phase==='dusk'||phase==='dawn')?0.22:0;
   var rainBoost=wxm.rain?0.15:0;
   var effectiveIntensity=Math.min(1, intensity + nightBoost + rainBoost);
 
@@ -13311,14 +13321,14 @@ function animate(now){
   // Cycle jour/nuit
   if(!_sleeping)dayTime=(dayTime+dt)%DAY_CYCLE_TOTAL;var t=dayTime,phaseT;
   if(t<DAY_DURATION){phase='day';phaseT=t/DAY_DURATION;}else if(t<DAY_DURATION+DUSK_DURATION){phase='dusk';phaseT=(t-DAY_DURATION)/DUSK_DURATION;}else if(t<DAY_DURATION+DUSK_DURATION+NIGHT_DURATION){phase='night';phaseT=(t-DAY_DURATION-DUSK_DURATION)/NIGHT_DURATION;}else{phase='dawn';phaseT=(t-DAY_DURATION-DUSK_DURATION-NIGHT_DURATION)/DAWN_DURATION;}
-  var SD=[0.529,0.808,0.922],SDK=[0.92,0.45,0.18],SN=[0.02,0.02,0.08],SDW=[0.82,0.40,0.22];
+  var SD=[0.529,0.808,0.922],SDK=[0.92,0.45,0.18],SN=[0.004,0.005,0.012],SDW=[0.82,0.40,0.22];
   function lC(a,b,k){return[a[0]+(b[0]-a[0])*k,a[1]+(b[1]-a[1])*k,a[2]+(b[2]-a[2])*k];}
   function lF(a,b,k){return a+(b-a)*k;}
   var sm=phaseT*phaseT*(3-2*phaseT),skyRGB,ambientBoost;
   if(phase==='day'){skyRGB=SD;ambientBoost=0;}
-  else if(phase==='dusk'){skyRGB=sm<0.5?lC(SD,SDK,sm*2):lC(SDK,SN,(sm-0.5)*2);ambientBoost=lF(0,-0.55,sm);}
-  else if(phase==='night'){skyRGB=SN;ambientBoost=-0.55;}
-  else{skyRGB=sm<0.5?lC(SN,SDW,sm*2):lC(SDW,SD,(sm-0.5)*2);ambientBoost=lF(-0.55,0,sm);}
+  else if(phase==='dusk'){skyRGB=sm<0.5?lC(SD,SDK,sm*2):lC(SDK,SN,(sm-0.5)*2);ambientBoost=lF(0,-0.94,sm);}
+  else if(phase==='night'){skyRGB=SN;ambientBoost=-0.94;}
+  else{skyRGB=sm<0.5?lC(SN,SDW,sm*2):lC(SDW,SD,(sm-0.5)*2);ambientBoost=lF(-0.94,0,sm);}
   if(isInWater(player.pos.x,player.pos.y,player.pos.z)){skyRGB=[0.04,0.25,0.50];ambientBoost=-0.45;}
 
   // Météo : modifie couleur de ciel et brouillard 3D
@@ -13356,20 +13366,40 @@ function animate(now){
   // Torches (boost amplifié dans le brouillard — flamme qui perce)
   var torchBoost=0,px0=Math.floor(player.pos.x),py0=Math.floor(player.pos.y),pz0=Math.floor(player.pos.z);
   var torchFogMult=1.0+_fogIntensity*0.5; // torches brillent plus dans le brouillard
-  for(var tx=-6;tx<=6;tx++)for(var ty=-6;ty<=6;ty++)for(var tz=-6;tz<=6;tz++){
-    if(tx*tx+ty*ty+tz*tz>36)continue;
+  for(var tx=-8;tx<=8;tx++)for(var ty=-6;ty<=6;ty++)for(var tz=-8;tz<=8;tz++){
+    if(tx*tx+ty*ty+tz*tz>80)continue;
     var lb=getBlock(px0+tx,py0+ty,pz0+tz);
     var d6=Math.sqrt(tx*tx+ty*ty+tz*tz);
     if(lb===B_TORCH){
-      // Torche : lumière forte, portée 6 blocs
-      torchBoost=Math.max(torchBoost,0.6*torchFogMult*(1-d6/6));
+      torchBoost=Math.max(torchBoost,0.82*torchFogMult*(1-d6/8));
     } else if(lb===B_CAMPFIRE||lb===B_GRILL){
-      // Feu de camp / grille : lumière plus douce, portée 6 blocs mais intensité réduite
-      torchBoost=Math.max(torchBoost,0.35*torchFogMult*(1-d6/7));
+      torchBoost=Math.max(torchBoost,0.55*torchFogMult*(1-d6/8));
     }
   }
-  var heldSlot=INV[selectedSlot];if(heldSlot&&heldSlot.id===ITEM_TORCH&&heldSlot.qty>0){torchBoost=Math.max(torchBoost,0.6*torchFogMult);_heldTorchTimer+=dt;if(_heldTorchTimer>=60){_heldTorchTimer=0;heldSlot.qty--;if(heldSlot.qty<=0){heldSlot.id=0;heldSlot.qty=0;}syncHotbar();if(!heldSlot.qty)showPopup('🔥 Torche consumée!',player.pos.clone().add(new THREE.Vector3(0,1.5,0)));}}else _heldTorchTimer=0;
-  renderer._ambient=Math.min(ambientBoost+torchBoost,0.35);
+  var heldSlot=INV[selectedSlot];if(heldSlot&&heldSlot.id===ITEM_TORCH&&heldSlot.qty>0){torchBoost=Math.max(torchBoost,0.9*torchFogMult);_heldTorchTimer+=dt;if(_heldTorchTimer>=60){_heldTorchTimer=0;heldSlot.qty--;if(heldSlot.qty<=0){heldSlot.id=0;heldSlot.qty=0;}syncHotbar();if(!heldSlot.qty)showPopup('🔥 Torche consumée!',player.pos.clone().add(new THREE.Vector3(0,1.5,0)));}}else _heldTorchTimer=0;
+  var nightDark=(phase==='night')||(phase==='dusk'&&sm>0.45);
+  if(nightDark){
+    if(torchBoost<0.15){
+      renderer._fogNear=1.8;renderer._fogFar=8.5;
+      renderer._fogColor=[0.01,0.012,0.03];
+    } else {
+      renderer._fogNear=3.0;renderer._fogFar=16+torchBoost*12;
+      renderer._fogColor=[0.18,0.10,0.03];
+    }
+  }
+  renderer._ambient=Math.min(ambientBoost+torchBoost, nightDark?0.10:0.35);
+  var nd=document.getElementById('night-dark');
+  if(nd){
+    if(nightDark||phase==='dusk'||phase==='dawn'){
+      var o=(phase==='night')?1:Math.max(0.2,sm);
+      nd.style.opacity=String(o);
+      if(torchBoost>=0.15){
+        nd.style.background='radial-gradient(circle at 50% 46%, rgba(255,170,70,0.07) 0%, rgba(0,0,0,0.12) 16%, rgba(0,0,0,0.55) 42%, rgba(0,0,0,0.92) 78%)';
+      } else {
+        nd.style.background='radial-gradient(circle at 50% 48%, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0.78) 24%, rgba(0,0,0,0.96) 58%)';
+      }
+    } else {nd.style.opacity='0';}
+  }
 
   var pIcon={day:'☀️',dusk:'🌅',night:'🌙',dawn:'🌄'},minLeft=Math.ceil((DAY_CYCLE_TOTAL-dayTime)/60);
   document.getElementById('daytime-hud').textContent=pIcon[phase]+' '+minLeft+'min';
