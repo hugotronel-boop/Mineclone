@@ -3060,6 +3060,7 @@ function updateWeather(dt){
   _fogIntensity+=(targetFog-_fogIntensity)*dt*0.3;
 
   // DOM overlays
+  updatePlayerShelter(dt);
   var rainEl=document.getElementById('rain-canvas');
   var fogEl=document.getElementById('fog-overlay');
   var coldEl=document.getElementById('cold-vignette');
