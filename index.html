@@ -2660,7 +2660,7 @@ display: none !important;
     <div id="overlay-content">
       <h1>MINECLONE</h1>
       <div id="overlay-tagline">Survivre. Ou mourir.</div>
-      <div id="overlay-build">v77</div>
+      <div id="overlay-build">v78</div>
       <button type="button" id="continueBtn" onclick="window.continueGame&&window.continueGame()">Continuer</button>
       <button type="button" id="startBtn">Nouvelle partie</button>
       <button type="button" id="btn-settings-open" onclick="if(typeof openSettings==='function')openSettings();">Parametres</button>
@@ -3063,7 +3063,7 @@ function updateWeather(dt){
   var rainEl=document.getElementById('rain-canvas');
   var fogEl=document.getElementById('fog-overlay');
   var coldEl=document.getElementById('cold-vignette');
-  if(rainEl)rainEl.classList.toggle('active',_rainIntensity>0.05);
+  if(rainEl)rainEl.classList.toggle('active',_rainIntensity>0.05&&!_playerSheltered);
   if(coldEl)coldEl.classList.toggle('active',weather.current==='cold'||(weather.transitioning&&weather.next==='cold'));
   // Brouillard volumétrique dynamique
   updateVolFog(_fogIntensity);
@@ -3125,6 +3125,8 @@ function updateVolFog(intensity){
 
 function renderRain(){
   if(!_rainCtx||_rainIntensity<0.02)return;
+  updatePlayerShelter(0.2);
+  if(_playerSheltered){_rainCtx.clearRect(0,0,_rainCanvas.width,_rainCanvas.height);return;}
   var W=_rainCanvas.width,H=_rainCanvas.height;
   _rainCtx.clearRect(0,0,W,H);
   _rainCtx.save();
@@ -7553,12 +7555,29 @@ function updateSleep(dt){
 
 
 var _collectors={};
-function collectorOpenSky(x,y,z){
-  for(var yy=y+1;yy<y+16&&yy<CHUNK_HEIGHT;yy++){
-    var b=getBlock(x,yy,z);
-    if(b&&b!==B_AIR&&b!==B_LEAF)return false;
-  }
+function blocksRain(b){
+  if(!b||b===B_AIR||b===B_WATER)return false;
+  if(b===B_BERRY_BUSH||b===B_BERRY_EMPTY||b===B_HERB_BLOCK||b===B_NETTLES||b===B_SAPLING||b===B_TORCH||b===B_MUSHROOM_BLOCK||b===B_FENCE||b===B_CAMPFIRE||b===B_GRILL||b===B_DOOR)return false;
   return true;
+}
+function skyBlockedAt(x,y,z){
+  var bx=Math.floor(x),by=Math.floor(y),bz=Math.floor(z);
+  for(var yy=by+1;yy<CHUNK_HEIGHT;yy++){
+    if(blocksRain(getBlock(bx,yy,bz)))return true;
+  }
+  return false;
+}
+var _playerSheltered=false,_shelterT=0;
+function updatePlayerShelter(dt){
+  _shelterT+=dt||0.2;
+  if(_shelterT<0.12)return _playerSheltered;
+  _shelterT=0;
+  if(!player||!player.pos)_playerSheltered=false;
+  else _playerSheltered=skyBlockedAt(player.pos.x,player.pos.y,player.pos.z);
+  return _playerSheltered;
+}
+function collectorOpenSky(x,y,z){
+  return !skyBlockedAt(x+0.5,y,z+0.5);
 }
 function tryUseCollector(bx,by,bz,b){
   var pos=new THREE.Vector3(bx+0.5,by+1.4,bz+0.5);
@@ -12599,8 +12618,8 @@ function updateAudio(dt){
 
   // Pluie
   var wx=getWeatherMods();
-  if(wx.rain&&_rainIntensity>0.1)playRainAmbi(_rainIntensity);
-  else if(!wx.rain)stopRainAmbi();
+  if(wx.rain&&_rainIntensity>0.1&&!_playerSheltered)playRainAmbi(_rainIntensity);
+  else stopRainAmbi();
 
   // Feu de camp proche
   var pxF=Math.floor(player.pos.x),pyF=Math.floor(player.pos.y),pzF=Math.floor(player.pos.z);
